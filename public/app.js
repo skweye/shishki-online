@@ -86,8 +86,7 @@ function render() {
   renderBoard(); renderHistory();
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
-  $('local-tab').classList.toggle('active', mode === 'local'); $('local-tab').setAttribute('aria-pressed', mode === 'local');
-  $('online-tab').classList.toggle('active', mode === 'online'); $('online-tab').setAttribute('aria-pressed', mode === 'online');
+  $('game-panel-title').textContent = mode === 'local' ? 'За одной доской' : 'С другом онлайн';
   $('mode-badge').textContent = mode === 'local' ? 'ЛОКАЛЬНО' : 'ОНЛАЙН';
   $('online-controls').hidden = mode === 'local'; $('local-note').hidden = mode !== 'local';
   $('online-lobby').hidden = !!room; $('room-controls').hidden = !room;
@@ -193,7 +192,7 @@ function enterRoom(code, data) {
   storage.set('shashki-room-' + code, data.token);
   selected = game.forced; flipped = room.role === 'black';
   const url = new URL(location.href); url.searchParams.set('room', code); history.replaceState(null, '', url);
-  render(); connect();
+  showScreen('game'); render(); connect();
 }
 async function join(code) {
   const data = await api(`/api/rooms/${code}/join`, { token: storage.get('shashki-room-' + code) });
@@ -210,17 +209,50 @@ function leave() {
   disconnect(); room = null; selected = null; game = savedLocal; flipped = false;
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
-function switchMode(next) {
-  if (mode === next) return;
-  const action = () => { if (mode === 'local') savedLocal = game; if (room) leave(); mode = next; game = next === 'local' ? savedLocal : newGame(); selected = game.forced; render(); };
-  if (room) confirm('Вернуться к локальной игре?', 'Онлайн-партия сохранится. Вернуться можно по ссылке на комнату в этом браузере.', action, 'Вернуться');
+function showScreen(screen) {
+  $('home-screen').hidden = screen !== 'home';
+  $('game-screen').hidden = screen !== 'game';
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  if (screen === 'home') { updateStart(); $('home-title').focus({ preventScroll: true }); }
+  else $('home-button').focus({ preventScroll: true });
+}
+function goHome() {
+  const action = () => {
+    if (mode === 'local') savedLocal = game;
+    leave(); mode = 'local'; showScreen('home'); render();
+  };
+  if (room) confirm('Вернуться на главную?', 'Вы отключитесь от комнаты. Партия сохранится — вернуться можно по ссылке приглашения в этом браузере.', action, 'На главную');
   else action();
 }
-$('local-tab').onclick = () => switchMode('local');
-$('online-tab').onclick = () => switchMode('online');
+function updateStart() {
+  const local = $('start-form').elements['play-mode'].value === 'local';
+  const resume = local && !savedLocal.winner && (savedLocal.history.length || savedLocal.path.length);
+  $('start-button').innerHTML = `${local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
+  $('start-hint').textContent = local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
+}
+$('home-button').onclick = goHome;
+document.querySelector('.brand').onclick = event => { event.preventDefault(); goHome(); };
+$('start-form').onchange = updateStart;
+$('start-form').onsubmit = async event => {
+  event.preventDefault();
+  if ($('start-button').disabled) return;
+  if ($('start-form').elements['play-mode'].value === 'local') {
+    mode = 'local'; game = savedLocal;
+    if (game.winner) { game = newGame(); localSave(); }
+    selected = game.forced; flipped = false; showScreen('game'); render();
+    return;
+  }
+  $('start-button').disabled = true; $('home-join-button').disabled = true;
+  $('start-button').textContent = 'Создаём комнату…';
+  try { const data = await api('/api/rooms'); enterRoom(data.code, data); }
+  catch (error) { toast(error.message || 'Не удалось создать комнату. Попробуйте ещё раз.'); }
+  finally { $('start-button').disabled = false; $('home-join-button').disabled = false; updateStart(); }
+};
 $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
 $('rules-button').onclick = () => $('rules-dialog').showModal();
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
+$('home-join-button').onclick = $('join-button').onclick;
+$('theme-button').onclick = () => $('theme-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target !== dialog) return;
@@ -259,10 +291,10 @@ $('draw-button').onclick = () => send({ type: 'draw' });
 $('accept-draw').onclick = () => send({ type: 'draw' });
 $('decline-draw').onclick = () => send({ type: 'decline-draw' });
 
-render();
+updateStart(); render();
 const invite = new URL(location.href).searchParams.get('room');
 if (invite) {
-  mode = 'online'; render(); $('status-title').textContent = 'Открываем комнату…';
+  mode = 'online'; showScreen('game'); render(); $('status-title').textContent = 'Открываем комнату…';
   try { await join(extractCode(invite)); }
   catch (error) { toast(error.message); $('status-title').textContent = 'Не удалось войти'; $('status-text').textContent = error.message; }
 }

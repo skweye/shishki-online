@@ -1,23 +1,43 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="mocha">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f3ed">
+  <meta name="theme-color" content="#29211e">
   <meta name="description" content="Русские шашки онлайн. Создайте комнату, пригласите друга по ссылке и сыграйте партию без регистрации.">
   <title>Шашки — хорошая партия начинается здесь</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/themes.css">
+  <link rel="stylesheet" href="/home.css">
+  <script src="/theme.js"></script>
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a>
     <span class="header-caption">Простая игра. Красивые решения.</span>
-    <button class="text-button" id="rules-button"><span aria-hidden="true">ⓘ</span> Как играть</button>
+    <div class="header-actions"><button class="text-button" id="theme-button"><span aria-hidden="true">◐</span> Темы</button><button class="text-button" id="rules-button"><span aria-hidden="true">ⓘ</span> Как играть</button></div>
   </header>
 
   <main>
+    <section id="home-screen" aria-labelledby="home-title">
+      <div class="home-hero">
+        <div><div class="eyebrow"><span></span> ДВОЕ ИГРОКОВ. МНОЖЕСТВО РЕШЕНИЙ.</div><h1 id="home-title" tabindex="-1">Хорошая компания.<br><em>Отличная партия.</em></h1><p>Рядом или на расстоянии — встречайтесь за доской.<br>Выберите, как играть, и сделайте первый ход.</p><div class="hero-details"><span>Без регистрации</span><span>Без таймера</span><span>В вашем темпе</span></div></div>
+        <div class="hero-art" aria-hidden="true"><div class="art-board"><i class="art-piece art-white"></i><i class="art-piece art-black"></i><i class="art-piece art-white second"></i><i class="art-piece art-black second"></i></div><span class="art-caption">ОДНА ДОСКА — ДВЕ СТРАТЕГИИ</span></div>
+      </div>
+      <form id="start-form" class="setup-panel">
+        <fieldset class="play-options"><legend><span class="step-number">01</span> С кем играем?</legend><div class="play-options-grid">
+          <label class="play-option"><input type="radio" name="play-mode" value="online" checked><span class="play-option-content"><span class="option-top"><span class="option-icon" aria-hidden="true">↗</span><span class="choice-dot"></span></span><strong>С другом онлайн</strong><span class="option-description">Создайте комнату и отправьте ссылку.<br> У каждого — свой экран.</span><span class="option-tag">ДВА УСТРОЙСТВА · ОДНА ССЫЛКА</span></span></label>
+          <label class="play-option"><input type="radio" name="play-mode" value="local"><span class="play-option-content"><span class="option-top"><span class="option-icon" aria-hidden="true">▦</span><span class="choice-dot"></span></span><strong>На одном устройстве</strong><span class="option-description">Сядьте рядом и ходите по очереди.<br> Всё как за настоящей доской.</span><span class="option-tag">ДВА ИГРОКА · ОДИН ЭКРАН</span></span></label>
+        </div></fieldset>
+        <fieldset class="variant-options"><legend><span class="step-number">02</span> Режим игры</legend><label class="variant-option"><input type="radio" name="variant" value="russian" checked><span class="variant-symbol" aria-hidden="true">▦</span><span><strong>Русские шашки</strong><small>Классическая доска 8 × 8 · Без таймера</small></span><span class="variant-check" aria-hidden="true">✓</span></label><p class="coming-soon">Больше вариантов игры — скоро.</p></fieldset>
+        <div class="start-row"><p id="start-hint">Комната будет готова сразу. Останется пригласить друга.</p><button class="primary-button" id="start-button" type="submit">Создать комнату <span aria-hidden="true">↗</span></button></div>
+      </form>
+      <div class="home-invite"><span>Уже есть приглашение?</span><button class="text-button" id="home-join-button">Войти по коду или ссылке <span aria-hidden="true">↗</span></button></div>
+    </section>
+    <section id="game-screen" hidden aria-label="Партия">
+    <button class="text-button back-button" id="home-button">← На главную</button>
     <section class="page-heading">
       <div><div class="eyebrow"><span></span> ВРЕМЯ ДЛЯ ХОРОШЕЙ ПАРТИИ</div><h1>Ваш следующий ход.</h1><p>Знакомая доска. Новый соперник. Всё решает стратегия.</p></div>
       <div class="rule-chip"><span class="mini-board" aria-hidden="true">▦</span><div>Русские шашки<small>8 × 8 · Без таймера</small></div></div>
@@ -33,8 +53,7 @@
 
       <aside class="sidebar">
         <section class="panel game-panel">
-          <div class="panel-heading"><h2>За одной доской</h2><span class="badge" id="mode-badge">ЛОКАЛЬНО</span></div>
-          <div class="mode-tabs" aria-label="Режим игры"><button id="local-tab" class="active" aria-pressed="true">На одном устройстве</button><button id="online-tab" aria-pressed="false">С другом онлайн</button></div>
+          <div class="panel-heading"><h2 id="game-panel-title">За одной доской</h2><span class="badge" id="mode-badge">ЛОКАЛЬНО</span></div>
           <div class="status-block" aria-live="polite"><span class="status-icon" id="status-icon">↗</span><div><h3 id="status-title">Ход белых</h3><p id="status-text">Выберите шашку, чтобы сделать ход.</p></div></div>
           <div id="online-controls" hidden>
             <div id="online-lobby"><p class="helper-text">Пригласите друга за доску — для игры нужна только ссылка.</p><button id="create-button" class="primary-button">Создать комнату <span aria-hidden="true">↗</span></button><button id="join-button" class="secondary-button">Войти по коду</button></div>
@@ -50,12 +69,14 @@
         <div class="board-tip"><span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p></div>
       </aside>
     </div>
+    </section>
     <footer><span>Меньше суеты. Больше хороших ходов.</span><span>Без регистрации <i>·</i> Без спешки</span></footer>
   </main>
 
   <dialog id="rules-dialog"><div class="dialog-heading"><div><div class="eyebrow">КОРОТКО О ГЛАВНОМ</div><h2>Знакомые правила.</h2></div><button class="icon-button" data-close="rules-dialog" aria-label="Закрыть">×</button></div><ol class="rules-list"><li><strong>Начинают белые.</strong> Простые шашки ходят на одну клетку по диагонали вперёд.</li><li><strong>Взятие обязательно.</strong> Бить можно вперёд и назад. Если есть несколько вариантов, выбирайте любой.</li><li><strong>Продолжайте цепочку.</strong> За один ход нужно завершить все доступные взятия выбранной шашкой. Побитые фигуры убираются в конце хода.</li><li><strong>Дойдите до дамки.</strong> На последней горизонтали шашка становится дамкой, даже посреди взятия. Дамка ходит и бьёт по всей диагонали.</li><li><strong>Оставьте соперника без хода.</strong> Заберите все его шашки или заблокируйте их. Ничья возможна по соглашению или при троекратном повторении позиции.</li></ol><p class="helper-text">Любительская игра без часов. Специальные турнирные лимиты ходов в эндшпиле не применяются. Комната хранится 7 дней с последнего действия.</p><button class="primary-button" data-close="rules-dialog">Всё понятно, играем</button></dialog>
   <dialog id="join-dialog"><div class="dialog-heading"><h2>Встретимся за доской.</h2><button class="icon-button" data-close="join-dialog" aria-label="Закрыть">×</button></div><form id="join-form"><label for="join-code">Код комнаты или ссылка друга</label><input id="join-code" name="code" autocomplete="off" placeholder="Например, A1B2C3D4E5F6" required maxlength="300"><p id="join-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">Присоединиться <span aria-hidden="true">↗</span></button></form></dialog>
   <dialog id="confirm-dialog"><div class="dialog-heading"><h2 id="confirm-title">Начать заново?</h2><button class="icon-button" data-close="confirm-dialog" aria-label="Закрыть">×</button></div><p id="confirm-text"></p><div class="confirm-actions"><button class="secondary-button" data-close="confirm-dialog">Отмена</button><button class="primary-button" id="confirm-yes">Продолжить</button></div></dialog>
+  <dialog id="theme-dialog"><div class="dialog-heading"><div><div class="eyebrow">ВАША ИГРА. ВАШИ ЦВЕТА.</div><h2>Тема оформления</h2></div><button class="icon-button" data-close="theme-dialog" aria-label="Закрыть">×</button></div><p class="helper-text">Применяется сразу и сохраняется в этом браузере.</p><fieldset id="theme-options" class="theme-options"><legend class="visually-hidden">Выберите тему</legend></fieldset></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>
