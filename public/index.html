@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/themes.css">
   <link rel="stylesheet" href="/home.css">
+  <link rel="stylesheet" href="/match.css">
   <script src="/theme.js"></script>
   <script type="module" src="/app.js"></script>
 </head>
@@ -43,12 +44,15 @@
       <div class="rule-chip"><span class="mini-board" aria-hidden="true">▦</span><div>Русские шашки<small>8 × 8 · Без таймера</small></div></div>
     </section>
 
+    <div id="draw-notice" class="draw-notice" role="status" hidden><div><strong>Соперник предлагает ничью</strong><p>Завершить партию с равным результатом?</p></div><div class="draw-decisions"><button id="accept-draw" class="primary-button">Принять ничью</button><button id="decline-draw" class="secondary-button">Продолжить игру</button></div></div>
     <div class="game-layout">
       <section class="play-area" aria-label="Игровое поле">
         <div class="player-bar" id="top-player"></div>
         <div class="board-frame"><div id="board" class="board" role="group" aria-label="Шашечная доска"></div></div>
         <div class="player-bar bottom-player" id="bottom-player"></div>
         <div class="board-tools"><span><span class="tiny-dot"></span> <span id="board-caption">Два игрока, одно устройство</span></span><button class="text-button" id="flip-button"><span aria-hidden="true">⇅</span> Перевернуть доску</button></div>
+        <p class="move-help">Перетаскивайте шашки или нажмите на шашку, затем на клетку.</p>
+        <div id="match-actions" class="match-actions"><button id="draw-button" class="secondary-button">Предложить ничью</button><button id="resign-button" class="secondary-button">⚑ Сдаться</button></div>
       </section>
 
       <aside class="sidebar">
@@ -60,9 +64,8 @@
             <div id="room-controls" hidden><div class="room-label">ВАША КОМНАТА <span id="connection-label">Подключение…</span></div><div class="room-code" id="room-code"></div><button id="copy-button" class="primary-button">Скопировать приглашение <span aria-hidden="true">↗</span></button><p class="helper-text" id="room-hint">Отправьте ссылку другу. Вы играете белыми.</p></div>
           </div>
           <div class="local-note" id="local-note"><span aria-hidden="true">✳</span><p>Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.</p></div>
-          <div id="draw-notice" class="draw-notice" hidden><p>Соперник предлагает ничью.</p><button id="accept-draw" class="text-button">Принять</button><button id="decline-draw" class="text-button">Продолжить игру</button></div>
           <button id="rematch-button" class="primary-button" hidden>Сыграть ещё раз <span aria-hidden="true">↻</span></button>
-          <div class="game-actions"><button id="new-button" class="text-button"><span aria-hidden="true">↻</span> Новая партия</button><button id="draw-button" class="text-button" hidden>Ничья</button><button id="resign-button" class="text-button">⚑ Сдаться</button></div>
+          <div class="game-actions"><button id="new-button" class="text-button"><span aria-hidden="true">↻</span> Новая партия</button></div>
         </section>
 
         <section class="panel history-panel"><div class="panel-heading"><h2>История ходов</h2><span class="move-count" id="move-count">0 ходов</span></div><div class="history-head"><span>№</span><span>Белые</span><span>Чёрные</span></div><div id="history" class="history-list" aria-label="История ходов"><div class="empty-history"><span aria-hidden="true">↗</span><p>У каждой партии есть начало.<br>Сделайте первый ход.</p></div></div></section>
@@ -77,6 +80,13 @@
   <dialog id="join-dialog"><div class="dialog-heading"><h2>Встретимся за доской.</h2><button class="icon-button" data-close="join-dialog" aria-label="Закрыть">×</button></div><form id="join-form"><label for="join-code">Код комнаты или ссылка друга</label><input id="join-code" name="code" autocomplete="off" placeholder="Например, A1B2C3D4E5F6" required maxlength="300"><p id="join-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">Присоединиться <span aria-hidden="true">↗</span></button></form></dialog>
   <dialog id="confirm-dialog"><div class="dialog-heading"><h2 id="confirm-title">Начать заново?</h2><button class="icon-button" data-close="confirm-dialog" aria-label="Закрыть">×</button></div><p id="confirm-text"></p><div class="confirm-actions"><button class="secondary-button" data-close="confirm-dialog">Отмена</button><button class="primary-button" id="confirm-yes">Продолжить</button></div></dialog>
   <dialog id="theme-dialog"><div class="dialog-heading"><div><div class="eyebrow">ВАША ИГРА. ВАШИ ЦВЕТА.</div><h2>Тема оформления</h2></div><button class="icon-button" data-close="theme-dialog" aria-label="Закрыть">×</button></div><p class="helper-text">Применяется сразу и сохраняется в этом браузере.</p><fieldset id="theme-options" class="theme-options"><legend class="visually-hidden">Выберите тему</legend></fieldset></dialog>
+  <dialog id="result-dialog" class="result-dialog" aria-labelledby="result-title" aria-describedby="result-text">
+    <button class="icon-button result-close" data-close="result-dialog" aria-label="Посмотреть доску">×</button>
+    <div class="result-art" aria-hidden="true"><div class="result-ring"></div><span id="result-symbol">♛</span><div class="result-sparks"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+    <div class="eyebrow">ПАРТИЯ ЗАВЕРШЕНА</div><h2 id="result-title"></h2><p id="result-text"></p>
+    <button class="primary-button" id="result-rematch">Реванш ↻</button><p id="result-hint" class="helper-text" aria-live="polite"></p>
+    <div class="result-links"><button class="text-button" data-close="result-dialog">Посмотреть доску</button><button class="text-button" id="result-home">На главную</button></div>
+  </dialog>
   <div id="toast" class="toast" role="status" hidden></div>
 </body>
 </html>

@@ -1,10 +1,13 @@
 import { newGame, legalMoves, applyMove, sideOf, opposite, squareName } from './game.js';
+import { attachBoardDrag } from './board-drag.js';
+import { matchResult } from './match-result.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
 let mode = 'local', game = newGame(), selected = null, flipped = false;
 let room = null, socket = null, connected = false, pending = false, reconnectTimer, heartbeat, retry = 0;
 let toastTimer, confirmAction, savedLocal;
+let shownResult = null;
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { toast('Браузер не разрешает сохранение. Не закрывайте эту вкладку до конца партии.'); } }
@@ -37,7 +40,8 @@ function playerHTML(side) {
   const count = game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
   return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : names[side]}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : online ? 'В игре' : 'Не в сети'}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
-function renderBoard() {
+function renderBoard(keepDrag = false) {
+  if (!keepDrag) boardDrag.cancel();
   const focused = document.activeElement?.dataset?.index;
   const moves = canPlay() ? legalMoves(game) : [];
   const destinations = moves.filter(m => m.from === selected).map(m => m.to);
@@ -56,16 +60,12 @@ function renderBoard() {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
+  if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
-  if (game.winner) {
-    const title = game.winner === 'draw' ? 'Хорошая ничья.' : names[game.winner] + ' побеждают!';
-    const text = { resign: 'Соперник сдался. Спасибо за партию.', 'no-moves': 'У соперника не осталось доступных ходов.', repetition: 'Позиция повторилась три раза.', agreement: 'Ничья по соглашению игроков.' }[game.reason];
-    return [title, text || 'Эта партия завершена. Сыграем ещё?', '✧'];
-  }
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
-  return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Выберите шашку, чтобы сделать ход.', '↗'];
+  return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Перетащите шашку или выберите её и клетку кликом.', '↗'];
 }
 function renderHistory() {
   $('move-count').textContent = game.history.length + ' полуходов';
@@ -93,28 +93,58 @@ function render() {
   $('board-caption').textContent = mode === 'local' ? 'Два игрока, одно устройство' : room ? 'Комната ' + room.code : 'Пригласите друга за доску';
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
-  $('resign-button').hidden = mode === 'online' && !room;
+  $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
   $('resign-button').disabled = !!game.winner || (mode === 'online' && (!connected || !room?.ready || pending));
-  $('draw-button').hidden = mode === 'local' || !room?.ready || !!game.winner;
-  $('draw-button').disabled = !connected || pending || room?.drawOffer === room?.role;
-  $('draw-button').textContent = room?.drawOffer === room?.role ? 'Ничья предложена' : 'Ничья';
+  $('draw-button').disabled = !!game.winner || (mode === 'online' && (!connected || pending || !!room?.drawOffer));
+  $('draw-button').textContent = room?.drawOffer && room.drawOffer === room.role ? 'Ничья предложена' : 'Предложить ничью';
   $('draw-notice').hidden = !room?.drawOffer || room.drawOffer === room.role || !!game.winner;
+  $('accept-draw').disabled = $('decline-draw').disabled = !connected || pending;
   $('rematch-button').hidden = !game.winner || (mode === 'online' && !room);
   $('rematch-button').disabled = mode === 'online' && (!connected || pending || room?.rematch?.includes(room.role));
-  $('rematch-button').textContent = room?.rematch?.includes(room.role) ? 'Ждём согласия соперника…' : room?.rematch?.length ? 'Принять реванш ↻' : 'Сыграть ещё раз ↻';
+  $('rematch-button').textContent = room?.rematch?.includes(room.role) ? 'Ждём согласия соперника…' : room?.rematch?.length ? 'Принять реванш ↻' : 'Реванш ↻';
   if (room) {
     $('room-code').textContent = room.code; $('connection-label').textContent = connected ? '● На связи' : '○ Нет связи';
     $('room-hint').textContent = room.ready ? 'Ваше место сохранено в этом браузере.' : 'Отправьте ссылку другу. Вы играете белыми.';
   }
+  renderResult();
 }
 
+function renderResult() {
+  const dialog = $('result-dialog');
+  if (!game.winner || $('game-screen').hidden) {
+    dialog.close(); shownResult = null; return;
+  }
+  const result = matchResult(game, room?.role);
+  dialog.dataset.result = result.kind;
+  $('result-title').textContent = result.title;
+  $('result-text').textContent = result.text;
+  $('result-symbol').textContent = result.symbol;
+  $('result-rematch').textContent = $('rematch-button').textContent;
+  $('result-rematch').disabled = $('rematch-button').disabled;
+  $('result-hint').textContent = mode === 'local' ? 'Новая партия на этой же доске. Белые начинают.' : !connected ? 'Восстанавливаем соединение с комнатой…' : room.rematch?.includes(room.role) ? 'Предложение отправлено. Новая партия начнётся, когда соперник согласится.' : room.rematch?.length ? 'Соперник предлагает сыграть ещё раз. Примите реванш, чтобы начать.' : 'Реванш начнётся, когда оба игрока согласятся.';
+  const key = `${room?.code || 'local'}:${game.revision}:${game.winner}`;
+  if (shownResult !== key) {
+    shownResult = key;
+    document.querySelectorAll('dialog[open]').forEach(open => open.close());
+    confirmAction = null; dialog.showModal();
+  }
+}
+function playMove(from, to) {
+  if (!canPlay() || !legalMoves(game).some(move => move.from === from && move.to === to)) return;
+  if (mode === 'online') send({ type: 'move', from, to });
+  else { game = applyMove(game, from, to); selected = game.forced; localSave(); render(); }
+}
+const boardDrag = attachBoardDrag($('board'), {
+  moves: () => canPlay() ? legalMoves(game) : [],
+  select: from => { selected = from; renderBoard(true); },
+  move: playMove
+});
 $('board').addEventListener('click', event => {
   const button = event.target.closest('[data-index]');
   if (!button || !canPlay()) return;
   const index = Number(button.dataset.index), moves = legalMoves(game);
   if (selected !== null && moves.some(m => m.from === selected && m.to === index)) {
-    if (mode === 'online') send({ type: 'move', from: selected, to: index });
-    else { game = applyMove(game, selected, index); selected = game.forced; localSave(); }
+    playMove(selected, index); return;
   } else if (moves.some(m => m.from === index)) selected = selected === index && game.forced === null ? null : index;
   else if (game.forced === null) selected = null;
   render();
@@ -210,6 +240,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
+  boardDrag.cancel();
   $('home-screen').hidden = screen !== 'home';
   $('game-screen').hidden = screen !== 'game';
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -282,12 +313,27 @@ $('new-button').onclick = () => {
   else if (game.history.length || game.path.length) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
   else resetLocal();
 };
-$('resign-button').onclick = () => confirm('Сдаться в этой партии?', 'Победа достанется ' + ((room?.role || game.turn) === 'white' ? 'чёрным.' : 'белым.'), () => {
+function finishLocal(winner, reason) {
+  game.winner = winner; game.reason = reason; game.revision++; selected = null; localSave(); render();
+}
+function confirmMatch(title, text, action, label) {
+  const revision = game.revision, code = room?.code;
+  confirm(title, text, () => {
+    if (game.winner || game.revision !== revision || room?.code !== code) return toast('Позиция изменилась. Повторите действие.');
+    action();
+  }, label);
+}
+$('resign-button').onclick = () => confirmMatch('Сдаться в этой партии?', 'Победа достанется ' + ((room?.role || game.turn) === 'white' ? 'чёрным.' : 'белым.'), () => {
   if (mode === 'online') send({ type: 'resign' });
-  else { game.winner = opposite(game.turn); game.reason = 'resign'; game.revision++; localSave(); render(); }
+  else finishLocal(opposite(game.turn), 'resign');
 }, 'Сдаться');
-$('rematch-button').onclick = () => mode === 'online' ? send({ type: 'rematch' }) : resetLocal();
-$('draw-button').onclick = () => send({ type: 'draw' });
+function rematch() { if (!game.winner) return; mode === 'online' ? send({ type: 'rematch' }) : resetLocal(); }
+$('rematch-button').onclick = $('result-rematch').onclick = rematch;
+$('result-home').onclick = () => { $('result-dialog').close(); goHome(); };
+$('draw-button').onclick = () => {
+  if (mode === 'online') send({ type: 'draw' });
+  else confirmMatch(`${names[opposite(game.turn)]}, согласны на ничью?`, `${names[game.turn]} предлагают завершить партию вничью. Передайте решение сопернику.`, () => finishLocal('draw', 'agreement'), 'Принять ничью');
+};
 $('accept-draw').onclick = () => send({ type: 'draw' });
 $('decline-draw').onclick = () => send({ type: 'decline-draw' });
 

@@ -1,0 +1,45 @@
+/* Dragging only consumes touch gestures that begin on a movable piece. */
+.square.available { touch-action:none; cursor:grab; }
+.board { user-select:none; -webkit-user-select:none; }
+.board.dragging, .board.dragging .square { cursor:grabbing; }
+.drag-source .piece { opacity:.2; }
+.piece.drag-ghost { position:fixed; z-index:30; pointer-events:none; margin:0; transition:none; transform:scale(1.08); cursor:grabbing; }
+.square.drop-target { box-shadow:inset 0 0 0 3px var(--theme-accent); }
+.square.drop-target::after { opacity:.9; }
+.move-help { color:var(--theme-muted); font-size:11px; line-height:1.7; text-align:center; margin:14px 0 4px; }
+.match-actions { display:flex; gap:12px; }
+.match-actions .secondary-button { flex:1; font-size:12px; min-height:44px; margin-top:8px; }
+.draw-notice { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:20px; margin:0 0 24px; border:1px solid var(--theme-accent); background:var(--theme-raised); border-radius:12px; color:var(--theme-text); }
+.draw-notice strong { font-size:14px; font-weight:550; }
+.draw-notice p { color:var(--theme-muted); line-height:1.7; margin:5px 0 0; }
+.draw-decisions { display:flex; gap:10px; }
+.draw-decisions button { width:auto; margin:0; white-space:nowrap; }
+#rematch-button { margin-top:18px; }
+.result-dialog { text-align:center; padding:36px; overflow-x:hidden; overflow-y:auto; max-height:calc(100dvh - 32px); }
+.result-close { position:absolute; top:15px; right:15px; }
+.result-dialog[open] { animation:result-appear .4s cubic-bezier(.2,.8,.2,1) both; }
+.result-dialog .eyebrow { justify-content:center; margin-bottom:14px; }
+.result-dialog h2 { font-size:28px; line-height:1.25; font-weight:550; letter-spacing:-.8px; }
+#result-text { color:var(--theme-secondary); font-size:13px; line-height:1.8; margin:16px 0 24px; }
+#result-hint { min-height:40px; margin:14px 0 6px; }
+.result-links { display:flex; justify-content:center; flex-wrap:wrap; gap:12px 26px; }
+.result-art { position:relative; width:150px; height:150px; margin:5px auto 25px; display:grid; place-items:center; }
+.result-ring { position:absolute; inset:17px; border-radius:50%; border:1px solid var(--theme-accent); background:color-mix(in srgb,var(--theme-accent) 9%,var(--theme-panel)); }
+#result-symbol { position:relative; color:var(--theme-accent); font-size:62px; line-height:1; }
+.result-dialog[open][data-result="victory"] #result-symbol { animation:crown-rise .85s cubic-bezier(.2,.8,.2,1) both; }
+.result-dialog[open][data-result="victory"] .result-ring { animation:victory-ring 1.2s ease-out both; }
+.result-sparks { position:absolute; inset:0; pointer-events:none; }
+.result-sparks i { position:absolute; left:50%; top:50%; width:7px; height:12px; border-radius:2px; background:var(--theme-accent); opacity:0; --angle:0deg; }
+.result-sparks i:nth-child(2) { --angle:45deg; }.result-sparks i:nth-child(3) { --angle:90deg; }.result-sparks i:nth-child(4) { --angle:135deg; }.result-sparks i:nth-child(5) { --angle:180deg; }.result-sparks i:nth-child(6) { --angle:225deg; }.result-sparks i:nth-child(7) { --angle:270deg; }.result-sparks i:nth-child(8) { --angle:315deg; }
+.result-dialog[open][data-result="victory"] .result-sparks i { animation:spark-burst 1.4s .15s ease-out both; }
+.result-dialog[open][data-result="defeat"] #result-symbol { animation:defeat-turn .9s ease-out both; }
+.result-dialog[data-result="defeat"] .result-ring { border-style:dashed; }
+.result-dialog[open][data-result="draw"] #result-symbol { animation:draw-balance .8s ease-out both; }
+@keyframes result-appear { from { opacity:0; transform:translateY(16px) scale(.96); } to { opacity:1; transform:none; } }
+@keyframes crown-rise { 0% { opacity:0; transform:translateY(24px) scale(.6) rotate(-12deg); } 65% { transform:translateY(-7px) scale(1.12) rotate(5deg); } 100% { opacity:1; transform:none; } }
+@keyframes victory-ring { from { transform:scale(.7); opacity:0; } to { transform:scale(1); opacity:1; } }
+@keyframes spark-burst { 0% { opacity:0; transform:rotate(var(--angle)) translateY(-35px) scale(.5); } 25% { opacity:1; } 100% { opacity:0; transform:rotate(var(--angle)) translateY(-90px) rotate(65deg); } }
+@keyframes defeat-turn { from { opacity:0; transform:rotate(-100deg) scale(.8); } to { opacity:1; transform:none; } }
+@keyframes draw-balance { 0% { opacity:0; transform:rotate(-18deg); } 50% { transform:rotate(10deg); } 100% { opacity:1; transform:none; } }
+@media(max-width:720px) { .draw-notice { align-items:stretch; flex-direction:column; gap:14px; } .draw-decisions button { flex:1; font-size:11px; padding:12px; } .result-dialog { padding:30px 22px 22px; } .result-dialog h2 { font-size:25px; } .result-art { margin-bottom:18px; } }
+@media(prefers-reduced-motion:reduce) { .result-dialog, .result-dialog * { animation:none!important; } .drag-ghost { transform:none!important; } }
