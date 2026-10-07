@@ -2,7 +2,7 @@
 
 Русские шашки 8×8: игра вдвоём по ссылке или на одном устройстве. Интерфейс на русском, адаптирован для телефона и компьютера. Можно играть гостем или войти в аккаунт.
 
-**Играть:** https://shishki-online.kkoallqq.workers.dev
+**Играть:** https://shishki.pp.ua
 
 **Репозиторий:** https://github.com/skweye/shishki-online
 
@@ -65,7 +65,7 @@ npm run deploy
 ### Google OAuth
 
 1. В Google Cloud создайте OAuth-приложение и клиент типа **Web application**. Доступны только базовые данные `openid email profile`.
-2. Добавьте точный Authorized redirect URI: `https://shishki-online.kkoallqq.workers.dev/api/auth/google/callback`. Если меняется домен, обновите также `AUTH_ORIGIN` в Wrangler.
+2. Добавьте точный Authorized redirect URI: `https://shishki.pp.ua/api/auth/google/callback`. Если меняется домен, обновите также `AUTH_ORIGIN` в Wrangler.
 3. Сохраните значения серверными секретами, вводя их в интерактивный запрос:
 
 ```bash
@@ -97,7 +97,7 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 
 GitHub Actions (`ci.yml`) независимо проверяет синтаксис, правила, сборку и настоящие онлайн-комнаты при push и pull request. Отдельный workflow публикации удалён, чтобы не запускать два механизма деплоя. Результат публикации и логи доступны в Cloudflare → Deployments.
 
-Основной и единственный целевой Worker проекта — `shishki-online`. При ручной публикации `npm run deploy` обновляет его же. Основной адрес игры: https://shishki-online.kkoallqq.workers.dev.
+Основной и единственный целевой Worker проекта — `shishki-online`. При ручной публикации `npm run deploy` обновляет его же. Основной адрес игры: https://shishki.pp.ua.
 
 Для нового репозитория, если origin ещё не настроен:
 

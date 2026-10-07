@@ -68,7 +68,11 @@ function redirect(request, path, cookies = []) {
 async function googleStart(request, env) {
   if (!googleEnabled(env)) return redirect(request, '/?auth_error=google_unavailable');
   const url = new URL(request.url);
-  if (!local(request) && url.origin !== env.AUTH_ORIGIN) return error('Откройте вход на основном адресе игры.', 403);
+  if (!local(request) && url.origin !== env.AUTH_ORIGIN) {
+    const canonical = new URL('/api/auth/google', env.AUTH_ORIGIN);
+    canonical.searchParams.set('returnTo', safeReturnTo(url.searchParams.get('returnTo')));
+    return redirect(request, canonical.href);
+  }
   const user = await authenticatedUser(request, env);
   const state = randomToken(), verifier = randomToken(), nonce = randomToken();
   await env.AUTH_DB.prepare('INSERT INTO oauth_flows(state_hash, verifier, nonce, return_to, link_user_id, expires_at) VALUES (?, ?, ?, ?, ?, ?)')

@@ -74,7 +74,7 @@
       </aside>
     </div>
     </section>
-    <footer><span>Меньше суеты. Больше хороших ходов.</span><span>Без регистрации <i>·</i> Без спешки</span></footer>
+    <footer><span>Меньше суеты. Больше хороших ходов.</span><span><a href="/privacy">Конфиденциальность</a> <i>·</i> <a href="/terms">Условия</a></span></footer>
   </main>
 
   <dialog id="rules-dialog"><div class="dialog-heading"><div><div class="eyebrow">КОРОТКО О ГЛАВНОМ</div><h2>Знакомые правила.</h2></div><button class="icon-button" data-close="rules-dialog" aria-label="Закрыть">×</button></div><ol class="rules-list"><li><strong>Начинают белые.</strong> Простые шашки ходят на одну клетку по диагонали вперёд.</li><li><strong>Взятие обязательно.</strong> Бить можно вперёд и назад. Если есть несколько вариантов, выбирайте любой.</li><li><strong>Продолжайте цепочку.</strong> За один ход нужно завершить все доступные взятия выбранной шашкой. Побитые фигуры убираются в конце хода.</li><li><strong>Дойдите до дамки.</strong> На последней горизонтали шашка становится дамкой, даже посреди взятия. Дамка ходит и бьёт по всей диагонали.</li><li><strong>Оставьте соперника без хода.</strong> Заберите все его шашки или заблокируйте их. Ничья возможна по соглашению или при троекратном повторении позиции.</li></ol><p class="helper-text">Любительская игра без часов. Специальные турнирные лимиты ходов в эндшпиле не применяются. Комната хранится 7 дней с последнего действия.</p><button class="primary-button" data-close="rules-dialog">Всё понятно, играем</button></dialog>
@@ -108,7 +108,7 @@
       <button class="primary-button" type="submit">Создать аккаунт ↗</button>
     </form></section>
     <p id="auth-error" class="form-error" role="alert"></p>
-    <p class="auth-footer">Имя видно сопернику, почта — только вам.<br>Играть без аккаунта тоже можно.</p>
+    <p class="auth-footer">Имя видно сопернику, почта — только вам.<br><a href="/privacy">Конфиденциальность</a> · <a href="/terms">Условия использования</a><br>Играть без аккаунта тоже можно.</p>
   </dialog>
   <dialog id="profile-dialog" class="auth-dialog" aria-labelledby="profile-title"><div class="dialog-heading"><div><div class="eyebrow">ВАШ АККАУНТ</div><h2 id="profile-title">Приятно видеть вас.</h2></div><button class="icon-button" data-close="profile-dialog" aria-label="Закрыть профиль">×</button></div><div class="profile-card"><h3 id="profile-name"></h3><p id="profile-email"></p><p id="profile-method"></p><small id="profile-verification"></small></div><p class="helper-text">Ваше место в онлайн-партии привязано к аккаунту. Войдите на другом устройстве и откройте ссылку на комнату.</p><button id="link-google" class="google-button" hidden>Подключить Google с этой почтой</button><button id="logout-button" class="secondary-button">Выйти из аккаунта</button><p id="profile-error" class="form-error" role="alert"></p></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
