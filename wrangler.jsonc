@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "shashki-online",
+  "name": "shishki-online",
   "main": "src/worker.js",
   "compatibility_date": "2026-04-07",
   "assets": {

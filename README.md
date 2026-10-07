@@ -2,7 +2,7 @@
 
 Русские шашки 8×8: игра вдвоём по ссылке или на одном устройстве. Интерфейс на русском, адаптирован для телефона и компьютера. Без регистрации, рекламы и стороннего игрового сервера.
 
-**Играть:** https://shashki-online.kkoallqq.workers.dev
+**Играть:** https://shishki-online.kkoallqq.workers.dev
 
 **Репозиторий:** https://github.com/skweye/shishki-online
 
@@ -57,19 +57,23 @@ npm run deploy
 
 ## GitHub и автоматическая публикация
 
-В репозитории есть две GitHub Actions:
+Автопубликация настроена напрямую через **Cloudflare Workers Builds**. Каждый push в ветку `main` репозитория `skweye/shishki-online` запускает проверки и публикует Worker `shishki-online`.
 
-- `ci.yml`: проверка синтаксиса, правил, сборки и настоящих онлайн-комнат при push и pull request.
-- `deploy.yml`: те же проверки и публикация ветки `main` на Cloudflare; также доступен ручной запуск.
+Настройки в Cloudflare → Workers & Pages → shishki-online → Settings → Builds:
 
-В **Settings → Secrets and variables → Actions** добавьте:
-
-| Secret | Значение |
+| Настройка | Значение |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token с разрешениями Workers Scripts: Edit, Account Settings: Read для нужного аккаунта |
-| `CLOUDFLARE_ACCOUNT_ID` | ID вашего Cloudflare-аккаунта |
+| Git repository | `skweye/shishki-online` |
+| Production branch | `main` |
+| Root directory | `/` |
+| Build command | `npm run check && npm test && npm run build` |
+| Deploy command | `npx wrangler deploy` |
 
-Токен создаётся в Cloudflare → My Profile → API Tokens. Используйте шаблон Edit Cloudflare Workers и ограничьте доступ нужным аккаунтом. До добавления секретов workflow выполняет проверки и пропускает публикацию. Храните секреты только в GitHub Secrets; не добавляйте их в код.
+Используется уже подключённый build token Cloudflare. Дополнительные секреты в GitHub не нужны. Имя Worker в `wrangler.jsonc` совпадает с именем в Cloudflare.
+
+GitHub Actions (`ci.yml`) независимо проверяет синтаксис, правила, сборку и настоящие онлайн-комнаты при push и pull request. Отдельный workflow публикации удалён, чтобы не запускать два механизма деплоя. Результат публикации и логи доступны в Cloudflare → Deployments.
+
+При ручной публикации `npm run deploy` обновляет тот же Worker. Прежний адрес `shashki-online.kkoallqq.workers.dev` относится к отдельному Worker и не обновляется этой автосборкой; используйте основной адрес выше.
 
 Для нового репозитория, если origin ещё не настроен:
 
