@@ -100,3 +100,23 @@ test('two players synchronize, reject cheating, reconnect, draw and rematch', { 
   assert.equal(afterResignation.game.winner, null);
   assert.equal(afterResignation.game.board.filter(Boolean).length, 24);
 });
+
+test('12x12 online rooms preserve their variant through joins, moves and rematches', { timeout:30000 }, async t => {
+  assert.equal((await post('/api/rooms',{variant:'unsupported'})).status,400);
+  assert.equal((await post('/api/rooms',{variant:'__proto__'})).status,400);
+  const {data:created,status}=await post('/api/rooms',{variant:'russian12'});
+  assert.equal(status,201); assert.equal(created.game.variant,'russian12'); assert.equal(created.game.board.length,144);
+  const a=client(created.code,created.token); t.after(()=>a.ws.close()); await a.wait(m=>m.type==='state');
+  const {data:joined}=await post(`/api/rooms/${created.code}/join`);
+  assert.equal(joined.game.variant,'russian12');
+  const b=client(created.code,joined.token); t.after(()=>b.ws.close()); await b.wait(m=>m.type==='state' && m.ready);
+  await a.send({type:'move',from:86,to:75,revision:0});
+  const moved=await b.wait(m=>m.type==='state' && m.game.revision===1);
+  assert.equal(moved.game.history[0].notation,'c5–d6'); assert.equal(moved.game.board[75],1);
+  await b.send({type:'resign',revision:1}); await a.wait(m=>m.type==='state' && m.game.winner==='white');
+  await a.send({type:'rematch',revision:2}); await b.wait(m=>m.type==='state' && m.rematch.length===1);
+  await b.send({type:'rematch',revision:2});
+  const restarted=await a.wait(m=>m.type==='state' && m.game.revision===3);
+  assert.equal(restarted.game.variant,'russian12'); assert.equal(restarted.game.board.length,144);
+  assert.equal(restarted.game.board.filter(Boolean).length,60); assert.equal(restarted.game.winner,null);
+});

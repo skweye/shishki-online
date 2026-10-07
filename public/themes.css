@@ -102,3 +102,19 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline-color:var(-
 .theme-swatches i:nth-child(2) { background:var(--theme-bg); }
 .theme-swatches i:nth-child(3) { background:var(--theme-text); }
 .visually-hidden { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+dialog::backdrop { background:color-mix(in srgb,var(--theme-bg) 78%,transparent); backdrop-filter:blur(5px); }
+dialog { box-shadow:0 20px 100px color-mix(in srgb,var(--theme-bg) 70%,transparent); }
+.settings-gear { width:20px; height:20px; flex:none; }
+.header-actions .settings-label { font-size:12px; }
+.settings-dialog { max-height:calc(100dvh - 32px); overflow-y:auto; }
+.settings-section { padding:20px 0; border-top:1px solid var(--theme-border); }
+.settings-section h3 { margin:0 0 15px; font-size:14px; font-weight:550; }
+.settings-section .theme-options { margin-top:16px; }
+.settings-note { font-size:11px; color:var(--theme-muted); text-align:center; margin:5px 0 0; }
+.sound-toggle { display:flex; align-items:center; justify-content:space-between; gap:18px; cursor:pointer; line-height:1.6; }
+.sound-toggle small { display:block; color:var(--theme-muted); font-size:10px; margin-top:4px; }
+#sound-enabled { width:19px; height:19px; min-width:19px; accent-color:var(--theme-accent); }
+.volume-heading { display:flex; align-items:center; justify-content:space-between; margin:20px 0 7px; font-size:11px; color:var(--theme-muted); }
+.volume-heading label { margin:0; font-size:11px; }
+#sound-volume { padding:0; accent-color:var(--theme-accent); height:24px; border:0; background:none; cursor:pointer; }
+@media(max-width:540px) { .header-actions .settings-label { display:none; } #settings-button { min-width:36px; min-height:36px; } }

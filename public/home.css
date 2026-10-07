@@ -36,6 +36,11 @@
 .variant-option strong { font-size:13px; font-weight:550; }
 .variant-option small { display:block; color:var(--theme-muted); font-size:9px; line-height:1.6; margin-top:7px; }
 .variant-check { margin-left:auto; color:var(--theme-accent); }
+.variant-option + .variant-option { margin-top:12px; }
+.variant-option { border-color:var(--theme-border); background:transparent; }
+.variant-option .variant-check { visibility:hidden; }
+.variant-option:has(input:checked) { border-color:var(--theme-accent); background:var(--theme-raised); }
+.variant-option:has(input:checked) .variant-check { visibility:visible; }
 .coming-soon { color:var(--theme-muted); font-size:10px; margin:17px 0 0; }
 .start-row { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:25px; margin-top:28px; padding-top:24px; border-top:1px solid var(--theme-border); }
 .start-row p { color:var(--theme-muted); font-size:11px; line-height:1.7; margin:0; }

@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { newGame, applyMove, opposite } from '../public/game.js';
+import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 export { PasswordService } from './password-service.js';
 
@@ -43,8 +43,11 @@ export default {
         request = new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(data) });
       }
       if (url.pathname === '/api/rooms' && request.method === 'POST') {
+        const data = await request.json();
+        const variant = data?.variant ?? 'russian';
+        if (!data || typeof data !== 'object' || Array.isArray(data) || !validVariant(variant)) return fail('Неизвестный режим игры.');
         const code = crypto.randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
-        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code, { method: 'POST', headers }));
+        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code + '&variant=' + variant, { method: 'POST', headers }));
       }
       const match = url.pathname.match(/^\/api\/rooms\/([A-F0-9]{12})\/(join|socket)$/);
       if (!match) return fail('Комната не найдена.', 404);
@@ -87,8 +90,10 @@ export class GameRoom extends DurableObject {
       const identity = request.headers.has('X-Auth-User') ? JSON.parse(decodeURIComponent(request.headers.get('X-Auth-User'))) : null;
       if (url.pathname === '/create' && request.method === 'POST') {
         if (this.room) return fail('Комната уже существует.', 409);
+        const variant = url.searchParams.get('variant') || 'russian';
+        if (!validVariant(variant)) return fail('Неизвестный режим игры.');
         const token = crypto.randomUUID();
-        this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(), rematch: [], drawOffer: null };
+        this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
       }
@@ -160,7 +165,7 @@ export class GameRoom extends DurableObject {
           if (!this.room.rematch.includes(role)) this.room.rematch.push(role);
           if (this.room.rematch.length === 2) {
             const revision = this.room.game.revision + 1;
-            this.room.game = newGame(); this.room.game.revision = revision;
+            this.room.game = newGame(variantOf(this.room.game)); this.room.game.revision = revision;
             this.room.rematch = []; this.room.drawOffer = null;
           }
         } else throw new Error('Действие сейчас недоступно.');

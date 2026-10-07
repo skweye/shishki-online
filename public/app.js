@@ -1,10 +1,12 @@
-import { newGame, legalMoves, applyMove, sideOf, opposite, squareName } from './game.js';
+import { newGame, legalMoves, applyMove, sideOf, opposite, squareName, VARIANTS, boardSize, variantOf } from './game.js';
 import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
+import { createSounds } from './sounds.js';
 import { authReady } from './auth.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
+const sounds = createSounds();
 const escapeHTML = text => String(text).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 let mode = 'local', game = newGame(), selected = null, flipped = false;
 let room = null, socket = null, connected = false, pending = false, reconnectTimer, heartbeat, retry = 0;
@@ -14,12 +16,18 @@ const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { toast('Браузер не разрешает сохранение. Не закрывайте эту вкладку до конца партии.'); } }
 };
-try {
-  const saved = JSON.parse(storage.get('shashki-local-v1'));
-  if (saved && saved.board?.length === 64 && Array.isArray(saved.history) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
-    legalMoves(saved); game = saved;
-  }
-} catch { /* Start fresh if local storage is unavailable or damaged. */ }
+const localKey = variant => variant === 'russian' ? 'shashki-local-v1' : `shashki-local-${variant}-v1`;
+const localGames = {};
+for (const variant of Object.keys(VARIANTS)) {
+  localGames[variant] = newGame(variant);
+  try {
+    const saved = JSON.parse(storage.get(localKey(variant)));
+    if (saved && variantOf(saved) === variant && saved.board?.length === VARIANTS[variant].size ** 2 && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
+      legalMoves(saved); localGames[variant] = saved;
+    }
+  } catch { /* Keep a fresh position if this variant's save is damaged. */ }
+}
+game = localGames.russian;
 savedLocal = game;
 
 function toast(message) {
@@ -30,7 +38,7 @@ function confirm(title, message, action, label = 'Продолжить') {
   $('confirm-title').textContent = title; $('confirm-text').textContent = message;
   $('confirm-yes').textContent = label; confirmAction = action; $('confirm-dialog').showModal();
 }
-function localSave() { savedLocal = game; storage.set('shashki-local-v1', JSON.stringify(game)); }
+function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
 function canPlay() { return !game.winner && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
 function pieceHTML(piece, captured = false) {
   return `<span class="piece ${sideOf(piece)} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
@@ -48,13 +56,16 @@ function renderBoard(keepDrag = false) {
   const moves = canPlay() ? legalMoves(game) : [];
   const destinations = moves.filter(m => m.from === selected).map(m => m.to);
   const last = game.history.at(-1);
-  const indexes = Array.from({ length: 64 }, (_, i) => flipped ? 63 - i : i);
+  const size = boardSize(game), total = size * size;
+  $('board').dataset.size = size;
+  $('board').setAttribute('aria-label', `Шашечная доска ${size} на ${size}`);
+  const indexes = Array.from({ length: total }, (_, i) => flipped ? total - 1 - i : i);
   $('board').innerHTML = indexes.map((index, visual) => {
-    const row = Math.floor(index / 8), col = index % 8, piece = game.board[index];
+    const row = Math.floor(index / size), col = index % size, piece = game.board[index];
     const legal = destinations.includes(index), available = moves.some(m => m.from === index);
     const highlighted = game.path.length ? game.path.includes(index) : last && (last.from === index || last.to === index);
-    const label = `${squareName(index)}${piece ? ', ' + names[sideOf(piece)] + (Math.abs(piece) === 2 ? ', дамка' : ', шашка') : ', пусто'}${legal ? ', доступный ход' : ''}`;
-    return `<button class="square ${(row + col) % 2 ? 'dark' : ''} ${highlighted ? 'last' : ''} ${selected === index ? 'selected' : ''} ${legal ? 'legal' : ''} ${available ? 'available' : ''}" data-index="${index}" aria-label="${label}" aria-pressed="${selected === index}" ${((row + col) % 2 === 0) ? 'tabindex="-1"' : ''}>${piece ? pieceHTML(piece, game.captured.includes(index)) : ''}${visual >= 56 ? `<span class="coordinate file" aria-hidden="true">${'abcdefgh'[col]}</span>` : ''}${visual % 8 === 0 ? `<span class="coordinate rank" aria-hidden="true">${8 - row}</span>` : ''}</button>`;
+    const label = `${squareName(index, size)}${piece ? ', ' + names[sideOf(piece)] + (Math.abs(piece) === 2 ? ', дамка' : ', шашка') : ', пусто'}${legal ? ', доступный ход' : ''}`;
+    return `<button class="square ${(row + col) % 2 ? 'dark' : ''} ${highlighted ? 'last' : ''} ${selected === index ? 'selected' : ''} ${legal ? 'legal' : ''} ${available ? 'available' : ''}" data-index="${index}" aria-label="${label}" aria-pressed="${selected === index}" ${((row + col) % 2 === 0) ? 'tabindex="-1"' : ''}>${piece ? pieceHTML(piece, game.captured.includes(index)) : ''}${visual >= total - size ? `<span class="coordinate file" aria-hidden="true">${'abcdefghijkl'[col]}</span>` : ''}${visual % size === 0 ? `<span class="coordinate rank" aria-hidden="true">${size - row}</span>` : ''}</button>`;
   }).join('');
   if (focused !== undefined) $('board').querySelector(`[data-index="${focused}"]`)?.focus({ preventScroll: true });
   $('top-player').innerHTML = playerHTML(flipped ? 'white' : 'black');
@@ -86,6 +97,8 @@ function renderHistory() {
 }
 function render() {
   renderBoard(); renderHistory();
+  $('variant-title').textContent = VARIANTS[variantOf(game)].name;
+  $('variant-description').textContent = `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
   $('game-panel-title').textContent = mode === 'local' ? 'За одной доской' : 'С другом онлайн';
@@ -134,7 +147,7 @@ function renderResult() {
 function playMove(from, to) {
   if (!canPlay() || !legalMoves(game).some(move => move.from === from && move.to === to)) return;
   if (mode === 'online') send({ type: 'move', from, to });
-  else { game = applyMove(game, from, to); selected = game.forced; localSave(); render(); }
+  else { const previous = game; game = applyMove(game, from, to); sounds.transition(previous, game); selected = game.forced; localSave(); render(); }
 }
 const boardDrag = attachBoardDrag($('board'), {
   moves: () => canPlay() ? legalMoves(game) : [],
@@ -152,10 +165,12 @@ $('board').addEventListener('click', event => {
   render();
 });
 $('board').addEventListener('keydown', event => {
-  const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -8, ArrowDown: 8 }[event.key];
+  const size = boardSize(game);
+  const delta = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -size, ArrowDown: size }[event.key];
   if (!delta || !event.target.dataset.index) return;
   event.preventDefault();
   const next = Number(event.target.dataset.index) + delta * (flipped ? -1 : 1);
+  if (Math.abs(delta) === 1 && Math.floor(next / size) !== Math.floor(Number(event.target.dataset.index) / size)) return;
   $('board').querySelector(`[data-index="${next}"]`)?.focus();
 });
 
@@ -171,8 +186,9 @@ function disconnect() {
   if (previous) previous.close();
   connected = false; pending = false;
 }
-function applySnapshot(data) {
+function applySnapshot(data, audible = true) {
   const changed = game.revision !== data.game.revision;
+  if (audible) sounds.transition(game, data.game, room.role);
   game = data.game;
   Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, accountBound: data.accountBound });
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
@@ -182,7 +198,7 @@ function connect() {
   if (!room) return;
   clearTimeout(reconnectTimer);
   const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/rooms/${room.code}/socket`, ['checkers', room.token]);
-  socket = ws; let lastPong = Date.now();
+  socket = ws; let lastPong = Date.now(), firstSnapshot = true;
   ws.onopen = () => {
     if (socket !== ws) return;
     connected = true; retry = 0; render(); clearInterval(heartbeat);
@@ -197,7 +213,7 @@ function connect() {
     if (event.data === 'pong') { lastPong = Date.now(); return; }
     try {
       const data = JSON.parse(event.data);
-      if (data.type === 'state') applySnapshot(data);
+      if (data.type === 'state') { applySnapshot(data, !firstSnapshot); firstSnapshot = false; }
       if (data.type === 'error') { pending = false; toast(data.message); render(); }
     } catch { toast('Не удалось обновить позицию. Перезагрузите страницу.'); }
   };
@@ -264,7 +280,8 @@ function goHome() {
 }
 function updateStart() {
   const local = $('start-form').elements['play-mode'].value === 'local';
-  const resume = local && !savedLocal.winner && (savedLocal.history.length || savedLocal.path.length);
+  const saved = localGames[$('start-form').elements.variant.value];
+  const resume = local && !saved.winner && (saved.history.length || saved.path.length);
   $('start-button').innerHTML = `${local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
   $('start-hint').textContent = local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
 }
@@ -274,23 +291,29 @@ $('start-form').onchange = updateStart;
 $('start-form').onsubmit = async event => {
   event.preventDefault();
   if ($('start-button').disabled) return;
+  const variant = $('start-form').elements.variant.value;
   if ($('start-form').elements['play-mode'].value === 'local') {
-    mode = 'local'; game = savedLocal;
-    if (game.winner) { game = newGame(); localSave(); }
+    mode = 'local'; game = localGames[variant]; savedLocal = game;
+    if (game.winner) { game = newGame(variant); localSave(); }
+    sounds.play('start');
     selected = game.forced; flipped = false; showScreen('game'); render();
     return;
   }
   $('start-button').disabled = true; $('home-join-button').disabled = true;
   $('start-button').textContent = 'Создаём комнату…';
-  try { const data = await api('/api/rooms'); enterRoom(data.code, data); }
+  try { const data = await api('/api/rooms', { variant }); enterRoom(data.code, data); sounds.play('start'); }
   catch (error) { toast(error.message || 'Не удалось создать комнату. Попробуйте ещё раз.'); }
   finally { $('start-button').disabled = false; $('home-join-button').disabled = false; updateStart(); }
 };
 $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
-$('rules-button').onclick = () => $('rules-dialog').showModal();
+$('rules-button').onclick = () => {
+  const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
+  $('rules-variant').textContent = variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
+  $('rules-dialog').showModal();
+};
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
 $('home-join-button').onclick = $('join-button').onclick;
-$('theme-button').onclick = () => $('theme-dialog').showModal();
+$('settings-button').onclick = () => $('settings-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target !== dialog) return;
@@ -300,7 +323,7 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
 $('confirm-yes').onclick = () => { $('confirm-dialog').close(); confirmAction?.(); };
 $('create-button').onclick = async () => {
   $('create-button').disabled = true;
-  try { const data = await api('/api/rooms'); enterRoom(data.code, data); }
+  try { const data = await api('/api/rooms', { variant: $('start-form').elements.variant.value }); enterRoom(data.code, data); sounds.play('start'); }
   catch (error) { toast(error.message || 'Не удалось создать комнату.'); }
   finally { $('create-button').disabled = false; }
 };
@@ -314,14 +337,15 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { game = newGame(); selected = null; localSave(); render(); }
+function resetLocal() { game = newGame(variantOf(game)); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
   else if (game.history.length || game.path.length) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
   else resetLocal();
 };
 function finishLocal(winner, reason) {
-  game.winner = winner; game.reason = reason; game.revision++; selected = null; localSave(); render();
+  const previous = structuredClone(game);
+  game.winner = winner; game.reason = reason; game.revision++; sounds.transition(previous, game); selected = null; localSave(); render();
 }
 function confirmMatch(title, text, action, label) {
   const revision = game.revision, code = room?.code;

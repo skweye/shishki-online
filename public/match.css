@@ -1,6 +1,9 @@
 /* Dragging only consumes touch gestures that begin on a movable piece. */
 .square.available { touch-action:none; cursor:grab; }
 .board { user-select:none; -webkit-user-select:none; }
+.board[data-size="12"] { grid-template-columns:repeat(12,1fr); }
+.board[data-size="12"] .piece.king .crown { font-size:clamp(10px,2vw,22px); }
+.board[data-size="12"] .coordinate { font-size:8px; }
 .board.dragging, .board.dragging .square { cursor:grabbing; }
 .drag-source .piece { opacity:.2; }
 .piece.drag-ghost { position:fixed; z-index:30; pointer-events:none; margin:0; transition:none; transform:scale(1.08); cursor:grabbing; }
