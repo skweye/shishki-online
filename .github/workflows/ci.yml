@@ -1,0 +1,30 @@
+name: Check and test
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - name: Test two-player rooms
+        shell: bash
+        run: |
+          npm run dev > /tmp/shashki-worker.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          for attempt in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8787/ > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run test:integration || { cat /tmp/shashki-worker.log; exit 1; }

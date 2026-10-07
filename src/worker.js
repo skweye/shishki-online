@@ -26,11 +26,16 @@ export default {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     const origin = request.headers.get('Origin');
-    if (origin && origin !== url.origin) return fail('Запрос с другого сайта запрещён.', 403);
+    if (origin && origin !== url.origin) { await request.body?.cancel(); return fail('Запрос с другого сайта запрещён.', 403); }
     try {
+      if (request.method === 'POST') {
+        let data;
+        try { data = await bodyOf(request); } catch { return fail('Некорректный запрос.'); }
+        request = new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(data) });
+      }
       if (url.pathname === '/api/rooms' && request.method === 'POST') {
         const code = crypto.randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
-        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create', { method: 'POST' }));
+        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code, { method: 'POST' }));
       }
       const match = url.pathname.match(/^\/api\/rooms\/([A-F0-9]{12})\/(join|socket)$/);
       if (!match) return fail('Комната не найдена.', 404);
@@ -74,7 +79,7 @@ export class GameRoom extends DurableObject {
         const token = crypto.randomUUID();
         this.room = { players: { white: token, black: null }, game: newGame(), rematch: [], drawOffer: null };
         await this.save();
-        return json({ token, role: 'white', ...this.snapshot() }, 201);
+        return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
       }
       if (!this.room) return fail('Комната не найдена или срок её хранения истёк.', 404);
       if (url.pathname.endsWith('/join') && request.method === 'POST') {
@@ -144,7 +149,7 @@ export class GameRoom extends DurableObject {
       }
     });
   }
-  webSocketClose(ws, code, reason) { ws.close(code, reason); if (this.room) this.broadcast(); }
+  webSocketClose(ws) { if (this.room) this.broadcast(); }
   webSocketError(ws) { ws.close(1011, 'Ошибка соединения'); if (this.room) this.broadcast(); }
   async alarm() {
     if (this.room && this.room.updatedAt + TTL > Date.now()) {
