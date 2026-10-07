@@ -76,7 +76,7 @@ npm run deploy
 
 GitHub Actions (`ci.yml`) независимо проверяет синтаксис, правила, сборку и настоящие онлайн-комнаты при push и pull request. Отдельный workflow публикации удалён, чтобы не запускать два механизма деплоя. Результат публикации и логи доступны в Cloudflare → Deployments.
 
-При ручной публикации `npm run deploy` обновляет тот же Worker. Прежний адрес `shashki-online.kkoallqq.workers.dev` относится к отдельному Worker и не обновляется этой автосборкой; используйте основной адрес выше.
+Основной и единственный целевой Worker проекта — `shishki-online`. При ручной публикации `npm run deploy` обновляет его же. Основной адрес игры: https://shishki-online.kkoallqq.workers.dev.
 
 Для нового репозитория, если origin ещё не настроен:
 
