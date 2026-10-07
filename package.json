@@ -1,0 +1,17 @@
+{
+  "name": "shashki-online",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Русские шашки онлайн на Cloudflare Workers",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "wrangler dev --ip 127.0.0.1 --port 8787",
+    "test": "node --test tests/game.test.js",
+    "test:integration": "node --test tests/online.test.js",
+    "check": "node --check public/app.js && node --check public/game.js && node --check src/worker.js",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": { "wrangler": "^4.0.0" }
+}
