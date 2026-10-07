@@ -3,13 +3,27 @@
   "name": "shishki-online",
   "main": "src/worker.js",
   "compatibility_date": "2026-04-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": { "AUTH_ORIGIN": "https://shishki-online.kkoallqq.workers.dev" },
+  "d1_databases": [{
+    "binding": "AUTH_DB",
+    "database_name": "shishki-online-auth",
+    "database_id": "0ccaf133-94c1-4256-b6c8-7dbc38227ed0",
+    "migrations_dir": "migrations"
+  }],
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
   "durable_objects": {
-    "bindings": [{ "name": "ROOMS", "class_name": "GameRoom" }]
+    "bindings": [
+      { "name": "ROOMS", "class_name": "GameRoom" },
+      { "name": "PASSWORDS", "class_name": "PasswordService" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }]
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["PasswordService"] }
+  ]
 }

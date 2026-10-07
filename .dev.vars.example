@@ -1,0 +1,5 @@
+# Optional: use a separate Google OAuth client for local development.
+# Register http://127.0.0.1:8787/api/auth/google/callback as its redirect URI.
+# Copy to .dev.vars and enter credentials there. Never commit .dev.vars.
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=

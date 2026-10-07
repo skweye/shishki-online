@@ -1,5 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { newGame, applyMove, opposite } from '../public/game.js';
+import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
+export { PasswordService } from './password-service.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const fail = (message, status = 400) => json({ error: message }, status);
@@ -22,12 +24,19 @@ async function bodyOf(request) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
+    if (url.pathname.startsWith('/api/auth/')) return handleAuth(request, env, ctx, bodyOf);
     const origin = request.headers.get('Origin');
     if (origin && origin !== url.origin) { await request.body?.cancel(); return fail('Запрос с другого сайта запрещён.', 403); }
     try {
+      const identity = await authenticatedUser(request, env);
+      const headers = new Headers(request.headers);
+      // Identity is supplied only by this Worker, never by a browser header.
+      headers.delete('X-Auth-User');
+      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash })));
+      request = new Request(request, { headers });
       if (request.method === 'POST') {
         let data;
         try { data = await bodyOf(request); } catch { return fail('Некорректный запрос.'); }
@@ -35,7 +44,7 @@ export default {
       }
       if (url.pathname === '/api/rooms' && request.method === 'POST') {
         const code = crypto.randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
-        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code, { method: 'POST' }));
+        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code, { method: 'POST', headers }));
       }
       const match = url.pathname.match(/^\/api\/rooms\/([A-F0-9]{12})\/(join|socket)$/);
       if (!match) return fail('Комната не найдена.', 404);
@@ -64,7 +73,8 @@ export class GameRoom extends DurableObject {
     return {
       game: this.room.game, ready: !!this.room.players.black,
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
-      rematch: this.room.rematch, drawOffer: this.room.drawOffer
+      rematch: this.room.rematch, drawOffer: this.room.drawOffer,
+      names: this.room.names || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
     };
   }
   broadcast() {
@@ -74,10 +84,11 @@ export class GameRoom extends DurableObject {
   async fetch(request) {
     return this.ctx.blockConcurrencyWhile(async () => {
       const url = new URL(request.url);
+      const identity = request.headers.has('X-Auth-User') ? JSON.parse(decodeURIComponent(request.headers.get('X-Auth-User'))) : null;
       if (url.pathname === '/create' && request.method === 'POST') {
         if (this.room) return fail('Комната уже существует.', 409);
         const token = crypto.randomUUID();
-        this.room = { players: { white: token, black: null }, game: newGame(), rematch: [], drawOffer: null };
+        this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(), rematch: [], drawOffer: null };
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
       }
@@ -87,10 +98,16 @@ export class GameRoom extends DurableObject {
         try { data = await bodyOf(request); } catch { return fail('Некорректный запрос.'); }
         if (!data || typeof data !== 'object') return fail('Некорректный запрос.');
         let token = data.token, role = this.role(token);
+        this.room.accounts ||= { white: null, black: null };
+        this.room.names ||= { white: null, black: null };
+        const accountRole = identity && ['white', 'black'].find(side => this.room.accounts[side] === identity.id);
+        if (accountRole) { role = accountRole; token = this.room.players[role]; }
+        if (role && this.room.accounts[role] && this.room.accounts[role] !== identity?.id) return fail('Войдите в аккаунт, с которым начали эту партию.', 401);
         if (!role) {
           if (this.room.players.black) return fail('Оба места уже заняты. Откройте комнату в том браузере, где вы начали игру.', 409);
           token = crypto.randomUUID(); role = 'black'; this.room.players.black = token;
         }
+        if (identity) { this.room.accounts[role] = identity.id; this.room.names[role] = identity.name; }
         await this.save(); this.broadcast();
         return json({ token, role, ...this.snapshot() });
       }
@@ -99,10 +116,11 @@ export class GameRoom extends DurableObject {
         const protocols = request.headers.get('Sec-WebSocket-Protocol')?.split(',').map(s => s.trim()) || [];
         const role = this.role(protocols[1]);
         if (protocols[0] !== 'checkers' || !role) return fail('Не удалось подтвердить место игрока.', 403);
+        if (this.room.accounts?.[role] && this.room.accounts[role] !== identity?.id) return fail('Войдите в свой аккаунт.', 401);
         for (const previous of this.ctx.getWebSockets(role)) previous.close(4001, 'Игра открыта в другой вкладке');
         const [client, server] = Object.values(new WebSocketPair());
         this.ctx.acceptWebSocket(server, [role]);
-        server.serializeAttachment({ role, lastMessage: 0 });
+        server.serializeAttachment({ role, lastMessage: 0, sessionHash: identity?.sessionHash || null });
         this.broadcast();
         return new Response(null, { status: 101, webSocket: client, headers: { 'Sec-WebSocket-Protocol': 'checkers' } });
       }
@@ -114,6 +132,10 @@ export class GameRoom extends DurableObject {
       try {
         if (!this.room || typeof message !== 'string' || message.length > 1024) throw new Error('Некорректное сообщение.');
         const session = ws.deserializeAttachment();
+        const accountId = this.room.accounts?.[session.role];
+        if (accountId && !await sessionActive(this.env, session.sessionHash, accountId)) {
+          ws.close(4003, 'Войдите в аккаунт снова'); return;
+        }
         if (Date.now() - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
         session.lastMessage = Date.now(); ws.serializeAttachment(session);
         const data = JSON.parse(message), role = session.role;

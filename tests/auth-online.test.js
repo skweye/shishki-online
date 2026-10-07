@@ -1,0 +1,65 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import WebSocket from 'ws';
+import { once } from 'node:events';
+
+const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
+const post = async (path, data, cookie = '', origin = base) => {
+  const response = await fetch(base + path, { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json', Cookie: cookie }, body: JSON.stringify(data) });
+  return { response, data: await response.json(), cookie: response.headers.get('Set-Cookie')?.split(';')[0] || '' };
+};
+const session = async cookie => (await fetch(base + '/api/auth/session', { headers: { Cookie: cookie } })).json();
+
+test('registration, session, sign-out, credential login, duplicate and CSRF protection', { timeout: 30000 }, async () => {
+  const email = `test-${crypto.randomUUID()}@example.invalid`, password = 'Test-only-phrase-2026!!';
+  assert.equal((await session('')).user, null);
+  const invalid = await post('/api/auth/register', { name: 'Tester', email, password, confirmPassword: 'wrong' });
+  assert.equal(invalid.response.status, 400);
+  const csrf = await post('/api/auth/register', { name: 'Tester', email, password, confirmPassword: password }, '', 'https://evil.example');
+  assert.equal(csrf.response.status, 403);
+  const registered = await post('/api/auth/register', { name: 'Тестовый игрок', email, password, confirmPassword: password });
+  assert.equal(registered.response.status, 201, registered.data.error);
+  assert.equal(registered.data.user.name, 'Тестовый игрок');
+  assert.equal(registered.data.user.emailVerified, false);
+  assert.equal('password_hash' in registered.data.user, false);
+  assert.ok(registered.response.headers.get('Set-Cookie').includes('HttpOnly'));
+  assert.ok(registered.response.headers.get('Set-Cookie').includes('SameSite=Lax'));
+  assert.equal((await session(registered.cookie)).user.id, registered.data.user.id);
+  const duplicate = await post('/api/auth/register', { name: 'Tester', email: email.toUpperCase(), password, confirmPassword: password });
+  assert.equal(duplicate.response.status, 409);
+  const wrong = await post('/api/auth/login', { email, password: 'wrong-password' });
+  const unknown = await post('/api/auth/login', { email: 'absent-' + email, password: 'wrong-password' });
+  assert.equal(wrong.response.status, 401); assert.equal(wrong.data.error, unknown.data.error);
+  const room = await post('/api/rooms', {}, registered.cookie);
+  assert.equal(room.response.status, 201);
+  assert.equal(room.data.names.white, 'Тестовый игрок');
+  assert.equal(room.data.accountBound.white, true);
+  const loggedIn = await post('/api/auth/login', { email, password });
+  const restored = await post(`/api/rooms/${room.data.code}/join`, {}, loggedIn.cookie);
+  assert.equal(restored.data.role, 'white');
+  const stolen = await post(`/api/rooms/${room.data.code}/join`, { token: room.data.token });
+  assert.equal(stolen.response.status, 401);
+  const socketURL = base.replace(/^http/, 'ws') + `/api/rooms/${room.data.code}/socket`;
+  const stolenSocket = new WebSocket(socketURL, ['checkers', room.data.token]);
+  const [rejected] = await once(stolenSocket, 'error');
+  assert.match(rejected.message, /401/);
+  const socket = new WebSocket(socketURL, ['checkers', room.data.token], { headers: { Cookie: registered.cookie, Origin: base } });
+  const state = once(socket, 'message');
+  await once(socket, 'open');
+  assert.equal(JSON.parse((await state)[0]).type, 'state');
+  const sync = once(socket, 'message'); socket.send(JSON.stringify({ type: 'sync' }));
+  assert.equal(JSON.parse((await sync)[0]).type, 'state');
+  await post('/api/auth/logout', {}, registered.cookie);
+  const closed = once(socket, 'close'); socket.send(JSON.stringify({ type: 'sync' }));
+  assert.equal((await closed)[0], 4003);
+  assert.equal((await session(registered.cookie)).user, null);
+  assert.ok((await session(loggedIn.cookie)).user);
+  await post('/api/auth/logout', {}, loggedIn.cookie);
+  assert.equal((await session(loggedIn.cookie)).user, null);
+});
+test('OAuth callback rejects forged/missing state and only redirects to a safe local URL', async () => {
+  const response = await fetch(base + '/api/auth/google/callback?state=forged&code=made-up', { redirect: 'manual' });
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get('Location'), '/?auth_error=google_state');
+  assert.ok(response.headers.get('Set-Cookie').includes('Max-Age=0'));
+});

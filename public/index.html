@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/themes.css">
   <link rel="stylesheet" href="/home.css">
   <link rel="stylesheet" href="/match.css">
+  <link rel="stylesheet" href="/auth.css">
   <script src="/theme.js"></script>
   <script type="module" src="/app.js"></script>
 </head>
@@ -18,7 +19,7 @@
   <header class="site-header">
     <a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a>
     <span class="header-caption">Простая игра. Красивые решения.</span>
-    <div class="header-actions"><button class="text-button" id="theme-button"><span aria-hidden="true">◐</span> Темы</button><button class="text-button" id="rules-button"><span aria-hidden="true">ⓘ</span> Как играть</button></div>
+    <div class="header-actions"><button class="text-button" id="theme-button"><span aria-hidden="true">◐</span> Темы</button><button class="text-button" id="rules-button"><span aria-hidden="true">ⓘ</span> Как играть</button><button class="account-button" id="account-button" aria-label="Войти или зарегистрироваться"><span class="account-avatar" id="account-avatar" aria-hidden="true">↗</span><span id="account-button-label">Войти</span></button></div>
   </header>
 
   <main>
@@ -87,6 +88,30 @@
     <button class="primary-button" id="result-rematch">Реванш ↻</button><p id="result-hint" class="helper-text" aria-live="polite"></p>
     <div class="result-links"><button class="text-button" data-close="result-dialog">Посмотреть доску</button><button class="text-button" id="result-home">На главную</button></div>
   </dialog>
+  <dialog id="auth-dialog" class="auth-dialog" aria-labelledby="auth-title" aria-describedby="auth-description">
+    <div class="dialog-heading"><div><div class="eyebrow">ВАША ИГРА. ВАШ АККАУНТ.</div><h2 id="auth-title">С возвращением.</h2></div><button class="icon-button" data-close="auth-dialog" aria-label="Закрыть вход">×</button></div>
+    <p id="auth-description" class="helper-text">Войдите, чтобы продолжить игру под своим именем.</p>
+    <div class="auth-tabs" role="tablist" aria-label="Вход или регистрация"><button id="auth-login-tab" class="active" role="tab" aria-selected="true" aria-controls="auth-login-panel">Вход</button><button id="auth-register-tab" role="tab" aria-selected="false" aria-controls="auth-register-panel">Регистрация</button></div>
+    <button id="google-signin" class="google-button" disabled><svg aria-hidden="true" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.22c1.88-1.73 2.99-4.28 2.99-7.36Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.41l-3.22-2.51c-.9.6-2.04.96-3.39.96-2.6 0-4.8-1.76-5.59-4.13H3.09v2.59A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.41 13.91a6 6 0 0 1 0-3.82V7.5H3.09a10 10 0 0 0 0 9l3.32-2.59Z"/><path fill="#EA4335" d="M12 5.96c1.47 0 2.79.51 3.82 1.51l2.86-2.86A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.91 5.5l3.32 2.59C7.2 7.72 9.4 5.96 12 5.96Z"/></svg>Продолжить с Google</button>
+    <p id="google-unavailable" hidden>Вход через Google пока не подключён. Используйте почту и пароль.</p>
+    <div class="auth-divider">или по почте</div>
+    <section id="auth-login-panel" role="tabpanel" aria-labelledby="auth-login-tab"><form id="auth-login-form">
+      <label for="login-email">Почта</label><input id="login-email" name="email" type="email" autocomplete="username" inputmode="email" maxlength="254" placeholder="you@example.com" required>
+      <label for="login-password">Пароль</label><div class="password-field"><input id="login-password" name="password" type="password" autocomplete="current-password" maxlength="128" placeholder="Ваш пароль" required><button type="button" data-toggle-password="login-password" aria-label="Показать пароль">Показать</button></div>
+      <button class="primary-button" type="submit">Войти в аккаунт ↗</button>
+    </form></section>
+    <section id="auth-register-panel" role="tabpanel" aria-labelledby="auth-register-tab" hidden><form id="auth-register-form">
+      <label for="register-name">Имя</label><input id="register-name" name="name" type="text" autocomplete="nickname" minlength="2" maxlength="40" placeholder="Как вас называть за доской?" required>
+      <label for="register-email">Почта</label><input id="register-email" name="email" type="email" autocomplete="username" inputmode="email" maxlength="254" placeholder="you@example.com" required>
+      <label for="register-password">Пароль</label><div class="password-field"><input id="register-password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="password-hint" required><button type="button" data-toggle-password="register-password" aria-label="Показать пароль">Показать</button></div><p id="password-hint" class="auth-password-hint">От 12 символов. Можно использовать длинную фразу.</p>
+      <label for="register-confirm">Подтверждение пароля</label><div class="password-field"><input id="register-confirm" name="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required><button type="button" data-toggle-password="register-confirm" aria-label="Показать пароль">Показать</button></div>
+      <button class="primary-button" type="submit">Создать аккаунт ↗</button>
+    </form></section>
+    <p id="auth-error" class="form-error" role="alert"></p>
+    <p class="auth-footer">Имя видно сопернику, почта — только вам.<br>Играть без аккаунта тоже можно.</p>
+  </dialog>
+  <dialog id="profile-dialog" class="auth-dialog" aria-labelledby="profile-title"><div class="dialog-heading"><div><div class="eyebrow">ВАШ АККАУНТ</div><h2 id="profile-title">Приятно видеть вас.</h2></div><button class="icon-button" data-close="profile-dialog" aria-label="Закрыть профиль">×</button></div><div class="profile-card"><h3 id="profile-name"></h3><p id="profile-email"></p><p id="profile-method"></p><small id="profile-verification"></small></div><p class="helper-text">Ваше место в онлайн-партии привязано к аккаунту. Войдите на другом устройстве и откройте ссылку на комнату.</p><button id="link-google" class="google-button" hidden>Подключить Google с этой почтой</button><button id="logout-button" class="secondary-button">Выйти из аккаунта</button><p id="profile-error" class="form-error" role="alert"></p></dialog>
   <div id="toast" class="toast" role="status" hidden></div>
+  <div id="account-notice" class="toast" role="status" hidden></div>
 </body>
 </html>

@@ -1,9 +1,11 @@
 import { newGame, legalMoves, applyMove, sideOf, opposite, squareName } from './game.js';
 import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
+import { authReady } from './auth.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
+const escapeHTML = text => String(text).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 let mode = 'local', game = newGame(), selected = null, flipped = false;
 let room = null, socket = null, connected = false, pending = false, reconnectTimer, heartbeat, retry = 0;
 let toastTimer, confirmAction, savedLocal;
@@ -38,7 +40,7 @@ function playerHTML(side) {
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
   const count = game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
-  return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : names[side]}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : online ? 'В игре' : 'Не в сети'}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : escapeHTML(room?.names?.[side] || names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
@@ -104,7 +106,7 @@ function render() {
   $('rematch-button').textContent = room?.rematch?.includes(room.role) ? 'Ждём согласия соперника…' : room?.rematch?.length ? 'Принять реванш ↻' : 'Реванш ↻';
   if (room) {
     $('room-code').textContent = room.code; $('connection-label').textContent = connected ? '● На связи' : '○ Нет связи';
-    $('room-hint').textContent = room.ready ? 'Ваше место сохранено в этом браузере.' : 'Отправьте ссылку другу. Вы играете белыми.';
+    $('room-hint').textContent = room.ready ? (room.accountBound?.[room.role] ? 'Ваше место привязано к аккаунту.' : 'Ваше место сохранено в этом браузере.') : 'Отправьте ссылку другу. Вы играете белыми.';
   }
   renderResult();
 }
@@ -172,7 +174,7 @@ function disconnect() {
 function applySnapshot(data) {
   const changed = game.revision !== data.game.revision;
   game = data.game;
-  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer });
+  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, accountBound: data.accountBound });
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
   pending = false; render();
 }
@@ -202,6 +204,11 @@ function connect() {
   ws.onclose = event => {
     if (socket !== ws) return;
     clearInterval(heartbeat); connected = false; pending = false; render();
+    if (event.code === 4003) {
+      $('status-title').textContent = 'Войдите в аккаунт';
+      $('status-text').textContent = 'Сессия закончилась. Войдите снова и откройте ссылку на комнату.';
+      return;
+    }
     if (event.code === 4001 || event.code === 4004) {
       $('status-title').textContent = event.code === 4001 ? 'Игра в другой вкладке' : 'Комната закрыта';
       $('status-text').textContent = event.code === 4001 ? 'Продолжайте там или обновите эту страницу.' : 'Создайте новую комнату для следующей партии.';
@@ -337,7 +344,15 @@ $('draw-button').onclick = () => {
 $('accept-draw').onclick = () => send({ type: 'draw' });
 $('decline-draw').onclick = () => send({ type: 'decline-draw' });
 
+document.addEventListener('accountchange', async () => {
+  if (!room) return;
+  const code = room.code;
+  disconnect();
+  try { await join(code); }
+  catch (error) { leave(); mode = 'local'; showScreen('home'); render(); toast(error.message); }
+});
 updateStart(); render();
+await authReady;
 const invite = new URL(location.href).searchParams.get('room');
 if (invite) {
   mode = 'online'; showScreen('game'); render(); $('status-title').textContent = 'Открываем комнату…';
