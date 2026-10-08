@@ -1,13 +1,14 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
+import { canLaunchRocket } from './privileges.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
 const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash } : null;
+const publicUser = (row, env) => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, canLaunchRocket: canLaunchRocket(row, env) } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -33,7 +34,7 @@ export async function authenticatedUser(request, env) {
   if (!/^[\w-]{43}$/.test(token)) return null;
   const hash = digest(token);
   const row = await env.AUTH_DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?').bind(hash, now()).first();
-  return row ? { ...publicUser(row), sessionHash: hash } : null;
+  return row ? { ...publicUser(row, env), sessionHash: hash } : null;
 }
 export async function sessionActive(env, hash, userId) {
   if (!hash || !userId) return false;
@@ -194,10 +195,10 @@ export async function handleAuth(request, env, ctx, readBody) {
         .bind(id, fields.name, fields.email, hash, now()).run();
       if (!result.meta.changes) return error('Этот адрес уже зарегистрирован. Попробуйте войти.', 409);
       const row = await env.AUTH_DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
-      return json({ user: publicUser(row) }, 201, { 'Set-Cookie': await startSession(request, env, id) });
+      return json({ user: publicUser(row, env) }, 201, { 'Set-Cookie': await startSession(request, env, id) });
     }
     const user = await env.AUTH_DB.prepare('SELECT * FROM users WHERE email = ?').bind(fields.email).first();
     if (!await passwords.verify(fields.password, user?.password_hash || null)) return error('Неверная почта или пароль.', 401);
-    return json({ user: publicUser(user) }, 200, { 'Set-Cookie': await startSession(request, env, user.id) });
+    return json({ user: publicUser(user, env) }, 200, { 'Set-Cookie': await startSession(request, env, user.id) });
   } catch { return error(path.includes('profile') || path.includes('account') ? 'Сервис профиля временно недоступен. Попробуйте ещё раз.' : 'Не удалось выполнить вход. Попробуйте ещё раз.', 503); }
 }

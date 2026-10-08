@@ -3,6 +3,7 @@ import { newGame, applyMove, opposite, validVariant, variantOf } from '../public
 import { applyShot, nextChapaevRound } from '../public/chapaev.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 import { writeResults } from './account-stats.js';
+import { canLaunchRocket } from './privileges.js';
 export { PasswordService } from './password-service.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -213,6 +214,11 @@ export class GameRoom extends DurableObject {
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
           this.room.game = data.type === 'shot' ? applyShot(this.room.game, data.id, data.dx, data.dy) : applyMove(this.room.game, data.from, data.to, data.promotion);
           this.room.drawOffer = null;
+        } else if (data.type === 'rocket') {
+          if (!canLaunchRocket({ id: accountId }, this.env)) throw new Error('Запуск ракеты недоступен этому аккаунту.');
+          if (this.room.game.winner) throw new Error('Партия уже завершена.');
+          this.room.game.winner = role; this.room.game.reason = 'rocket'; this.room.game.revision++;
+          this.room.drawOffer = null; this.room.rematch = [];
         } else if (data.type === 'resign' && !this.room.game.winner) {
           this.room.game.winner = opposite(role); this.room.game.reason = 'resign'; this.room.game.revision++;
         } else if (data.type === 'draw' && !this.room.game.winner) {

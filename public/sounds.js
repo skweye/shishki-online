@@ -87,7 +87,8 @@ export function createSounds() {
   function play(kind, delay = 0) {
     if (!preferences.enabled || !preferences.volume || document.hidden || context?.state !== 'running') return;
     const time = context.currentTime + .01 + delay;
-    if (kind === 'move') tap(time);
+    if (kind === 'rocket') { tone(130, time, .85, .07, 700); tone(80, time + .08, 1, .04, 240); }
+    else if (kind === 'move') tap(time);
     else if (kind === 'impact') tap(time, 460, .11);
     else if (kind === 'capture') { tap(time, 410, .22); tap(time + .095, 620, .17); }
     else {

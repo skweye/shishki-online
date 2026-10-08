@@ -22,3 +22,11 @@ test('draws never show a defeat, and unfinished games have no result', () => {
   assert.equal(matchResult({ winner: null }), null);
   assert.match(matchResult({ winner: 'black', reason: 'no-moves' }, 'white').text, /У вас не осталось/);
 });
+
+test('rocket result explains the same event to the winner and opponent', () => {
+  const game = { winner: 'black', reason: 'rocket' };
+  assert.equal(matchResult(game, 'black').kind, 'victory');
+  assert.match(matchResult(game, 'black').text, /Вы запустили ракету/);
+  assert.equal(matchResult(game, 'white').kind, 'defeat');
+  assert.match(matchResult(game, 'white').text, /Соперник запустил ракету/);
+});

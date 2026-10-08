@@ -3,13 +3,15 @@ import { newGame, legalMoves, applyMove, sideOf, opposite, squareName, VARIANTS,
 import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
 import { createSounds } from './sounds.js';
-import { authReady } from './auth.js';
+import { authReady, currentUser } from './auth.js';
+import { createRocketEffect, isRocketTransition } from './rocket.js';
 import { applyShot, nextChapaevRound } from './chapaev.js';
 import { createChapaevBoard } from './chapaev-board.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
 const sounds = createSounds();
+const rocketEffect = createRocketEffect(document.querySelector('.board-frame'), sounds);
 const escapeHTML = text => String(text).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 let mode = 'local', game = newGame(), selected = null, flipped = false;
 let room = null, socket = null, connected = false, pending = false, reconnectTimer, heartbeat, retry = 0;
@@ -90,7 +92,7 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
-  if (animating) return ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
+  if (animating) return game.reason === 'rocket' ? ['Ракета запущена!', 'Партия завершается ракетным ударом.', '🚀'] : ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
@@ -147,6 +149,8 @@ function render() {
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
   $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
+  $('rocket-button').hidden = !currentUser?.canLaunchRocket || mode !== 'online' || !room || !!game.winner;
+  $('rocket-button').disabled = animating || !connected || !room?.ready || pending;
   $('resign-button').disabled = animating || !!game.winner || (mode === 'online' && (!connected || !room?.ready || pending));
   $('draw-button').disabled = animating || !!game.winner || (mode === 'online' && (!connected || pending || !!room?.drawOffer));
   $('draw-button').textContent = room?.drawOffer && room.drawOffer === room.role ? 'Ничья предложена' : 'Предложить ничью';
@@ -217,6 +221,16 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
+  if (isRocketTransition(previous, next, audible)) {
+    chapaevBoard.cancel(); animating = true;
+    document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
+    confirmAction = null;
+    rocketEffect.launch(next.winner === (flipped ? 'white' : 'black'), () => {
+      animating = false; sounds.transition(previous, next, room?.role); render();
+    });
+    return;
+  }
+  if (previous.revision !== next.revision || previous.variant !== next.variant) rocketEffect.cancel();
   if (audible && previous.reason === 'round' && next.variant === 'chapaev' && !next.winner && next.round === (previous.round || 1) + 1 && next.revision === previous.revision + 1) {
     animating = true; sounds.play('start');
     chapaevBoard.animateRound(previous, next, () => { animating = false; render(); });
@@ -258,6 +272,7 @@ async function api(path, data = {}) {
   return result;
 }
 function disconnect() {
+  rocketEffect.cancel();
   chapaevBoard.cancel(); animating = false;
   clearTimeout(reconnectTimer); clearInterval(heartbeat);
   const previous = socket; socket = null;
@@ -340,6 +355,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
+  rocketEffect.cancel();
   chapaevBoard.cancel(); animating = false;
   boardDrag.cancel();
   $('home-screen').hidden = screen !== 'home';
@@ -461,6 +477,10 @@ $('draw-button').onclick = () => {
 };
 $('accept-draw').onclick = () => send({ type: 'draw' });
 $('decline-draw').onclick = () => send({ type: 'decline-draw' });
+$('rocket-button').onclick = () => {
+  if (!currentUser?.canLaunchRocket || mode !== 'online' || !room?.ready || game.winner || animating) return;
+  send({ type: 'rocket' });
+};
 
 document.addEventListener('accountchange', async () => {
   if (!room) return;
