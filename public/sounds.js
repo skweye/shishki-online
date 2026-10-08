@@ -17,7 +17,7 @@ export function transitionSounds(previous, next, role = null) {
 
 export function createSounds() {
   const key = 'shashki-sounds-v1';
-  let preferences = { enabled: true, volume: 45 }, context, master, noise;
+  let preferences = { enabled: true, volume: 35 }, context, master, noise;
   try {
     const saved = JSON.parse(localStorage.getItem(key));
     if (typeof saved?.enabled === 'boolean') preferences.enabled = saved.enabled;
@@ -33,9 +33,13 @@ export function createSounds() {
       if (!context) {
         const Audio = window.AudioContext || window.webkitAudioContext;
         if (!Audio) return;
-        context = new Audio(); master = context.createGain(); master.connect(context.destination);
+        context = new Audio(); master = context.createGain();
+        // Round off the upper harmonics and leave plenty of headroom for overlapping notes.
+        const softness = context.createBiquadFilter();
+        softness.type = 'lowpass'; softness.frequency.value = 2200; softness.Q.value = .5;
+        master.connect(softness); softness.connect(context.destination);
         master.gain.value = preferences.volume / 100;
-        noise = context.createBuffer(1, context.sampleRate * .09, context.sampleRate);
+        noise = context.createBuffer(1, Math.ceil(context.sampleRate * .14), context.sampleRate);
         const samples = noise.getChannelData(0);
         for (let i = 0; i < samples.length; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / samples.length);
       }
@@ -45,31 +49,39 @@ export function createSounds() {
   // Audio starts only after an explicit interaction with the page.
   document.addEventListener('pointerdown', unlock, { passive: true });
   document.addEventListener('keydown', unlock);
-  function tone(frequency, start, duration, gain = .13, type = 'sine') {
+  function tone(frequency, start, duration, gain = .085, endFrequency = frequency) {
     const osc = context.createOscillator(), envelope = context.createGain();
-    osc.type = type; osc.frequency.setValueAtTime(frequency, start);
-    envelope.gain.setValueAtTime(.001, start);
-    envelope.gain.exponentialRampToValueAtTime(gain, start + .008);
-    envelope.gain.exponentialRampToValueAtTime(.001, start + duration);
+    osc.type = 'sine'; osc.frequency.setValueAtTime(frequency, start);
+    osc.frequency.exponentialRampToValueAtTime(endFrequency, start + duration);
+    envelope.gain.setValueAtTime(0, start);
+    envelope.gain.linearRampToValueAtTime(gain, start + .012);
+    envelope.gain.exponentialRampToValueAtTime(.0001, start + duration);
+    envelope.gain.linearRampToValueAtTime(0, start + duration + .015);
     osc.connect(envelope); envelope.connect(master); osc.start(start); osc.stop(start + duration + .02);
     osc.onended = () => { osc.disconnect(); envelope.disconnect(); };
   }
-  function tap(start, pitch = 720, gain = .3) {
+  function tap(start, pitch = 510, gain = .2) {
     const source = context.createBufferSource(), filter = context.createBiquadFilter(), envelope = context.createGain();
-    source.buffer = noise; filter.type = 'bandpass'; filter.frequency.value = pitch; filter.Q.value = 1.4;
-    envelope.gain.setValueAtTime(gain, start); envelope.gain.exponentialRampToValueAtTime(.001, start + .085);
+    const variation = .97 + Math.random() * .06;
+    source.buffer = noise; filter.type = 'bandpass'; filter.frequency.value = pitch * variation; filter.Q.value = .7;
+    // A short felt-like contact followed by the low resonance of a wooden piece.
+    envelope.gain.setValueAtTime(0, start);
+    envelope.gain.linearRampToValueAtTime(gain, start + .006);
+    envelope.gain.exponentialRampToValueAtTime(.0001, start + .11);
+    envelope.gain.linearRampToValueAtTime(0, start + .13);
     source.connect(filter); filter.connect(envelope); envelope.connect(master);
     source.start(start); source.onended = () => { source.disconnect(); filter.disconnect(); envelope.disconnect(); };
-    tone(pitch / 2, start, .075, .12, 'triangle');
+    tone(pitch * .48 * variation, start, .12, .1, pitch * .36 * variation);
+    tone(pitch * .94 * variation, start + .004, .07, .018);
   }
   function play(kind, delay = 0) {
     if (!preferences.enabled || !preferences.volume || document.hidden || context?.state !== 'running') return;
     const time = context.currentTime + .01 + delay;
     if (kind === 'move') tap(time);
-    else if (kind === 'capture') { tap(time, 430, .45); tap(time + .075, 960, .35); }
+    else if (kind === 'capture') { tap(time, 410, .22); tap(time + .095, 620, .17); }
     else {
-      const notes = { promotion: [660, 880], victory: [523, 659, 784, 1047], defeat: [392, 330, 262], draw: [440, 554, 440], start: [440, 660] }[kind];
-      notes?.forEach((note, i) => tone(note, time + i * .12, .24));
+      const notes = { promotion: [523, 784], victory: [392, 494, 587, 784], defeat: [392, 330, 294], draw: [392, 440, 392], start: [330, 494] }[kind];
+      notes?.forEach((note, i) => tone(note, time + i * .15, .32, kind === 'defeat' ? .065 : .085));
     }
   }
   const toggle = document.getElementById('sound-enabled'), slider = document.getElementById('sound-volume'), output = document.getElementById('sound-volume-value');
@@ -77,7 +89,7 @@ export function createSounds() {
   toggle.onchange = async () => { preferences.enabled = toggle.checked; save(); render(); await unlock(); play('move'); };
   slider.oninput = () => { preferences.volume = Number(slider.value); save(); render(); };
   slider.onchange = () => play('move');
-  document.getElementById('sound-preview').onclick = async () => { await unlock(); play('move'); play('capture', .35); play('promotion', .75); };
+  document.getElementById('sound-preview').onclick = async () => { await unlock(); play('move'); play('capture', .4); play('promotion', .9); };
   render();
   return { play, transition(previous, next, role) { transitionSounds(previous, next, role).forEach((sound, i) => play(sound, i * .28)); } };
 }
