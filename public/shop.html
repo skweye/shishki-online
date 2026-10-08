@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru" data-theme="mocha">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#29211e">
+  <title>Магазин и коллекция — Шашки</title><link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/themes.css"><link rel="stylesheet" href="/account-menu.css">
+  <link rel="stylesheet" href="/glass.css"><link rel="stylesheet" href="/profile-page.css"><link rel="stylesheet" href="/rocket.css"><link rel="stylesheet" href="/cosmetics.css"><link rel="stylesheet" href="/shop.css">
+  <script src="/theme.js"></script><script type="module" src="/shop.js"></script>
+</head>
+<body class="profile-page shop-page">
+  <div class="ambient-scene" aria-hidden="true"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i></div>
+  <header class="site-header"><a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a><span class="header-caption">Хорошая игра в вашем стиле.</span><a href="/profile" class="back-link">Мой профиль ↗</a></header>
+  <main class="account-page">
+    <section class="shop-hero"><div><p class="eyebrow">МАЛЕНЬКИЕ ДЕТАЛИ. ВАШ ХАРАКТЕР.</p><h1>Играйте красиво<span>.</span></h1><p>Соберите свой набор шашек.<br>И оставьте за собой эффектный финал.</p></div><div class="profile-surface wallet-card"><span class="subtle">Ваши монеты</span><strong><span class="coin-symbol" aria-hidden="true">◈</span><span id="coin-balance">—</span></strong><span id="wallet-caption">100 монет в подарок при первом входе</span></div></section>
+    <div class="shop-help profile-surface"><span aria-hidden="true">✦</span><p><strong>Играйте — и пополняйте коллекцию.</strong><br>Победа +30 · Ничья +15 · Поражение +10. Минимум 4 хода или удара в онлайн-партии. Монеты игровые, без покупок за деньги.</p></div>
+    <p id="shop-status" class="feedback" role="status"></p><div id="shop-login" class="shop-login" hidden><p>Войдите, чтобы получить монеты, покупать и выбирать оформление.</p><a class="primary-button" href="/?login=1&amp;returnTo=shop">Войти или зарегистрироваться</a></div><button id="shop-retry" class="secondary-button" hidden>Повторить загрузку</button>
+    <nav class="shop-filters" aria-label="Разделы магазина"><button class="active" data-filter="all" aria-pressed="true">Всё</button><button data-filter="skin" aria-pressed="false">Скины шашек</button><button data-filter="effect" aria-pressed="false">Анимации</button><button data-filter="owned" aria-pressed="false">Моя коллекция</button></nav>
+    <section aria-labelledby="catalog-title"><div class="section-heading"><h2 id="catalog-title">Ваша следующая находка</h2><span class="subtle" id="collection-count"></span></div><div id="shop-catalog" class="shop-grid"></div></section>
+    <p class="stats-note">Скины работают в шашках 8 × 8, 12 × 12 и Чапаева. У каждой стороны свой скин. Анимация победителя видна обоим игрокам, когда соперник сдаётся, в том числе в шахматах. Оформление не меняет правила и исход партии.</p>
+    <details class="shop-appearance"><summary>Оформление страницы</summary><div id="theme-options" role="menu" aria-label="Тема оформления"></div></details>
+    <footer><a href="/">← К игре</a><a href="/profile">Профиль</a><a href="/privacy">Конфиденциальность</a></footer>
+  </main>
+  <dialog id="purchase-dialog" aria-labelledby="purchase-title"><div class="dialog-heading"><h2 id="purchase-title">Покупка</h2><button class="icon-button" id="purchase-close" aria-label="Отмена">×</button></div><p id="purchase-description"></p><p class="subtle">Предмет останется в вашей коллекции. После покупки его можно выбрать для игры.</p><p id="purchase-error" class="feedback" role="alert"></p><div class="delete-actions"><button id="purchase-cancel" class="secondary-button">Отмена</button><button id="purchase-confirm" class="primary-button">Купить</button></div></dialog>
+  <dialog id="preview-dialog" aria-labelledby="preview-title"><div class="dialog-heading"><div><p class="eyebrow">ПРИМЕРЬТЕ ПЕРЕД ПОКУПКОЙ</p><h2 id="preview-title">Предпросмотр</h2></div><button id="preview-close" class="icon-button" aria-label="Закрыть предпросмотр">×</button></div><div class="shop-preview-board board-frame" id="preview-board"><div class="preview-checkers" aria-hidden="true"><span class="piece white" id="preview-white"></span><span class="piece black" id="preview-black"></span><span class="piece white" id="preview-white-second"></span><span class="piece black" id="preview-black-second"></span></div></div><p id="preview-description" class="subtle"></p><button id="preview-replay" class="secondary-button">Повторить анимацию</button></dialog>
+</body>
+</html>

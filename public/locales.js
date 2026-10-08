@@ -1,11 +1,8 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
-Запустить ракету|Launch rocket|Запустити ракету
-Ракета запущена!|Rocket launched!|Ракету запущено!
-Партия завершается ракетным ударом.|The game ends with a rocket strike.|Партія завершується ракетним ударом.
-Вы запустили ракету. Победа за вами!|You launched a rocket. You win!|Ви запустили ракету. Перемога за вами!
-Соперник запустил ракету и завершил партию своей победой.|Your opponent launched a rocket and won the game.|Суперник запустив ракету та завершив партію своєю перемогою.
-Запуск ракеты недоступен этому аккаунту.|Rocket launch is unavailable for this account.|Запуск ракети недоступний для цього облікового запису.
+Магазин и коллекция|Shop and collection|Магазин і колекція
+Красивый финал|A beautiful finish|Гарний фінал
+Соперник сдался. Показываем анимацию победителя.|Your opponent resigned. Playing the winner's animation.|Суперник здався. Показуємо анімацію переможця.
 Шашки — хорошая партия начинается здесь|Draughts — a good game starts here|Шашки — гарна партія починається тут
 Простая игра. Красивые решения.|Simple game. Beautiful moves.|Проста гра. Красиві рішення.
 Как играть|How to play|Як грати

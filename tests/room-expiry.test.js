@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { newGame } from '../public/game.js';
-import { canLaunchRocket } from '../src/privileges.js';
-import { isRocketTransition } from '../public/rocket.js';
+
+import { isFinishTransition } from '../public/rocket.js';
+import { matchCoins } from '../public/shop-catalog.js';
 
 register('./helpers/cloudflare-loader.js', import.meta.url);
 globalThis.WebSocketRequestResponsePair = class {};
@@ -36,59 +37,39 @@ async function roomWith(saved = fixture(), env = {}) {
 }
 const join = (room, token) => room.fetch(new Request('https://game.test/join', { method: 'POST', body: JSON.stringify({ token }) }));
 
-test('rocket wins for the authenticated owner on either side in every mode, independent of turn', async t => {
+test('resignation uses the winner selection and never accepts a client-supplied effect or rocket command', async t => {
   t.mock.timers.enable({ apis: ['Date'], now: START });
-  for (const variant of ['russian', 'russian12', 'chapaev', 'chess']) for (const side of ['white', 'black']) {
-    const results = [], env = { ROCKET_OWNER_ID: 'owner-id', AUTH_DB: {
-      prepare: () => ({ bind: (...values) => ({ values, first: async () => ({ active: true }) }) }),
-      batch: async rows => { results.push(...rows); }
-    } };
+  for (const variant of ['russian', 'russian12', 'chess', 'chapaev']) {
     const initial = fixture(); initial.game = newGame(variant);
-    initial.game.turn = side === 'white' ? 'black' : 'white';
-    initial.accounts = { white: 'other-id', black: 'other-id', [side]: 'owner-id' };
-    initial.drawOffer = 'black';
-    const { room, ws } = await roomWith(initial, env);
-    ws.session = { role: side, sessionHash: 'valid-session', lastMessage: 0 };
-    await room.webSocketMessage(ws, JSON.stringify({ type: 'rocket', revision: 0 }));
-    assert.equal(room.room.game.winner, side); assert.equal(room.room.game.reason, 'rocket');
-    assert.equal(room.room.game.revision, 1); assert.equal(room.room.drawOffer, null);
-    assert.equal(results.length, 2);
-    assert.equal(results.find(row => row.values.at(-1) === 'owner-id').values[2], 'win');
-    t.mock.timers.tick(100);
-    await room.webSocketMessage(ws, JSON.stringify({ type: 'rocket', revision: 1 }));
-    assert.equal(results.length, 2); assert.equal(room.room.game.revision, 1);
-  }
-});
-
-test('rocket rejects forged privileges, guests, stale states, expired sessions and missing opponents', async t => {
-  t.mock.timers.enable({ apis: ['Date'], now: START });
-  assert.equal(canLaunchRocket({ id: 'other-id', email: 'kkoallqq@gmail.com' }, { ROCKET_OWNER_ID: 'owner-id' }), false);
-  assert.equal(canLaunchRocket({ id: 'owner-id' }, {}), false);
-  for (const scenario of ['guest', 'other', 'stale', 'revoked', 'waiting', 'finished']) {
-    const initial = fixture(), env = { ROCKET_OWNER_ID: 'owner-id', AUTH_DB: {
-      prepare: () => ({ bind: () => ({ first: async () => scenario === 'revoked' ? null : { active: true } }) }),
-      batch: async () => { throw new Error('Must not record a result'); }
+    initial.accounts = { black: 'winner-id' };
+    const env = { AUTH_DB: {
+      prepare: () => ({ bind: () => ({ first: async () => ({ finish_effect: 'comet' }) }) }),
+      batch: async () => []
     } };
-    initial.accounts = { white: scenario === 'guest' ? null : scenario === 'other' ? 'other-id' : 'owner-id', black: null };
-    if (scenario === 'waiting') initial.players.black = null;
-    if (scenario === 'finished') { initial.game.winner = 'black'; initial.game.reason = 'resign'; }
     const { room, ws } = await roomWith(initial, env);
-    ws.session.sessionHash = scenario === 'guest' ? null : 'session';
-    await room.webSocketMessage(ws, JSON.stringify({ type: 'rocket', revision: scenario === 'stale' ? -1 : 0, canLaunchRocket: true, email: 'kkoallqq@gmail.com', id: 'owner-id' }));
-    assert.equal(room.room.game.winner, initial.game.winner);
-    assert.equal(room.room.game.revision, 0);
-    assert.equal(room.room.pendingResults, undefined);
-    if (scenario === 'revoked') assert.equal(ws.closeCode, 4003);
-    else assert.equal(ws.messages[0].type, 'error');
+    await room.webSocketMessage(ws, JSON.stringify({ type: 'rocket', revision: 0, canLaunchRocket: true }));
+    assert.equal(room.room.game.winner, null);
+    t.mock.timers.tick(100);
+    await room.webSocketMessage(ws, JSON.stringify({ type: 'resign', revision: 0, finishEffect: 'rocket', winner: 'white' }));
+    assert.equal(room.room.game.winner, 'black');
+    assert.equal(room.room.game.reason, 'resign');
+    assert.equal(room.room.game.finishEffect, 'comet');
   }
 });
 
-test('rocket animation is not replayed on reconnect or duplicate snapshots', () => {
-  const before = { revision: 4, winner: null }, after = { revision: 5, winner: 'white', reason: 'rocket' };
-  assert.equal(isRocketTransition(before, after), true);
-  assert.equal(isRocketTransition(before, after, false), false);
-  assert.equal(isRocketTransition(after, after), false);
-  assert.equal(isRocketTransition(before, { ...after, reason: 'resign' }), false);
+test('finish animations only run for a new resignation, not restored or duplicate results', () => {
+  const before = { revision: 4, winner: null }, after = { revision: 5, winner: 'white', reason: 'resign', finishEffect: 'rocket' };
+  assert.equal(isFinishTransition(before, after), true);
+  assert.equal(isFinishTransition(before, after, false), false);
+  assert.equal(isFinishTransition(after, after), false);
+  assert.equal(isFinishTransition(before, { ...after, reason: 'checkmate' }), false);
+  assert.equal(isFinishTransition(before, { ...after, finishEffect: 'unknown' }), false);
+});
+
+test('match rewards require four moves and never trust unknown outcomes', () => {
+  for (const result of ['win', 'loss', 'draw']) assert.equal(matchCoins(result, 3), 0);
+  assert.equal(matchCoins('win', 4), 30); assert.equal(matchCoins('loss', 4), 10); assert.equal(matchCoins('draw', 4), 15);
+  assert.equal(matchCoins('hacked', 10), 0); assert.equal(matchCoins('win', -1), 0);
 });
 
 test('existing rooms adopt the hour deadline and expire exactly at it', async t => {

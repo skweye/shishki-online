@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="/glass.css">
   <link rel="stylesheet" href="/backdrops.css">
   <link rel="stylesheet" href="/rocket.css">
+  <link rel="stylesheet" href="/cosmetics.css">
   <script src="/theme.js"></script>
   <script type="module" src="/app.js"></script>
 </head>
@@ -34,6 +35,7 @@
     <div class="header-actions"><button class="text-button" id="rules-button"><span aria-hidden="true">ⓘ</span> Как играть</button><div class="account-anchor"><button class="account-button" id="account-button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="Войти или зарегистрироваться"><span class="account-avatar" id="account-avatar" aria-hidden="true">↗</span><span id="account-button-label" data-no-translate>Войти</span></button><div class="account-menu" id="account-menu" hidden role="menu" aria-label="Меню аккаунта">
   <div class="menu-identity" id="menu-identity" data-no-translate>Гость</div>
   <button role="menuitem" id="menu-profile">Профиль</button>
+  <button role="menuitem" id="menu-shop">Магазин и коллекция</button>
   <div class="submenu-row"><button role="menuitem" id="appearance-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="appearance-menu">Оформление <span aria-hidden="true">›</span></button>
     <div class="account-submenu" id="appearance-menu" hidden role="menu" aria-label="Оформление"><button class="submenu-back" role="menuitem">← Назад</button><div id="theme-options"></div></div></div>
   <div class="submenu-row"><button role="menuitem" id="language-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu">Язык <span aria-hidden="true">›</span></button>
@@ -75,7 +77,6 @@
         <div class="board-tools"><span><span class="tiny-dot"></span> <span id="board-caption">Два игрока, одно устройство</span></span><button class="text-button" id="flip-button"><span aria-hidden="true">⇅</span> Перевернуть доску</button></div>
         <div id="shot-controls" class="shot-controls" hidden><div class="shot-fields"><div class="shot-piece-field"><label for="shot-piece">Ваша шашка</label><select id="shot-piece"></select></div><div><label for="shot-angle">Направление <output id="shot-angle-value">0°</output></label><input id="shot-angle" type="range" min="-180" max="180" value="0" step="1"></div><div><label for="shot-power">Сила <output id="shot-power-value">65%</output></label><input id="shot-power" type="range" min="5" max="100" value="65" step="1"></div></div><button id="shot-button" class="primary-button">Ударить ↗</button></div><p class="move-help" id="move-help">Перетаскивайте шашки или нажмите на шашку, затем на клетку.</p>
         <div id="match-actions" class="match-actions"><button id="draw-button" class="secondary-button">Предложить ничью</button><button id="resign-button" class="secondary-button">⚑ Сдаться</button></div>
-        <button id="rocket-button" class="rocket-button" hidden><span aria-hidden="true">🚀</span> Запустить ракету</button>
       </section>
 
       <aside class="sidebar">

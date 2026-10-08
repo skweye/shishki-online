@@ -4,7 +4,7 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-04-07",
   "compatibility_flags": ["nodejs_compat"],
-  "vars": { "AUTH_ORIGIN": "https://shishki.pp.ua", "ROCKET_OWNER_ID": "1dbd8de8-1727-457b-955e-82ade613d438" },
+  "vars": { "AUTH_ORIGIN": "https://shishki.pp.ua" },
   "d1_databases": [{
     "binding": "AUTH_DB",
     "database_name": "shishki-online-auth",

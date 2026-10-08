@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { once } from 'node:events';
+import { legalMoves } from '../public/game.js';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
 const post = async (path, data, cookie = '', origin = base) => {
@@ -74,6 +75,71 @@ test('OAuth callback rejects forged/missing state and only redirects to a safe l
   assert.equal(response.status, 303);
   assert.equal(response.headers.get('Location'), '/?auth_error=google_state');
   assert.ok(response.headers.get('Set-Cookie').includes('Max-Age=0'));
+});
+
+test('shop charges once, rejects forged purchases, synchronizes skins and awards coins once', { timeout: 60000 }, async t => {
+  const password = 'Shop-test-only-password-2026!!';
+  const register = async name => {
+    const email = `shop-${crypto.randomUUID()}@example.invalid`;
+    const result = await post('/api/auth/register', { name, email, password, confirmPassword: password });
+    assert.equal(result.response.status, 201, result.data.error); return { ...result, email };
+  };
+  const a = await register('Нефритовый игрок'), b = await register('Ракетный игрок');
+  const shop = async cookie => (await fetch(base + '/api/auth/shop', { headers: { Cookie: cookie } })).json();
+  assert.equal((await fetch(base + '/api/auth/shop')).status, 401);
+  assert.equal((await shop(a.cookie)).balance, 100);
+  assert.equal((await shop(a.cookie)).balance, 100);
+  assert.equal((await post('/api/auth/shop/buy', { item: 'skin-jade' })).response.status, 401);
+  assert.equal((await post('/api/auth/shop/buy', { item: 'skin-jade' }, a.cookie, 'https://evil.example')).response.status, 403);
+  assert.equal((await post('/api/auth/shop/equip', { item: 'skin-neon' }, a.cookie)).response.status, 403);
+  assert.equal((await post('/api/auth/shop/buy', { item: 'invented', price: -1000 }, a.cookie)).response.status, 400);
+  const purchases = await Promise.all([1, 2, 3].map(() => post('/api/auth/shop/buy', { item: 'skin-jade', price: 0, balance: 99999 }, a.cookie)));
+  for (const purchase of purchases) assert.equal(purchase.response.status, 200, purchase.data.error);
+  assert.equal((await shop(a.cookie)).balance, 40);
+  assert.equal((await shop(a.cookie)).owned.filter(id => id === 'skin-jade').length, 1);
+  assert.equal((await post('/api/auth/shop/buy', { item: 'skin-ice' }, a.cookie)).response.status, 409);
+  assert.equal((await post('/api/auth/shop/equip', { item: 'skin-jade' }, a.cookie)).data.user.pieceSkin, 'jade');
+  assert.equal((await post('/api/auth/shop/buy', { item: 'effect-rocket' }, b.cookie)).data.balance, 0);
+  assert.equal((await post('/api/auth/shop/equip', { item: 'effect-rocket' }, b.cookie)).data.user.finishEffect, 'rocket');
+  const room = await post('/api/rooms', {}, a.cookie);
+  const joined = await post(`/api/rooms/${room.data.code}/join`, {}, b.cookie);
+  assert.equal(joined.data.cosmetics.white.skin, 'jade');
+  assert.equal(joined.data.cosmetics.black.effect, 'rocket');
+  const connect = async (token, cookie) => {
+    const ws = new WebSocket(base.replace(/^http/, 'ws') + `/api/rooms/${room.data.code}/socket`, ['checkers', token], { headers: { Cookie: cookie, Origin: base } });
+    t.after(() => ws.terminate()); const initial = once(ws, 'message'); await once(ws, 'open'); await initial; return ws;
+  };
+  const sockets = { white: await connect(room.data.token, a.cookie), black: await connect(joined.data.token, b.cookie) };
+  let game = joined.data.game;
+  for (let i = 0; i < 4; i++) {
+    const move = legalMoves(game)[0];
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const reply = once(sockets[game.turn], 'message');
+    sockets[game.turn].send(JSON.stringify({ type: 'move', from: move.from, to: move.to, revision: game.revision }));
+    const state = JSON.parse((await reply)[0]); assert.equal(state.type, 'state', state.message); game = state.game;
+  }
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const resultA = once(sockets.white, 'message'), resultB = once(sockets.black, 'message');
+  sockets.white.send(JSON.stringify({ type: 'resign', revision: game.revision, winner: 'white', finishEffect: 'none' }));
+  for (const reply of await Promise.all([resultA, resultB])) {
+    const final = JSON.parse(reply[0]); assert.equal(final.game.winner, 'black'); assert.equal(final.game.finishEffect, 'rocket');
+  }
+  assert.equal((await shop(a.cookie)).balance, 50);
+  assert.equal((await shop(b.cookie)).balance, 30);
+  await post(`/api/rooms/${room.data.code}/join`, {}, a.cookie);
+  assert.equal((await shop(b.cookie)).balance, 30);
+  const accountB = await (await fetch(base + '/api/auth/account', { headers: { Cookie: b.cookie } })).json();
+  assert.equal(accountB.recent[0].coins, 30);
+  // Two simultaneous different purchases must not overdraw the wallet.
+  const c = await register('Коллекционер');
+  const raced = await Promise.all(['skin-jade', 'effect-confetti'].map(item => post('/api/auth/shop/buy', { item }, c.cookie)));
+  assert.deepEqual(raced.map(r => r.response.status).sort(), [200, 409]);
+  assert.equal((await shop(c.cookie)).balance, 40);
+  for (const user of [a, b, c]) assert.equal((await post('/api/auth/delete-account', { email: user.email, password, confirmation: 'DELETE' }, user.cookie)).response.status, 200);
+  const recreated = await post('/api/auth/register', { name: 'Заново', email: c.email, password, confirmPassword: password });
+  assert.equal(recreated.response.status, 201, recreated.data.error);
+  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100); assert.equal(fresh.owned.length, 2);
+  await post('/api/auth/delete-account', { email: c.email, password, confirmation: 'DELETE' }, recreated.cookie);
 });
 
 test('account results survive rematches and deletion revokes every session and room seat', { timeout: 60000 }, async t => {

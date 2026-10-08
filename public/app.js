@@ -4,7 +4,8 @@ import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
 import { createSounds } from './sounds.js';
 import { authReady, currentUser } from './auth.js';
-import { createRocketEffect, isRocketTransition } from './rocket.js';
+import { createRocketEffect, isFinishTransition } from './rocket.js';
+import { validSkin } from './shop-catalog.js';
 import { applyShot, nextChapaevRound } from './chapaev.js';
 import { createChapaevBoard } from './chapaev-board.js';
 
@@ -53,8 +54,10 @@ function localSave() { savedLocal = game; localGames[variantOf(game)] = game; st
 function canPlay() { return !animating && !game.winner && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
 function pieceHTML(piece, captured = false) {
   if (isChess()) return '<span class="piece chess-piece '+sideOf(piece)+'" aria-hidden="true">'+['', '♟', '♞', '♝', '♜', '♛', '♚'][Math.abs(piece)]+'</span>';
-  return `<span class="piece ${sideOf(piece)} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
+  const skin = skinFor(sideOf(piece));
+  return `<span class="piece ${sideOf(piece)} skin-${skin} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
 }
+function skinFor(side) { return validSkin(mode === 'local' ? currentUser?.pieceSkin : room?.cosmetics?.[side]?.skin); }
 function playerHTML(side) {
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
@@ -66,7 +69,7 @@ function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
   $('board').hidden = isChapaev(); $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
   if (isChapaev()) {
-    chapaevBoard.render(game, flipped, canPlay());
+    chapaevBoard.render(game, flipped, canPlay(), { white: skinFor('white'), black: skinFor('black') });
     $('top-player').innerHTML = playerHTML(flipped ? 'white' : 'black');
     $('bottom-player').innerHTML = playerHTML(flipped ? 'black' : 'white');
     return;
@@ -92,7 +95,7 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
-  if (animating) return game.reason === 'rocket' ? ['Ракета запущена!', 'Партия завершается ракетным ударом.', '🚀'] : ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
+  if (animating) return game.reason === 'resign' ? ['Красивый финал', 'Соперник сдался. Показываем анимацию победителя.', '✦'] : ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
@@ -149,8 +152,6 @@ function render() {
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
   $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
-  $('rocket-button').hidden = !currentUser?.canLaunchRocket || mode !== 'online' || !room || !!game.winner;
-  $('rocket-button').disabled = animating || !connected || !room?.ready || pending;
   $('resign-button').disabled = animating || !!game.winner || (mode === 'online' && (!connected || !room?.ready || pending));
   $('draw-button').disabled = animating || !!game.winner || (mode === 'online' && (!connected || pending || !!room?.drawOffer));
   $('draw-button').textContent = room?.drawOffer && room.drawOffer === room.role ? 'Ничья предложена' : 'Предложить ничью';
@@ -221,13 +222,13 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
-  if (isRocketTransition(previous, next, audible)) {
+  if (isFinishTransition(previous, next, audible)) {
     chapaevBoard.cancel(); animating = true;
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     confirmAction = null;
     rocketEffect.launch(next.winner === (flipped ? 'white' : 'black'), () => {
       animating = false; sounds.transition(previous, next, room?.role); render();
-    });
+    }, next.finishEffect);
     return;
   }
   if (previous.revision !== next.revision || previous.variant !== next.variant) rocketEffect.cancel();
@@ -282,7 +283,7 @@ function disconnect() {
 function applySnapshot(data, audible = true) {
   const changed = game.revision !== data.game.revision;
   acceptGame(data.game, audible);
-  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, accountBound: data.accountBound });
+  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, cosmetics: data.cosmetics, accountBound: data.accountBound });
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
   pending = false; render();
 }
@@ -449,8 +450,10 @@ $('new-button').onclick = () => {
   else resetLocal();
 };
 function finishLocal(winner, reason) {
-  const previous = structuredClone(game);
-  game.winner = winner; game.reason = reason; game.revision++; sounds.transition(previous, game); selected = null; localSave(); render();
+  const next = structuredClone(game);
+  next.winner = winner; next.reason = reason; next.revision++;
+  next.finishEffect = reason === 'resign' ? currentUser?.finishEffect || 'none' : 'none';
+  acceptGame(next); selected = null; localSave(); render();
 }
 function confirmMatch(title, text, action, label) {
   const revision = game.revision, code = room?.code;
@@ -477,13 +480,9 @@ $('draw-button').onclick = () => {
 };
 $('accept-draw').onclick = () => send({ type: 'draw' });
 $('decline-draw').onclick = () => send({ type: 'decline-draw' });
-$('rocket-button').onclick = () => {
-  if (!currentUser?.canLaunchRocket || mode !== 'online' || !room?.ready || game.winner || animating) return;
-  send({ type: 'rocket' });
-};
 
 document.addEventListener('accountchange', async () => {
-  if (!room) return;
+  if (!room) { render(); return; }
   const code = room.code;
   disconnect();
   try { await join(code); }
@@ -491,6 +490,7 @@ document.addEventListener('accountchange', async () => {
 });
 updateStart(); render();
 await authReady;
+render();
 const invite = new URL(location.href).searchParams.get('room');
 if (invite) {
   mode = 'online'; showScreen('game'); render(); $('status-title').textContent = 'Открываем комнату…';

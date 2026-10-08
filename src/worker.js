@@ -3,7 +3,6 @@ import { newGame, applyMove, opposite, validVariant, variantOf } from '../public
 import { applyShot, nextChapaevRound } from '../public/chapaev.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 import { writeResults } from './account-stats.js';
-import { canLaunchRocket } from './privileges.js';
 export { PasswordService } from './password-service.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -38,7 +37,7 @@ export default {
       const headers = new Headers(request.headers);
       // Identity is supplied only by this Worker, never by a browser header.
       headers.delete('X-Auth-User');
-      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash })));
+      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, finishEffect: identity.finishEffect })));
       request = new Request(request, { headers });
       if (request.method === 'POST') {
         let data;
@@ -112,7 +111,7 @@ export class GameRoom extends DurableObject {
       game: this.room.game, ready: !!this.room.players.black,
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer,
-      names: this.room.names || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
+      names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
     };
   }
   broadcast() {
@@ -131,6 +130,7 @@ export class GameRoom extends DurableObject {
             for (const ws of this.ctx.getWebSockets(side)) ws.close(4003, 'Аккаунт удалён');
             this.room.names[side] = 'Удалённый игрок';
             this.room.accounts[side] = null;
+            if (this.room.cosmetics) delete this.room.cosmetics[side];
             this.room.players[side] = crypto.randomUUID();
           }
           this.room.pendingResults = (this.room.pendingResults || []).filter(row => row.userId !== userId);
@@ -147,6 +147,7 @@ export class GameRoom extends DurableObject {
         const token = crypto.randomUUID();
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         this.room.code = url.searchParams.get('code');
+        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', effect: identity?.finishEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
@@ -169,6 +170,8 @@ export class GameRoom extends DurableObject {
         }
         if (identity) {
           this.room.accounts[role] = identity.id; this.room.names[role] = identity.name;
+          this.room.cosmetics ||= {};
+          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', effect: identity.finishEffect || 'none' };
           const code = this.room.code || url.pathname.match(/\/rooms\/([A-F0-9]{12})\//)?.[1];
           if (code) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, code).run();
         }
@@ -214,13 +217,13 @@ export class GameRoom extends DurableObject {
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
           this.room.game = data.type === 'shot' ? applyShot(this.room.game, data.id, data.dx, data.dy) : applyMove(this.room.game, data.from, data.to, data.promotion);
           this.room.drawOffer = null;
-        } else if (data.type === 'rocket') {
-          if (!canLaunchRocket({ id: accountId }, this.env)) throw new Error('Запуск ракеты недоступен этому аккаунту.');
-          if (this.room.game.winner) throw new Error('Партия уже завершена.');
-          this.room.game.winner = role; this.room.game.reason = 'rocket'; this.room.game.revision++;
-          this.room.drawOffer = null; this.room.rematch = [];
         } else if (data.type === 'resign' && !this.room.game.winner) {
+          const winnerId = this.room.accounts?.[opposite(role)];
+          // Resolve the winner's current selection on the server, never from a move payload.
+          const winner = winnerId ? await this.env.AUTH_DB.prepare('SELECT finish_effect FROM users WHERE id = ?').bind(winnerId).first() : null;
           this.room.game.winner = opposite(role); this.room.game.reason = 'resign'; this.room.game.revision++;
+          this.room.game.finishEffect = winner?.finish_effect || 'none';
+          this.room.drawOffer = null;
         } else if (data.type === 'draw' && !this.room.game.winner) {
           if (this.room.drawOffer === opposite(role)) {
             this.room.game.winner = 'draw'; this.room.game.reason = 'agreement'; this.room.game.revision++;

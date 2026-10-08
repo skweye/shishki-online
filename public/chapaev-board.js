@@ -1,9 +1,11 @@
 import { RADIUS, simulateShot, chapaevRows, chapaevLineup } from './chapaev.js';
+import { SKIN_COLORS } from './shop-catalog.js';
 
 export function createChapaevBoard({ shoot, impact }) {
   const $ = id => document.getElementById(id), canvas = $('chapaev-canvas'), ctx = canvas.getContext('2d');
   const selector = $('shot-piece'), angle = $('shot-angle'), power = $('shot-power');
   let state, flipped = false, playable = false, selected = null, drag = null, animation = null, raf = 0, shown = [];
+  let skins = {};
   const transform = p => flipped ? { x: 8 - p.x, y: 8 - p.y } : p;
   const point = event => { const r = canvas.getBoundingClientRect(); return transform({ x: (event.clientX - r.left) * 8 / r.width, y: (event.clientY - r.top) * 8 / r.height }); };
   function impulse() {
@@ -24,12 +26,13 @@ export function createChapaevBoard({ shoot, impact }) {
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { ctx.fillStyle = (x + y) % 2 ? dark : light; ctx.fillRect(x, y, 1, 1); }
     for (const piece of shown) {
       const p = transform(piece), white = piece.side === 'white';
+      const colors = SKIN_COLORS[skins[piece.side]]?.[piece.side];
       ctx.beginPath(); ctx.ellipse(p.x, p.y + .05, RADIUS, RADIUS, 0, 0, Math.PI * 2); ctx.fillStyle = '#0005'; ctx.fill();
       const gradient = ctx.createRadialGradient(p.x - .12, p.y - .15, .02, p.x, p.y, RADIUS);
-      gradient.addColorStop(0, white ? '#fff8e8' : '#62564a'); gradient.addColorStop(1, white ? '#d6c4a7' : '#25211e');
+      gradient.addColorStop(0, colors?.[0] || (white ? '#fff8e8' : '#62564a')); gradient.addColorStop(1, colors?.[1] || (white ? '#d6c4a7' : '#25211e'));
       ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS, 0, Math.PI * 2); ctx.fillStyle = gradient; ctx.fill();
       ctx.strokeStyle = white ? '#f8edda' : '#928170'; ctx.lineWidth = .018; ctx.stroke();
-      ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS * .7, 0, Math.PI * 2); ctx.strokeStyle = white ? '#ac967b' : '#9a887a'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS * .7, 0, Math.PI * 2); ctx.strokeStyle = colors?.[2] || (white ? '#ac967b' : '#9a887a'); ctx.stroke();
       ctx.fillStyle = white ? '#675747' : '#eee1cf'; ctx.font = '500 .19px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(piece.id % 8 + 1), p.x, p.y);
       if (piece.id === selected && playable && !animation) {
         ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS + .07, 0, Math.PI * 2); ctx.strokeStyle = accent; ctx.lineWidth = .04; ctx.stroke();
@@ -93,7 +96,8 @@ export function createChapaevBoard({ shoot, impact }) {
       }
       raf = requestAnimationFrame(tick);
     },
-    render(game, flip, canPlay) {
+    render(game, flip, canPlay, selectedSkins = {}) {
+      skins = selectedSkins;
       if (state?.revision !== game.revision || !canPlay || flipped !== flip) cancelDrag();
       if (state?.turn !== game.turn || flipped !== flip) angle.value = (game.turn === 'white') !== flip ? 0 : 180;
       state = game; flipped = flip; playable = canPlay;

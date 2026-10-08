@@ -57,7 +57,7 @@ function showStats(data) {
     const item = element('li', '', 'recent-game'), details = document.createElement('div');
     details.append(element('strong', modes.find(([id]) => id === game.variant)?.[1] || game.variant));
     const date = new Date(game.finished_at * 1000).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    details.append(element('small', `${date} · ${game.variant === 'chapaev' ? 'Ударов' : 'Ходов'}: ${game.moves}`));
+    details.append(element('small', `${date} · ${game.variant === 'chapaev' ? 'Ударов' : 'Ходов'}: ${game.moves}${game.coins ? ' · +' + game.coins + ' ◈' : ''}`));
     const badge = element('span', { win: 'Победа', loss: 'Поражение', draw: 'Ничья' }[game.result], 'result-badge');
     badge.dataset.result = game.result; item.append(details, badge); return item;
   }));
@@ -68,6 +68,7 @@ async function load() {
   try {
     const data = await request('account');
     showUser(data.user); showStats(data);
+    $('profile-coins').textContent = data.shop.balance.toLocaleString('ru-RU');
     $('connect-google').hidden = user.googleLinked || !data.googleEnabled;
     $('page-state').hidden = true; $('account-content').hidden = false;
   } catch (error) {

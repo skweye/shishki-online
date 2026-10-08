@@ -51,6 +51,7 @@ export function openAuth() {
 $('menu-profile').onclick = () => {
   closeAccountMenu(); location.assign('/profile');
 };
+$('menu-shop').onclick = () => { closeAccountMenu(); location.assign('/shop'); };
 $('menu-login').onclick = () => { closeAccountMenu(); openAuth(); };
 $('auth-login-tab').onclick = () => setTab('login');
 $('auth-register-tab').onclick = () => setTab('register');
@@ -73,7 +74,8 @@ for (const type of ['login', 'register']) {
       event.currentTarget?.reset();
       $('auth-login-form').reset(); $('auth-register-form').reset();
       $('auth-dialog').close(); update(result.user);
-      if (new URL(location.href).searchParams.get('returnTo') === 'profile') { location.assign('/profile'); return; }
+      const destination = new URL(location.href).searchParams.get('returnTo');
+      if (['profile', 'shop'].includes(destination)) { location.assign('/' + destination); return; }
       notify(type === 'register' ? 'Аккаунт создан. Приятной игры!' : 'Вы вошли в аккаунт.');
     } catch (error) { $('auth-error').textContent = error.message; }
     finally {
@@ -86,7 +88,8 @@ for (const type of ['login', 'register']) {
 function google() {
   if (!googleEnabled) return;
   const room = new URL(location.href).searchParams.get('room');
-  const returnTo = new URL(location.href).searchParams.get('returnTo') === 'profile' ? '/profile' : /^[A-F0-9]{12}$/.test(room || '') ? '/?room=' + room : '/';
+  const destination = new URL(location.href).searchParams.get('returnTo');
+  const returnTo = ['profile', 'shop'].includes(destination) ? '/' + destination : /^[A-F0-9]{12}$/.test(room || '') ? '/?room=' + room : '/';
   location.assign('/api/auth/google?returnTo=' + encodeURIComponent(returnTo));
 }
 $('google-signin').onclick = google;
@@ -126,7 +129,10 @@ export const authReady = request('session').then(data => {
   $('auth-error').textContent = 'Сервис аккаунтов временно недоступен. Вы можете играть как гость.';
 });
 const url = new URL(location.href), authError = url.searchParams.get('auth_error');
-if (url.searchParams.get('login') === '1' && !authError) authReady.then(() => openAuth());
+if (url.searchParams.get('login') === '1' && !authError) authReady.then(() => {
+  if (currentUser && ['profile', 'shop'].includes(url.searchParams.get('returnTo'))) location.assign('/' + url.searchParams.get('returnTo'));
+  else openAuth();
+});
 if (authError) {
   const errors = {
     google_unavailable: 'Вход через Google ещё не подключён. Пока используйте почту и пароль.',

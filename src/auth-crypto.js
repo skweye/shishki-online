@@ -35,6 +35,7 @@ export function validateRegistration(data) {
 }
 export function safeReturnTo(value) {
   if (value === '/profile') return '/profile';
+  if (value === '/shop') return '/shop';
   if (typeof value !== 'string' || !value.startsWith('/?room=')) return '/';
   try { const code = new URL(value, 'https://local.invalid').searchParams.get('room'); return /^[A-F0-9]{12}$/.test(code) ? '/?room=' + code : '/'; } catch { return '/'; }
 }

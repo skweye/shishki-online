@@ -15,7 +15,6 @@ export function matchResult(game, role = null) {
     };
   }
   const reasons = {
-    rocket: role ? victory ? 'Вы запустили ракету. Победа за вами!' : 'Соперник запустил ракету и завершил партию своей победой.' : `${winner} запустили ракету и победили!`,
     checkmate: 'Мат. Король не может избежать атаки. Партия завершена!',
     stalemate: 'Пат: нет доступных ходов, а король не под шахом. Ничья.',
     material: 'Недостаточно фигур для мата. Партия завершена вничью.',
@@ -31,6 +30,6 @@ export function matchResult(game, role = null) {
     kind: draw ? 'draw' : victory ? 'victory' : 'defeat',
     title: draw ? 'Ничья. Хорошая игра!' : role ? victory ? 'Ваша победа!' : 'В этот раз — поражение' : `${winner} побеждают!`,
     text: reasons[game.reason] || 'Партия завершена. Встретимся за доской ещё раз?',
-    symbol: game.reason === 'rocket' ? '🚀' : draw ? '½' : victory ? '♛' : '↻'
+    symbol: draw ? '½' : victory ? '♛' : '↻'
   };
 }
