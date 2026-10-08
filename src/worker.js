@@ -1,6 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
-import { applyShot } from '../public/chapaev.js';
+import { applyShot, nextChapaevRound } from '../public/chapaev.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 export { PasswordService } from './password-service.js';
 
@@ -183,7 +183,7 @@ export class GameRoom extends DurableObject {
           if (!this.room.rematch.includes(role)) this.room.rematch.push(role);
           if (this.room.rematch.length === 2) {
             const revision = this.room.game.revision + 1;
-            this.room.game = newGame(variantOf(this.room.game)); this.room.game.revision = revision;
+            this.room.game = this.room.game.reason === 'round' ? nextChapaevRound(this.room.game) : newGame(variantOf(this.room.game)); this.room.game.revision = revision;
             this.room.rematch = []; this.room.drawOffer = null;
           }
         } else throw new Error('Действие сейчас недоступно.');

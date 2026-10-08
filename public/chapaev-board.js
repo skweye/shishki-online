@@ -1,4 +1,4 @@
-import { RADIUS, simulateShot } from './chapaev.js';
+import { RADIUS, simulateShot, chapaevRows, chapaevLineup } from './chapaev.js';
 
 export function createChapaevBoard({ shoot, impact }) {
   const $ = id => document.getElementById(id), canvas = $('chapaev-canvas'), ctx = canvas.getContext('2d');
@@ -79,6 +79,20 @@ export function createChapaevBoard({ shoot, impact }) {
   function cancel() { cancelAnimationFrame(raf); animation = null; cancelDrag(); }
   return {
     cancel,
+    animateRound(previous, next, done) {
+      cancel();
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }
+      const from = chapaevLineup(chapaevRows(previous)), started = performance.now();
+      animation = true;
+      function tick(now) {
+        const progress = Math.max(0, Math.min(1, (now - started) / 850)), eased = progress * progress * (3 - 2 * progress);
+        shown = next.pieces.map((piece, i) => ({ ...piece, y: from[i].y + (piece.y - from[i].y) * eased }));
+        draw();
+        if (progress >= 1 || document.hidden) { animation = null; shown = next.pieces; done(); return; }
+        raf = requestAnimationFrame(tick);
+      }
+      raf = requestAnimationFrame(tick);
+    },
     render(game, flip, canPlay) {
       if (state?.revision !== game.revision || !canPlay || flipped !== flip) cancelDrag();
       if (state?.turn !== game.turn || flipped !== flip) angle.value = (game.turn === 'white') !== flip ? 0 : 180;

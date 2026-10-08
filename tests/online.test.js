@@ -54,6 +54,34 @@ test('Chapaev rooms validate impulses, sync physics, restore and rematch', { tim
   assert.equal(reset.game.variant, 'chapaev'); assert.equal(reset.game.pieces.length, 16); assert.equal(reset.game.lastShot, null);
 });
 
+test('Chapaev round advancement waits for both players and survives reconnecting', { timeout: 30000 }, async t => {
+  const { data: room } = await post('/api/rooms', { variant: 'chapaev' });
+  const a = client(room.code, room.token); t.after(() => a.ws.close()); await a.wait(m => m.type === 'state');
+  const { data: joined } = await post(`/api/rooms/${room.code}/join`);
+  const b = client(room.code, joined.token); t.after(() => b.ws.close()); await b.wait(m => m.type === 'state' && m.ready);
+  for (let i = 0; i < 8; i++) {
+    await a.send({ type: 'shot', id: 0, dx: 0, dy: -.05, revision: i * 2 });
+    await b.wait(m => m.type === 'state' && m.game.revision === i * 2 + 1);
+    await b.send({ type: 'shot', id: 8 + i, dx: 0, dy: -1, revision: i * 2 + 1 });
+    await a.wait(m => m.type === 'state' && m.game.revision === i * 2 + 2);
+  }
+  const { data: end } = await post(`/api/rooms/${room.code}/join`, { token: room.token });
+  assert.equal(end.game.winner, 'white'); assert.equal(end.game.reason, 'round'); assert.equal(end.game.score.white, 1);
+  await a.send({ type: 'rematch', revision: 16 });
+  const waiting = await b.wait(m => m.type === 'state' && m.rematch.length === 1);
+  assert.equal(waiting.game.round, 1);
+  await b.send({ type: 'rematch', revision: 16 });
+  const next = await a.wait(m => m.type === 'state' && m.game.revision === 17);
+  assert.equal(next.game.round, 2); assert.equal(next.game.winner, null);
+  assert.deepEqual(next.game.rows, { white: 6, black: 0 }); assert.equal(next.game.pieces.length, 16);
+  assert.equal(next.game.turn, 'white'); assert.equal(next.game.score.white, 1);
+  assert.ok(next.game.pieces.filter(p => p.side === 'white').every(p => p.y === 6.5));
+  const { data: restored } = await post(`/api/rooms/${room.code}/join`, { token: room.token });
+  assert.deepEqual(restored.game, next.game);
+  await b.send({ type: 'rematch', revision: 17 });
+  await b.wait(m => m.type === 'error' && /недоступно/.test(m.message));
+});
+
 test('HTTP routes validate origins, room IDs and missing rooms', async () => {
   const response = await fetch(base); assert.equal(response.status, 200);
   assert.match(await response.text(), /Шашки/);

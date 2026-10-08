@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { newGame, applyMove, legalMoves } from '../public/game.js';
-import { applyShot, simulateShot } from '../public/chapaev.js';
+import { applyShot, simulateShot, nextChapaevRound, roundAdvance } from '../public/chapaev.js';
+import { matchResult } from '../public/match-result.js';
 import { transitionSounds } from '../public/sounds.js';
 
 test('Chapaev starts with eight pieces per edge and accepts no draughts moves', () => {
@@ -40,9 +41,45 @@ test('a round finishes when a side has no pieces; simultaneous losses are a draw
   const game = newGame('chapaev');
   game.pieces = [{ id: 0, side: 'white', x: 2, y: 7.5 }, { id: 8, side: 'black', x: 2, y: .5 }];
   const won = applyShot(game, 0, 0, -.65);
-  assert.equal(won.winner, 'white'); assert.equal(won.reason, 'knockout');
+  assert.equal(won.winner, 'white'); assert.equal(won.reason, 'round');
+  assert.deepEqual(won.score, { white: 1, black: 0 });
+  const next = nextChapaevRound(won);
+  assert.deepEqual(next.rows, { white: 6, black: 0 });
+  assert.equal(next.round, 2); assert.equal(next.pieces.length, 16); assert.equal(next.turn, 'black');
+  assert.equal(next.winner, null); assert.equal(next.revision, won.revision + 1);
+  assert.match(matchResult(won).text, /продвигаются/);
   game.pieces = [{ id: 0, side: 'white', x: 6.8, y: .2 }, { id: 8, side: 'black', x: 7.5, y: .2 }];
   assert.equal(applyShot(game, 0, Math.SQRT1_2, -Math.SQRT1_2).winner, 'draw');
+});
+test('round wins move each side forward, push the opponent when adjacent, and end at the edge', () => {
+  for (const winner of ['white', 'black']) {
+    const loser = winner === 'white' ? 'black' : 'white';
+    const game = { ...newGame('chapaev'), winner, reason: 'round', rows: { white: 4, black: 3 } };
+    const moved = nextChapaevRound(game);
+    assert.equal(moved.rows[winner], game.rows[winner]);
+    assert.equal(moved.rows[loser], game.rows[loser] + (winner === 'white' ? -1 : 1));
+    assert.match(matchResult(game).text, /отступают/);
+    game.rows = winner === 'white' ? { white: 1, black: 0 } : { white: 7, black: 6 };
+    assert.equal(roundAdvance(game).finished, true);
+    assert.throws(() => nextChapaevRound(game));
+    game.winner = null; game.reason = null; game.turn = winner;
+    game.pieces = [{ id: 0, side: winner, x: 2, y: 7.5 }, { id: 8, side: loser, x: 2, y: .5 }];
+    const final = applyShot(game, 0, 0, -.65);
+    assert.equal(final.winner, winner); assert.equal(final.reason, 'territory');
+    assert.match(matchResult(final).text, /край доски/);
+  }
+  const black = nextChapaevRound({ ...newGame('chapaev'), winner: 'black', reason: 'round' });
+  assert.deepEqual(black.rows, { white: 7, black: 1 });
+});
+test('drawn rounds restore both lines without advancing; old saves gain round state', () => {
+  const state = { ...newGame('chapaev'), winner: 'draw', reason: 'round', rows: { white: 4, black: 2 }, turn: 'black' };
+  const next = nextChapaevRound(state);
+  assert.deepEqual(next.rows, state.rows); assert.equal(next.turn, 'black'); assert.equal(next.pieces.length, 16);
+  assert.deepEqual(next.score, { white: 0, black: 0 });
+  const old = { ...newGame('chapaev'), winner: 'white', reason: 'round' };
+  delete old.rows; delete old.round; delete old.score;
+  assert.deepEqual(nextChapaevRound(old).rows, { white: 6, black: 0 });
+  assert.throws(() => nextChapaevRound(newGame('chapaev')));
 });
 test('bounded deterministic simulations keep surviving pieces finite and on the board', () => {
   let seed = 73;

@@ -3,7 +3,7 @@ import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
 import { createSounds } from './sounds.js';
 import { authReady } from './auth.js';
-import { applyShot } from './chapaev.js';
+import { applyShot, nextChapaevRound } from './chapaev.js';
 import { createChapaevBoard } from './chapaev-board.js';
 
 const $ = id => document.getElementById(id);
@@ -105,7 +105,7 @@ function renderHistory() {
   if (isChapaev()) {
     game.history.forEach((move, i) => {
       const row = document.createElement('div'); row.className = 'history-row';
-      for (const text of [String(i + 1).padStart(2, '0'), move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
+      for (const text of [`Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
         const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
       }
       rows.push(row);
@@ -124,7 +124,7 @@ function renderHistory() {
 function render() {
   renderBoard(); renderHistory();
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
-  $('variant-description').textContent = `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
+  $('variant-description').textContent = isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
   $('move-help').textContent = isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
   $('board-tip').innerHTML = isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
   $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
@@ -135,7 +135,7 @@ function render() {
   $('mode-badge').textContent = mode === 'local' ? 'ЛОКАЛЬНО' : 'ОНЛАЙН';
   $('online-controls').hidden = mode === 'local'; $('local-note').hidden = mode !== 'local';
   $('online-lobby').hidden = !!room; $('room-controls').hidden = !room;
-  $('board-caption').textContent = mode === 'local' ? 'Два игрока, одно устройство' : room ? 'Комната ' + room.code : 'Пригласите друга за доску';
+  $('board-caption').textContent = (mode === 'local' ? 'Два игрока, одно устройство' : room ? 'Комната ' + room.code : 'Пригласите друга за доску') + (isChapaev() ? ` · Раунд ${game.round || 1} · ${game.score?.white || 0}:${game.score?.black || 0}` : '');
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
   $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
@@ -145,8 +145,8 @@ function render() {
   $('draw-notice').hidden = !room?.drawOffer || room.drawOffer === room.role || !!game.winner;
   $('accept-draw').disabled = $('decline-draw').disabled = !connected || pending;
   $('rematch-button').hidden = !game.winner || (mode === 'online' && !room);
-  $('rematch-button').disabled = mode === 'online' && (!connected || pending || room?.rematch?.includes(room.role));
-  $('rematch-button').textContent = room?.rematch?.includes(room.role) ? 'Ждём согласия соперника…' : room?.rematch?.length ? 'Принять реванш ↻' : 'Реванш ↻';
+  $('rematch-button').disabled = animating || (mode === 'online' && (!connected || pending || room?.rematch?.includes(room.role)));
+  $('rematch-button').textContent = room?.rematch?.includes(room.role) ? 'Ждём согласия соперника…' : game.reason === 'round' ? 'Следующий раунд →' : room?.rematch?.length ? 'Принять реванш ↻' : 'Реванш ↻';
   if (room) {
     $('room-code').textContent = room.code; $('connection-label').textContent = connected ? '● На связи' : '○ Нет связи';
     $('room-hint').textContent = room.ready ? (room.accountBound?.[room.role] ? 'Ваше место привязано к аккаунту.' : 'Ваше место сохранено в этом браузере.') : 'Отправьте ссылку другу. Вы играете белыми.';
@@ -161,12 +161,14 @@ function renderResult() {
   }
   const result = matchResult(game, room?.role);
   dialog.dataset.result = result.kind;
+  $('result-stage').textContent = game.reason === 'round' ? 'РАУНД ЗАВЕРШЁН' : 'ПАРТИЯ ЗАВЕРШЕНА';
   $('result-title').textContent = result.title;
   $('result-text').textContent = result.text;
   $('result-symbol').textContent = result.symbol;
   $('result-rematch').textContent = $('rematch-button').textContent;
   $('result-rematch').disabled = $('rematch-button').disabled;
   $('result-hint').textContent = mode === 'local' ? 'Новая партия на этой же доске. Белые начинают.' : !connected ? 'Восстанавливаем соединение с комнатой…' : room.rematch?.includes(room.role) ? 'Предложение отправлено. Новая партия начнётся, когда соперник согласится.' : room.rematch?.length ? 'Соперник предлагает сыграть ещё раз. Примите реванш, чтобы начать.' : 'Реванш начнётся, когда оба игрока согласятся.';
+  if (game.reason === 'round') $('result-hint').textContent = (mode === 'online' ? 'Следующий раунд начнётся, когда оба игрока будут готовы. ' : '') + `Очередь сохраняется: следующий удар у ${game.turn === 'white' ? 'белых' : 'чёрных'}.`;
   const key = `${room?.code || 'local'}:${game.revision}:${game.winner}`;
   if (shownResult !== key) {
     shownResult = key;
@@ -197,6 +199,11 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
+  if (audible && previous.reason === 'round' && next.variant === 'chapaev' && !next.winner && next.round === (previous.round || 1) + 1 && next.revision === previous.revision + 1) {
+    animating = true; sounds.play('start');
+    chapaevBoard.animateRound(previous, next, () => { animating = false; render(); });
+    return;
+  }
   const shot = audible && next.variant === 'chapaev' && previous.variant === 'chapaev' && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
   if (shot) {
     animating = true; sounds.play('move');
@@ -334,7 +341,7 @@ function goHome() {
 function updateStart() {
   const local = $('start-form').elements['play-mode'].value === 'local';
   const saved = localGames[$('start-form').elements.variant.value];
-  const resume = local && !saved.winner && (saved.history.length || saved.path.length);
+  const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length);
   $('start-button').innerHTML = `${local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
   $('start-hint').textContent = local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
 }
@@ -347,7 +354,7 @@ $('start-form').onsubmit = async event => {
   const variant = $('start-form').elements.variant.value;
   if ($('start-form').elements['play-mode'].value === 'local') {
     mode = 'local'; game = localGames[variant]; savedLocal = game;
-    if (game.winner) { game = newGame(variant); localSave(); }
+    if (game.winner && game.reason !== 'round') { game = newGame(variant); localSave(); }
     sounds.play('start');
     selected = game.forced; flipped = false; showScreen('game'); render();
     return;
@@ -362,7 +369,7 @@ $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
   $('draughts-rules').hidden = variant === 'chapaev'; $('chapaev-rules').hidden = variant !== 'chapaev';
-  $('rules-variant').textContent = variant === 'chapaev' ? 'Чапаев: быстрый раунд на доске 8×8. По восемь шашек, цель — выбить соперника за край.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
+  $('rules-variant').textContent = variant === 'chapaev' ? 'Чапаев: партия из раундов на доске 8×8. Выигрывайте раунды и оттесняйте соперника к краю.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
   $('rules-dialog').showModal();
 };
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
@@ -413,7 +420,12 @@ $('resign-button').onclick = () => confirmMatch('Сдаться в этой па
   if (mode === 'online') send({ type: 'resign' });
   else finishLocal(opposite(game.turn), 'resign');
 }, 'Сдаться');
-function rematch() { if (!game.winner) return; mode === 'online' ? send({ type: 'rematch' }) : resetLocal(); }
+function rematch() {
+  if (!game.winner || animating) return;
+  if (mode === 'online') send({ type: 'rematch' });
+  else if (game.reason === 'round') { acceptGame(nextChapaevRound(game)); localSave(); render(); }
+  else resetLocal();
+}
 $('rematch-button').onclick = $('result-rematch').onclick = rematch;
 $('result-home').onclick = () => { $('result-dialog').close(); goHome(); };
 $('draw-button').onclick = () => {

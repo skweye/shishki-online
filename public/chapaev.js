@@ -1,13 +1,28 @@
 // Shared fixed-step simulation. Clients send only an impulse; the server owns the result.
 export const RADIUS = .34;
 const DT = 1 / 120, FRICTION = 4.8, MAX_SPEED = 20;
+export const chapaevRows = state => state.rows || { white: 7, black: 0 };
+export const chapaevLineup = rows => ['white', 'black'].flatMap((side, row) => Array.from({ length: 8 }, (_, i) => ({ id: row * 8 + i, side, x: i + .5, y: rows[side] + .5 })));
+export function roundAdvance(state, winner = state.winner) {
+  const rows = { ...chapaevRows(state) };
+  if (winner === 'draw') return { rows, moved: null, finished: false };
+  const direction = winner === 'white' ? -1 : 1, loser = winner === 'white' ? 'black' : 'white';
+  const moved = rows.white - rows.black > 1 ? winner : loser;
+  rows[moved] += direction;
+  return { rows, moved, finished: rows[moved] < 0 || rows[moved] > 7 };
+}
+export function nextChapaevRound(state) {
+  if (state.variant !== 'chapaev' || state.reason !== 'round' || !state.winner) throw new Error('Следующий раунд сейчас недоступен.');
+  const { rows, finished } = roundAdvance(state);
+  if (finished) throw new Error('Партия уже завершена.');
+  return { ...structuredClone(state), rows, round: (state.round || 1) + 1, pieces: chapaevLineup(rows), winner: null, reason: null, lastShot: null, revision: state.revision + 1 };
+}
 export function newChapaev() {
   return {
     variant: 'chapaev', board: Array(64).fill(0), turn: 'white', forced: null,
     captured: [], path: [], repetitions: {}, history: [], revision: 0, winner: null, reason: null,
-    pieces: ['white', 'black'].flatMap((side, row) => Array.from({ length: 8 }, (_, i) => ({
-      id: row * 8 + i, side, x: i + .5, y: row ? .5 : 7.5
-    }))), lastShot: null
+    rows: { white: 7, black: 0 }, round: 1, score: { white: 0, black: 0 },
+    pieces: chapaevLineup({ white: 7, black: 0 }), lastShot: null
   };
 }
 export function simulateShot(state, id, dx, dy, collectFrames = false) {
@@ -56,10 +71,15 @@ export function simulateShot(state, id, dx, dy, collectFrames = false) {
   const otherLost = pieces.filter(p => p.out && p.side !== state.turn).length;
   next.revision++;
   next.lastShot = { id, dx, dy, ownLost, otherLost, revision: next.revision, duration: (steps + 1) * DT };
-  next.history.push({ side: state.turn, notation: `№${id % 8 + 1} · −${otherLost}${ownLost ? ` / свои −${ownLost}` : ''}`, captured: otherLost });
+  next.history.push({ side: state.turn, round: state.round || 1, notation: `№${id % 8 + 1} · −${otherLost}${ownLost ? ` / свои −${ownLost}` : ''}`, captured: otherLost });
   next.turn = state.turn === 'white' ? 'black' : 'white';
   const white = next.pieces.some(p => p.side === 'white'), black = next.pieces.some(p => p.side === 'black');
-  if (!white || !black) { next.winner = white ? 'white' : black ? 'black' : 'draw'; next.reason = 'knockout'; }
+  if (!white || !black) {
+    next.winner = white ? 'white' : black ? 'black' : 'draw';
+    next.score = { ...(state.score || { white: 0, black: 0 }) };
+    if (next.winner !== 'draw') next.score[next.winner]++;
+    next.reason = roundAdvance(next).finished ? 'territory' : 'round';
+  }
   if (collectFrames) frames.push(next.pieces);
   return { game: next, frames, collisions };
 }
