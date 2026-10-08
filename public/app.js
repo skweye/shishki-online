@@ -227,7 +227,7 @@ function connect() {
     }
     if (event.code === 4001 || event.code === 4004) {
       $('status-title').textContent = event.code === 4001 ? 'Игра в другой вкладке' : 'Комната закрыта';
-      $('status-text').textContent = event.code === 4001 ? 'Продолжайте там или обновите эту страницу.' : 'Создайте новую комнату для следующей партии.';
+      $('status-text').textContent = event.code === 4001 ? 'Продолжайте там или обновите эту страницу.' : 'Комната удалена после часа без игровых действий. Создайте новую партию.';
       return;
     }
     reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** retry++, 15000));

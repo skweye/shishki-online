@@ -5,7 +5,7 @@ export { PasswordService } from './password-service.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const fail = (message, status = 400) => json({ error: message }, status);
-const TTL = 7 * 24 * 60 * 60 * 1000;
+const TTL = 60 * 60 * 1000;
 async function bodyOf(request) {
   // Bound the actual body, not just a user-controlled Content-Length header.
   const reader = request.body?.getReader();
@@ -60,11 +60,23 @@ export class GameRoom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.room = null;
-    ctx.blockConcurrencyWhile(async () => { this.room = await ctx.storage.get('room') || null; });
+    ctx.blockConcurrencyWhile(async () => {
+      this.room = await ctx.storage.get('room') || null;
+      if (this.room) {
+        if (this.expired()) await this.removeRoom();
+        else await ctx.storage.setAlarm(this.room.updatedAt + TTL);
+      }
+    });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
-  async save() {
-    this.room.updatedAt = Date.now();
+  expired() { return this.room && this.room.updatedAt + TTL <= Date.now(); }
+  async removeRoom() {
+    for (const ws of this.ctx.getWebSockets()) ws.close(4004, 'Комната удалена после часа бездействия');
+    await this.ctx.storage.deleteAlarm();
+    await this.ctx.storage.deleteAll(); this.room = null;
+  }
+  async save(activity = true) {
+    if (activity) this.room.updatedAt = Date.now();
     await this.ctx.storage.put('room', this.room);
     await this.ctx.storage.setAlarm(this.room.updatedAt + TTL);
   }
@@ -88,6 +100,8 @@ export class GameRoom extends DurableObject {
     return this.ctx.blockConcurrencyWhile(async () => {
       const url = new URL(request.url);
       const identity = request.headers.has('X-Auth-User') ? JSON.parse(decodeURIComponent(request.headers.get('X-Auth-User'))) : null;
+      // An overdue alarm must not let a late join revive an expired room.
+      if (this.expired()) await this.removeRoom();
       if (url.pathname === '/create' && request.method === 'POST') {
         if (this.room) return fail('Комната уже существует.', 409);
         const variant = url.searchParams.get('variant') || 'russian';
@@ -108,12 +122,13 @@ export class GameRoom extends DurableObject {
         const accountRole = identity && ['white', 'black'].find(side => this.room.accounts[side] === identity.id);
         if (accountRole) { role = accountRole; token = this.room.players[role]; }
         if (role && this.room.accounts[role] && this.room.accounts[role] !== identity?.id) return fail('Войдите в аккаунт, с которым начали эту партию.', 401);
-        if (!role) {
+        const newPlayer = !role;
+        if (newPlayer) {
           if (this.room.players.black) return fail('Оба места уже заняты. Откройте комнату в том браузере, где вы начали игру.', 409);
           token = crypto.randomUUID(); role = 'black'; this.room.players.black = token;
         }
         if (identity) { this.room.accounts[role] = identity.id; this.room.names[role] = identity.name; }
-        await this.save(); this.broadcast();
+        await this.save(newPlayer); this.broadcast();
         return json({ token, role, ...this.snapshot() });
       }
       if (url.pathname.endsWith('/socket') && request.method === 'GET') {
@@ -135,7 +150,9 @@ export class GameRoom extends DurableObject {
   async webSocketMessage(ws, message) {
     return this.ctx.blockConcurrencyWhile(async () => {
       try {
-        if (!this.room || typeof message !== 'string' || message.length > 1024) throw new Error('Некорректное сообщение.');
+        if (this.expired()) await this.removeRoom();
+        if (!this.room) { ws.close(4004, 'Комната удалена после часа бездействия'); return; }
+        if (typeof message !== 'string' || message.length > 1024) throw new Error('Некорректное сообщение.');
         const session = ws.deserializeAttachment();
         const accountId = this.room.accounts?.[session.role];
         if (accountId && !await sessionActive(this.env, session.sessionHash, accountId)) {
@@ -179,10 +196,11 @@ export class GameRoom extends DurableObject {
   webSocketClose(ws) { if (this.room) this.broadcast(); }
   webSocketError(ws) { ws.close(1011, 'Ошибка соединения'); if (this.room) this.broadcast(); }
   async alarm() {
-    if (this.room && this.room.updatedAt + TTL > Date.now()) {
-      await this.ctx.storage.setAlarm(this.room.updatedAt + TTL); return;
-    }
-    for (const ws of this.ctx.getWebSockets()) ws.close(4004, 'Срок хранения комнаты истёк');
-    await this.ctx.storage.deleteAll(); this.room = null;
+    return this.ctx.blockConcurrencyWhile(async () => {
+      if (this.room && !this.expired()) {
+        await this.ctx.storage.setAlarm(this.room.updatedAt + TTL); return;
+      }
+      await this.removeRoom();
+    });
   }
 }
