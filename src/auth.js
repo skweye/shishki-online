@@ -1,12 +1,13 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
+import { accountStats } from './account-stats.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
 const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash } : null;
+const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -127,6 +128,11 @@ async function googleCallback(request, env) {
 export async function handleAuth(request, env, ctx, readBody) {
   const url = new URL(request.url), path = url.pathname;
   try {
+    if (request.method === 'GET' && path === '/api/auth/account') {
+      const user = await authenticatedUser(request, env);
+      if (!user) return error('Войдите в аккаунт.', 401);
+      return json({ user: cleanUser(user), ...await accountStats(env, user.id), googleEnabled: googleEnabled(env) });
+    }
     if (request.method === 'GET' && path === '/api/auth/session') {
       return json({ user: cleanUser(await authenticatedUser(request, env)), googleEnabled: googleEnabled(env) });
     }
@@ -136,12 +142,27 @@ export async function handleAuth(request, env, ctx, readBody) {
       ctx.waitUntil(tidy(env));
       return await googleStart(request, env);
     }
-    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile'].includes(path)) return error('Запрос не найден.', 404);
+    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile', '/api/auth/delete-account'].includes(path)) return error('Запрос не найден.', 404);
     if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
     if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
     let data;
     try { data = await readBody(request, path === '/api/auth/profile' ? 105000 : 2048); } catch { return error('Некорректный запрос.'); }
     if (!data || typeof data !== 'object' || Array.isArray(data)) return error('Некорректный запрос.');
+    if (path === '/api/auth/delete-account') {
+      const user = await authenticatedUser(request, env);
+      if (!user) return error('Войдите в аккаунт.', 401);
+      if (!await limit(env, 'delete:' + user.id, 5, 600)) return error('Слишком много попыток. Попробуйте через 10 минут.', 429);
+      if (data.confirmation !== 'DELETE' || typeof data.email !== 'string' || data.email.trim().toLowerCase() !== user.email.toLowerCase()) return error('Введите свою почту и DELETE для подтверждения.');
+      if (user.hasPassword) {
+        if (typeof data.password !== 'string' || data.password.length > 128) return error('Введите текущий пароль.');
+        const row = await env.AUTH_DB.prepare('SELECT password_hash FROM users WHERE id = ?').bind(user.id).first();
+        if (!await env.PASSWORDS.getByName(digest(user.email)).verify(data.password, row?.password_hash)) return error('Неверный пароль.', 401);
+      }
+      const rooms = await env.AUTH_DB.prepare('SELECT code FROM account_rooms WHERE user_id = ?').bind(user.id).all();
+      await env.AUTH_DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id).run();
+      ctx.waitUntil(Promise.allSettled(rooms.results.map(({ code }) => env.ROOMS.getByName(code).fetch(new Request('https://internal/forget-account', { method: 'POST', body: JSON.stringify({ userId: user.id }) })))));
+      return json({ user: null, deleted: true }, 200, { 'Set-Cookie': cookie(request, 'session', '', 0) });
+    }
     if (path === '/api/auth/profile') {
       const user = await authenticatedUser(request, env);
       if (!user) return error('Войдите в аккаунт, чтобы изменить профиль.', 401);
@@ -178,5 +199,5 @@ export async function handleAuth(request, env, ctx, readBody) {
     const user = await env.AUTH_DB.prepare('SELECT * FROM users WHERE email = ?').bind(fields.email).first();
     if (!await passwords.verify(fields.password, user?.password_hash || null)) return error('Неверная почта или пароль.', 401);
     return json({ user: publicUser(user) }, 200, { 'Set-Cookie': await startSession(request, env, user.id) });
-  } catch { return error('Не удалось выполнить вход. Попробуйте ещё раз.', 503); }
+  } catch { return error(path.includes('profile') || path.includes('account') ? 'Сервис профиля временно недоступен. Попробуйте ещё раз.' : 'Не удалось выполнить вход. Попробуйте ещё раз.', 503); }
 }

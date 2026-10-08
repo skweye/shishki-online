@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ru" data-theme="mocha">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#29211e"><meta name="robots" content="noindex">
+  <title>Мой профиль — Шашки онлайн</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/themes.css">
+  <link rel="stylesheet" href="/account-menu.css"><link rel="stylesheet" href="/glass.css">
+  <link rel="stylesheet" href="/profile-page.css">
+  <script src="/theme.js"></script><script type="module" src="/profile-page.js"></script>
+</head>
+<body class="profile-page">
+  <div class="ambient-scene" aria-hidden="true"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i></div>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a>
+    <span class="header-caption">Ваша игра. Ваша история.</span>
+    <a class="back-link" href="/">← К игре</a>
+  </header>
+  <main class="account-page">
+    <section id="page-state" class="profile-surface page-state" aria-live="polite">
+      <h1 id="state-title">Загружаем профиль…</h1><p id="state-description">Собираем вашу игровую историю.</p>
+      <a id="sign-in" class="primary-button" href="/?login=1&amp;returnTo=profile" hidden>Войти или зарегистрироваться</a>
+      <button id="retry" class="secondary-button" hidden>Попробовать снова</button>
+    </section>
+    <div id="account-content" hidden>
+      <section class="profile-hero">
+        <div class="large-avatar" id="hero-avatar" aria-hidden="true"></div>
+        <div class="profile-intro"><p class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</p><h1 id="hero-name"></h1><p id="member-since"></p></div>
+        <a href="/" class="primary-button play-again">Сыграть партию <span aria-hidden="true">↗</span></a>
+      </section>
+      <section aria-labelledby="stats-title">
+        <div class="section-heading"><div><p class="eyebrow">КАЖДАЯ ПАРТИЯ — ОПЫТ</p><h2 id="stats-title">Ваша статистика</h2></div><span class="online-label">Онлайн-партии</span></div>
+        <div class="stat-grid">
+          <div class="profile-surface stat"><span>Всего партий</span><strong id="stat-played">0</strong></div>
+          <div class="profile-surface stat stat-win"><span>Победы</span><strong id="stat-wins">0</strong></div>
+          <div class="profile-surface stat"><span>Поражения</span><strong id="stat-losses">0</strong></div>
+          <div class="profile-surface stat"><span>Ничьи</span><strong id="stat-draws">0</strong></div>
+          <div class="profile-surface stat"><span>Доля побед</span><strong id="stat-rate">—</strong></div>
+        </div>
+        <p class="stats-note">Учитываются завершённые онлайн-партии с момента добавления статистики. Локальные игры и отдельные раунды Чапаева не учитываются.</p>
+      </section>
+      <div class="account-columns">
+        <div class="account-column">
+          <section class="profile-surface content-card" aria-labelledby="modes-title">
+            <div class="section-heading"><h2 id="modes-title">По режимам</h2><span class="subtle">И / В / П / Н</span></div>
+            <div id="mode-stats" class="mode-stats"></div>
+          </section>
+          <section class="profile-surface content-card" aria-labelledby="recent-title">
+            <div class="section-heading"><h2 id="recent-title">Последние партии</h2><span class="subtle">Последние 20</span></div>
+            <div id="recent-empty" class="history-empty"><span aria-hidden="true">◌</span><h3>История начинается с первого хода</h3><p>Завершите онлайн-партию, и её результат появится здесь.</p></div>
+            <ol id="recent-games" class="recent-games"></ol>
+          </section>
+        </div>
+        <div class="account-column">
+          <section class="profile-surface content-card" aria-labelledby="edit-title">
+            <p class="eyebrow">ВАШЕ МЕСТО ЗА ДОСКОЙ</p><h2 id="edit-title">Настройки профиля</h2>
+            <form id="edit-profile">
+              <fieldset id="edit-fields">
+                <div class="avatar-editor"><div class="edit-avatar" id="edit-avatar" aria-hidden="true"></div><div><label class="upload-button">Изменить аватар<input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" aria-label="Выбрать аватар"></label><button type="button" id="remove-avatar" class="text-button">Удалить фото</button></div></div>
+                <p class="subtle avatar-hint">PNG, JPEG или WebP до 5 МБ. Фото обрезается до квадрата.</p>
+                <label for="nickname">Никнейм</label><input id="nickname" name="name" required minlength="2" maxlength="40" autocomplete="nickname">
+                <p class="subtle">Это имя видит ваш соперник.</p>
+                <button class="primary-button" id="save-profile" type="submit">Сохранить изменения</button>
+              </fieldset>
+              <p id="edit-status" class="feedback" role="status"></p>
+            </form>
+            <div class="account-details"><span class="subtle">Почта аккаунта</span><strong id="account-email"></strong><p id="account-method"></p><p id="account-verification" class="subtle"></p><a id="connect-google" class="secondary-button" href="/api/auth/google?returnTo=%2Fprofile" hidden>Подключить Google</a></div>
+          </section>
+          <section class="profile-surface content-card appearance-card"><details><summary>Оформление <span aria-hidden="true">＋</span></summary><div id="theme-options" role="menu" aria-label="Тема оформления"></div></details></section>
+          <section class="profile-surface content-card security-card" aria-labelledby="account-actions-title"><h2 id="account-actions-title">Управление аккаунтом</h2><button id="sign-out" class="secondary-button">Выйти из аккаунта</button><p id="logout-error" class="feedback" role="status"></p><div class="danger-zone"><h3>Удаление аккаунта</h3><p>Профиль, аватар и личная статистика будут удалены. Все сеансы входа завершатся. Отменить удаление нельзя.</p><button id="open-delete" class="danger-button">Удалить аккаунт</button></div></section>
+        </div>
+      </div>
+    </div>
+    <footer><span>шашки. Хорошая компания. Отличная партия.</span><a href="/privacy">Конфиденциальность</a></footer>
+  </main>
+  <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+    <div class="dialog-heading"><h2 id="delete-title">Удалить аккаунт?</h2><button id="cancel-delete-icon" class="icon-button" aria-label="Отмена">×</button></div>
+    <p id="delete-description">Ваш профиль и личные результаты исчезнут без возможности восстановления. Сохранённые результаты соперников останутся без связи с вашим аккаунтом.</p>
+    <form id="delete-form"><fieldset id="delete-fields">
+      <label for="delete-email">Введите почту своего аккаунта</label><input id="delete-email" type="email" name="email" required autocomplete="email">
+      <div id="password-confirmation"><label for="delete-password">Текущий пароль</label><input id="delete-password" name="password" type="password" autocomplete="current-password" maxlength="128"></div>
+      <label for="delete-confirmation">Для подтверждения введите DELETE</label><input id="delete-confirmation" name="confirmation" required pattern="DELETE" autocomplete="off" spellcheck="false">
+      <p id="delete-error" class="feedback" role="alert"></p>
+      <div class="delete-actions"><button id="cancel-delete" class="secondary-button" type="button">Отмена</button><button class="danger-button" type="submit">Удалить навсегда</button></div>
+    </fieldset></form>
+  </dialog>
+</body>
+</html>

@@ -75,3 +75,82 @@ test('OAuth callback rejects forged/missing state and only redirects to a safe l
   assert.equal(response.headers.get('Location'), '/?auth_error=google_state');
   assert.ok(response.headers.get('Set-Cookie').includes('Max-Age=0'));
 });
+
+test('account results survive rematches and deletion revokes every session and room seat', { timeout: 60000 }, async t => {
+  const password = 'Disposable-profile-test-2026!!';
+  const create = async name => {
+    const email = `account-${crypto.randomUUID()}@example.invalid`;
+    const result = await post('/api/auth/register', { name, email, password, confirmPassword: password });
+    assert.equal(result.response.status, 201, result.data.error);
+    return { ...result, email };
+  };
+  const a = await create('Первый игрок'), b = await create('Второй игрок');
+  const getAccount = async cookie => {
+    const response = await fetch(base + '/api/auth/account', { headers: { Cookie: cookie } });
+    assert.equal(response.status, 200); return response.json();
+  };
+  assert.equal((await fetch(base + '/api/auth/account')).status, 401);
+  assert.deepEqual((await getAccount(a.cookie)).recent, []);
+  const secondSession = await post('/api/auth/login', { email: a.email, password });
+  let lastRoom, lastSocket;
+  for (const variant of ['russian', 'russian12', 'chess', 'chapaev']) {
+    const room = await post('/api/rooms', { variant }, a.cookie);
+    assert.equal(room.response.status, 201, room.data.error);
+    const joined = await post(`/api/rooms/${room.data.code}/join`, {}, b.cookie);
+    assert.equal(joined.response.status, 200, joined.data.error);
+    const socket = new WebSocket(base.replace(/^http/, 'ws') + `/api/rooms/${room.data.code}/socket`, ['checkers', room.data.token], { headers: { Cookie: a.cookie, Origin: base } });
+    t.after(() => socket.terminate());
+    const initial = once(socket, 'message'); await once(socket, 'open'); await initial;
+    const result = once(socket, 'message'); socket.send(JSON.stringify({ type: 'resign', revision: 0 }));
+    assert.equal(JSON.parse((await result)[0]).game.winner, 'black');
+    const stats = await getAccount(a.cookie);
+    assert.equal(stats.modes.find(row => row.variant === variant).losses, 1);
+    assert.equal(stats.recent[0].moves, 0);
+    // Rejoining the same finished game must not duplicate its result.
+    await post(`/api/rooms/${room.data.code}/join`, {}, a.cookie);
+    assert.equal((await getAccount(a.cookie)).modes.find(row => row.variant === variant).played, 1);
+    lastRoom = room; lastSocket = socket;
+  }
+  const socketB = new WebSocket(base.replace(/^http/, 'ws') + `/api/rooms/${lastRoom.data.code}/socket`, ['checkers', (await post(`/api/rooms/${lastRoom.data.code}/join`, {}, b.cookie)).data.token], { headers: { Cookie: b.cookie, Origin: base } });
+  t.after(() => socketB.terminate());
+  const initialB = once(socketB, 'message'); await once(socketB, 'open'); await initialB;
+  const command = async (socket, data) => {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const response = once(socket, 'message'); socket.send(JSON.stringify(data));
+    const state = JSON.parse((await response)[0]); assert.equal(state.type, 'state', state.message); return state;
+  };
+  await command(lastSocket, { type: 'rematch', revision: 1 });
+  const rematch = await command(socketB, { type: 'rematch', revision: 1 });
+  assert.equal(rematch.game.winner, null);
+  await command(lastSocket, { type: 'draw', revision: 2 });
+  assert.equal((await command(socketB, { type: 'draw', revision: 2 })).game.winner, 'draw');
+  const beforeDelete = await getAccount(a.cookie);
+  assert.equal(beforeDelete.recent.length, 5);
+  assert.equal(beforeDelete.modes.find(row => row.variant === 'chapaev').draws, 1);
+  const confirmation = { email: a.email, password, confirmation: 'DELETE' };
+  assert.equal((await post('/api/auth/delete-account', confirmation)).response.status, 401);
+  assert.equal((await post('/api/auth/delete-account', confirmation, a.cookie, 'https://evil.example')).response.status, 403);
+  assert.equal((await post('/api/auth/delete-account', { ...confirmation, email: b.email }, a.cookie)).response.status, 400);
+  assert.equal((await post('/api/auth/delete-account', { ...confirmation, confirmation: '' }, a.cookie)).response.status, 400);
+  assert.equal((await post('/api/auth/delete-account', { ...confirmation, password: 'wrong-password' }, a.cookie)).response.status, 401);
+  assert.ok((await session(a.cookie)).user);
+  const closed = once(lastSocket, 'close');
+  const deleted = await post('/api/auth/delete-account', confirmation, a.cookie);
+  assert.equal(deleted.response.status, 200, deleted.data.error);
+  assert.ok(deleted.response.headers.get('Set-Cookie').includes('Max-Age=0'));
+  assert.equal((await closed)[0], 4003);
+  assert.equal((await session(a.cookie)).user, null);
+  assert.equal((await session(secondSession.cookie)).user, null);
+  assert.equal((await post('/api/auth/login', { email: a.email, password })).response.status, 401);
+  assert.equal((await getAccount(b.cookie)).recent.length, 5);
+  const roomAfter = await post(`/api/rooms/${lastRoom.data.code}/join`, {}, b.cookie);
+  assert.equal(roomAfter.data.names.white, 'Удалённый игрок');
+  assert.equal((await post(`/api/rooms/${lastRoom.data.code}/join`, { token: lastRoom.data.token })).response.status, 409);
+  const recreated = await post('/api/auth/register', { name: 'Новый профиль', email: a.email, password, confirmPassword: password });
+  assert.equal(recreated.response.status, 201);
+  assert.notEqual(recreated.data.user.id, a.data.user.id);
+  assert.deepEqual((await getAccount(recreated.cookie)).recent, []);
+  // Only disposable local integration accounts are removed.
+  assert.equal((await post('/api/auth/delete-account', confirmation, recreated.cookie)).response.status, 200);
+  assert.equal((await post('/api/auth/delete-account', { ...confirmation, email: b.email }, b.cookie)).response.status, 200);
+});

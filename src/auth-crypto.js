@@ -34,6 +34,7 @@ export function validateRegistration(data) {
   return { name, email, password: data.password };
 }
 export function safeReturnTo(value) {
+  if (value === '/profile') return '/profile';
   if (typeof value !== 'string' || !value.startsWith('/?room=')) return '/';
   try { const code = new URL(value, 'https://local.invalid').searchParams.get('room'); return /^[A-F0-9]{12}$/.test(code) ? '/?room=' + code : '/'; } catch { return '/'; }
 }

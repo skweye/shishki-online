@@ -22,6 +22,8 @@ test('registration validates all fields, normalizes email and preserves password
 });
 test('OAuth return URL cannot redirect off site or to arbitrary paths', () => {
   assert.equal(safeReturnTo('/?room=AABBCCDDEEFF'), '/?room=AABBCCDDEEFF');
+  assert.equal(safeReturnTo('/profile'), '/profile');
+  assert.equal(safeReturnTo('/profile?next=https://evil.example'), '/');
   for (const url of ['https://evil.example', '//evil.example', '/admin', '/?room=bad', '/?room=AABBCCDDEEFF&next=https://evil.example']) {
     assert.ok(['/', '/?room=AABBCCDDEEFF'].includes(safeReturnTo(url)));
   }

@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
 import { applyShot, nextChapaevRound } from '../public/chapaev.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
+import { writeResults } from './account-stats.js';
 export { PasswordService } from './password-service.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -65,21 +66,41 @@ export class GameRoom extends DurableObject {
       this.room = await ctx.storage.get('room') || null;
       if (this.room) {
         if (this.expired()) await this.removeRoom();
-        else await ctx.storage.setAlarm(this.room.updatedAt + TTL);
+        else await ctx.storage.setAlarm(this.room.pendingResults?.length ? Math.min(Date.now() + 60000, this.room.updatedAt + TTL) : this.room.updatedAt + TTL);
       }
     });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
   expired() { return this.room && this.room.updatedAt + TTL <= Date.now(); }
   async removeRoom() {
+    if (this.room?.pendingResults?.length) await this.flushResults();
+    if (this.env.AUTH_DB && this.room?.code) await this.env.AUTH_DB.prepare('DELETE FROM account_rooms WHERE code = ?').bind(this.room.code).run();
     for (const ws of this.ctx.getWebSockets()) ws.close(4004, 'Комната удалена после часа бездействия');
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll(); this.room = null;
   }
   async save(activity = true) {
     if (activity) this.room.updatedAt = Date.now();
+    this.room.matchId ||= crypto.randomUUID();
+    const game = this.room.game;
+    if (game.winner && game.reason !== 'round' && !this.room.resultRecorded && this.room.players.black) {
+      this.room.pendingResults ||= [];
+      for (const side of ['white', 'black']) if (this.room.accounts?.[side]) this.room.pendingResults.push({
+        userId: this.room.accounts[side], matchId: this.room.matchId, variant: variantOf(game),
+        result: game.winner === 'draw' ? 'draw' : game.winner === side ? 'win' : 'loss',
+        moves: game.history.length, finishedAt: Math.floor(Date.now() / 1000)
+      });
+      this.room.resultRecorded = true;
+    }
     await this.ctx.storage.put('room', this.room);
-    await this.ctx.storage.setAlarm(this.room.updatedAt + TTL);
+    try { await this.flushResults(); } catch { /* Keep the durable outbox for retry. */ }
+    await this.ctx.storage.setAlarm(this.room.pendingResults?.length ? Math.min(Date.now() + 60000, this.room.updatedAt + TTL) : this.room.updatedAt + TTL);
+  }
+  async flushResults() {
+    if (!this.room?.pendingResults?.length) return;
+    await writeResults(this.env, this.room.pendingResults);
+    this.room.pendingResults = [];
+    await this.ctx.storage.put('room', this.room);
   }
   role(token) {
     if (typeof token !== 'string' || !token) return null;
@@ -101,6 +122,21 @@ export class GameRoom extends DurableObject {
     return this.ctx.blockConcurrencyWhile(async () => {
       const url = new URL(request.url);
       const identity = request.headers.has('X-Auth-User') ? JSON.parse(decodeURIComponent(request.headers.get('X-Auth-User'))) : null;
+      if (url.pathname === '/forget-account' && request.method === 'POST') {
+        const { userId } = await request.json();
+        if (this.room) {
+          this.room.names ||= {};
+          for (const side of ['white', 'black']) if (this.room.accounts?.[side] === userId) {
+            for (const ws of this.ctx.getWebSockets(side)) ws.close(4003, 'Аккаунт удалён');
+            this.room.names[side] = 'Удалённый игрок';
+            this.room.accounts[side] = null;
+            this.room.players[side] = crypto.randomUUID();
+          }
+          this.room.pendingResults = (this.room.pendingResults || []).filter(row => row.userId !== userId);
+          await this.save(false); this.broadcast();
+        }
+        return json({ ok: true });
+      }
       // An overdue alarm must not let a late join revive an expired room.
       if (this.expired()) await this.removeRoom();
       if (url.pathname === '/create' && request.method === 'POST') {
@@ -109,6 +145,8 @@ export class GameRoom extends DurableObject {
         if (!validVariant(variant)) return fail('Неизвестный режим игры.');
         const token = crypto.randomUUID();
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
+        this.room.code = url.searchParams.get('code');
+        if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
       }
@@ -128,7 +166,11 @@ export class GameRoom extends DurableObject {
           if (this.room.players.black) return fail('Оба места уже заняты. Откройте комнату в том браузере, где вы начали игру.', 409);
           token = crypto.randomUUID(); role = 'black'; this.room.players.black = token;
         }
-        if (identity) { this.room.accounts[role] = identity.id; this.room.names[role] = identity.name; }
+        if (identity) {
+          this.room.accounts[role] = identity.id; this.room.names[role] = identity.name;
+          const code = this.room.code || url.pathname.match(/\/rooms\/([A-F0-9]{12})\//)?.[1];
+          if (code) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, code).run();
+        }
         await this.save(newPlayer); this.broadcast();
         return json({ token, role, ...this.snapshot() });
       }
@@ -156,7 +198,7 @@ export class GameRoom extends DurableObject {
         if (typeof message !== 'string' || message.length > 1024) throw new Error('Некорректное сообщение.');
         const session = ws.deserializeAttachment();
         const accountId = this.room.accounts?.[session.role];
-        if (accountId && !await sessionActive(this.env, session.sessionHash, accountId)) {
+        if ((accountId || session.sessionHash) && !await sessionActive(this.env, session.sessionHash, accountId)) {
           ws.close(4003, 'Войдите в аккаунт снова'); return;
         }
         if (Date.now() - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
@@ -182,6 +224,7 @@ export class GameRoom extends DurableObject {
         } else if (data.type === 'rematch' && this.room.game.winner) {
           if (!this.room.rematch.includes(role)) this.room.rematch.push(role);
           if (this.room.rematch.length === 2) {
+            if (this.room.game.reason !== 'round') { this.room.matchId = crypto.randomUUID(); this.room.resultRecorded = false; }
             const revision = this.room.game.revision + 1;
             this.room.game = this.room.game.reason === 'round' ? nextChapaevRound(this.room.game) : newGame(variantOf(this.room.game)); this.room.game.revision = revision;
             this.room.rematch = []; this.room.drawOffer = null;
@@ -199,7 +242,7 @@ export class GameRoom extends DurableObject {
   async alarm() {
     return this.ctx.blockConcurrencyWhile(async () => {
       if (this.room && !this.expired()) {
-        await this.ctx.storage.setAlarm(this.room.updatedAt + TTL); return;
+        await this.save(false); return;
       }
       await this.removeRoom();
     });

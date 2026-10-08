@@ -401,7 +401,7 @@ $('rules-button').onclick = () => {
 };
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
 $('home-join-button').onclick = $('join-button').onclick;
-$('settings-button').onclick = () => { closeAccountMenu(); $('profile-dialog').close(); $('settings-dialog').showModal(); };
+$('settings-button').onclick = () => { closeAccountMenu(); $('settings-dialog').showModal(); };
 $('settings-back').onclick = () => $('settings-dialog').close();
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
