@@ -8,7 +8,7 @@ import { createRocketEffect, isFinishTransition } from './rocket.js';
 import { validSkin } from './shop-catalog.js';
 import { applyShot, nextChapaevRound } from './chapaev.js';
 import { createChapaevBoard } from './chapaev-board.js';
-import { createClock, expiredSide, advanceClock, timeoutGame } from './time-control.js';
+import { createClock, expiredSide, advanceClock, timeoutGame, timeControl } from './time-control.js';
 import { renderClock, createRoomChat } from './room-ui.js';
 
 const $ = id => document.getElementById(id);
