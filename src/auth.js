@@ -1,11 +1,12 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { validateProfile } from './profile.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
 const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, name: row.name, email: row.email, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash } : null;
+const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -135,12 +136,21 @@ export async function handleAuth(request, env, ctx, readBody) {
       ctx.waitUntil(tidy(env));
       return await googleStart(request, env);
     }
-    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout'].includes(path)) return error('Запрос не найден.', 404);
+    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile'].includes(path)) return error('Запрос не найден.', 404);
     if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
     if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
     let data;
-    try { data = await readBody(request); } catch { return error('Некорректный запрос.'); }
+    try { data = await readBody(request, path === '/api/auth/profile' ? 105000 : 2048); } catch { return error('Некорректный запрос.'); }
     if (!data || typeof data !== 'object' || Array.isArray(data)) return error('Некорректный запрос.');
+    if (path === '/api/auth/profile') {
+      const user = await authenticatedUser(request, env);
+      if (!user) return error('Войдите в аккаунт, чтобы изменить профиль.', 401);
+      if (!await limit(env, 'profile:' + user.id, 30, 600)) return error('Слишком много попыток. Попробуйте через 10 минут.', 429);
+      let fields;
+      try { fields = validateProfile(data); } catch (cause) { return error(cause.message); }
+      await env.AUTH_DB.prepare('UPDATE users SET name = ?, avatar = ? WHERE id = ?').bind(fields.name, fields.avatar, user.id).run();
+      return json({ user: { ...cleanUser(user), ...fields } });
+    }
     if (path === '/api/auth/logout') {
       const token = readCookie(request, 'session');
       if (token) await env.AUTH_DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(digest(token)).run();

@@ -1,3 +1,5 @@
+import { closeAccountMenu } from './account-menu.js';
+import { t } from './i18n.js';
 const $ = id => document.getElementById(id);
 export let currentUser = null;
 let googleEnabled = false, loading = false, activeTab = 'login';
@@ -11,13 +13,16 @@ function update(user, broadcast = true) {
   currentUser = user;
   $('account-button-label').textContent = user ? user.name : 'Гость';
   $('account-button').setAttribute('aria-label', user ? 'Аккаунт: ' + user.name : 'Профиль гостя и настройки');
-  $('account-avatar').textContent = user ? user.name.slice(0, 1).toUpperCase() : 'Г';
-  $('profile-title').textContent = user ? 'Приятно видеть вас.' : 'Играйте в своём стиле.';
-  for (const id of ['profile-card', 'profile-note', 'logout-button']) $(id).hidden = !user;
+  showAvatar($('account-avatar'), user?.avatar, user?.name || t('Гость'));
+  $('account-button-label').textContent = user?.name || t('Гость');
+  $('menu-identity').textContent = user?.email || t('Гость');
+  $('menu-login').hidden = !!user;
+  $('profile-title').textContent = user ? 'Настройки профиля' : 'Играйте в своём стиле.';
+  for (const id of ['profile-card', 'profile-note', 'profile-form', 'logout-button']) $(id).hidden = !user;
   for (const id of ['guest-profile-note', 'guest-login']) $(id).hidden = !!user;
   $('link-google').hidden = !user || user.googleLinked || !googleEnabled;
   if (user) {
-    $('profile-name').textContent = user.name;
+    $('profile-name').value = user.name;
     $('profile-email').textContent = user.email;
     $('profile-method').textContent = user.googleLinked ? user.hasPassword ? 'Вход: Google или пароль' : 'Вход через Google' : 'Вход по почте и паролю';
     $('profile-verification').textContent = user.emailVerified ? 'Почта подтверждена Google.' : 'Почта пока не подтверждена.';
@@ -53,7 +58,12 @@ export function openAuth() {
   if (currentUser) $('profile-dialog').showModal();
   else { setTab('login'); $('auth-dialog').showModal(); }
 }
-$('account-button').onclick = () => $('profile-dialog').showModal();
+$('menu-profile').onclick = () => {
+  closeAccountMenu(); draftAvatar = currentUser?.avatar || null; $('profile-avatar-file').value = '';
+  $('profile-error').textContent = ''; $('profile-name').value = currentUser?.name || '';
+  showAvatar($('profile-avatar-preview'), draftAvatar, currentUser?.name); $('profile-dialog').showModal();
+};
+$('menu-login').onclick = () => { closeAccountMenu(); openAuth(); };
 $('guest-login').onclick = () => { $('profile-dialog').close(); openAuth(); };
 $('auth-login-tab').onclick = () => setTab('login');
 $('auth-register-tab').onclick = () => setTab('register');
@@ -94,8 +104,8 @@ function google() {
 $('google-signin').onclick = $('link-google').onclick = google;
 $('logout-button').onclick = async () => {
   $('logout-button').disabled = true; $('profile-error').textContent = '';
-  try { await request('logout', {}); $('profile-dialog').close(); update(null); notify('Вы вышли из аккаунта.'); }
-  catch (error) { $('profile-error').textContent = error.message; }
+  try { await request('logout', {}); closeAccountMenu(); $('profile-dialog').close(); update(null); notify('Вы вышли из аккаунта.'); }
+  catch (error) { notify(error.message); }
   finally { $('logout-button').disabled = false; }
 };
 document.querySelectorAll('[data-toggle-password]').forEach(button => {
@@ -109,9 +119,47 @@ document.querySelectorAll('[data-toggle-password]').forEach(button => {
 // Cross-tab sign-outs are detected without exposing the session cookie to JS.
 window.addEventListener('focus', () => {
   request('session').then(data => {
-    if (data.user?.id !== currentUser?.id) update(data.user);
+    if (JSON.stringify(data.user) !== JSON.stringify(currentUser)) update(data.user);
   }).catch(() => {});
 });
+let draftAvatar = null, avatarVersion = 0;
+function showAvatar(element, source, name = '') {
+  element.replaceChildren();
+  if (source) { const image = document.createElement('img'); image.src = source; image.alt = ''; element.append(image); }
+  else element.textContent = name.slice(0, 1).toUpperCase() || '◉';
+}
+$('avatar-remove').onclick = () => { avatarVersion++; draftAvatar = null; $('profile-avatar-file').value = ''; $('profile-save').disabled = false; showAvatar($('profile-avatar-preview'), null, $('profile-name').value); };
+$('profile-avatar-file').onchange = async event => {
+  const file = event.target.files[0], version = ++avatarVersion;
+  if (!file) return;
+  $('profile-error').textContent = ''; $('profile-save').disabled = true;
+  try {
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Выберите PNG, JPEG или WebP до 5 МБ.');
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
+      const context = canvas.getContext('2d'), size = Math.min(bitmap.width, bitmap.height);
+      context.drawImage(bitmap, (bitmap.width-size)/2, (bitmap.height-size)/2, size, size, 0, 0, 256, 256);
+      if (version !== avatarVersion) return;
+      const candidate = canvas.toDataURL('image/webp', .82);
+      if (candidate.length > 100000) throw new Error('Аватар слишком большой. Выберите другое изображение.');
+      draftAvatar = candidate;
+      showAvatar($('profile-avatar-preview'), draftAvatar, $('profile-name').value);
+    } finally { bitmap.close(); }
+  } catch (error) { if (version === avatarVersion) $('profile-error').textContent = error.message; }
+  finally { if (version === avatarVersion) $('profile-save').disabled = false; }
+};
+$('profile-dialog').addEventListener('close', () => { avatarVersion++; $('profile-save').disabled = false; });
+$('profile-form').onsubmit = async event => {
+  event.preventDefault(); if ($('profile-save').disabled) return;
+  $('profile-save').disabled = true; $('profile-error').textContent = '';
+  try {
+    const result = await request('profile', { name: $('profile-name').value.trim(), avatar: draftAvatar });
+    update(result.user); $('profile-dialog').close(); notify('Профиль сохранён.');
+  } catch (error) { $('profile-error').textContent = error.message; }
+  finally { $('profile-save').disabled = false; }
+};
+document.addEventListener('languagechange', () => { if (!currentUser) { $('account-button-label').textContent = t('Гость'); $('menu-identity').textContent = t('Гость'); } });
 update(null, false);
 export const authReady = request('session').then(data => {
   googleEnabled = data.googleEnabled; update(data.user, false);

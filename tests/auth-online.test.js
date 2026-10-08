@@ -30,6 +30,18 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   const wrong = await post('/api/auth/login', { email, password: 'wrong-password' });
   const unknown = await post('/api/auth/login', { email: 'absent-' + email, password: 'wrong-password' });
   assert.equal(wrong.response.status, 401); assert.equal(wrong.data.error, unknown.data.error);
+  const avatar='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=';
+  assert.equal((await post('/api/auth/profile',{name:'New',avatar})).response.status,401);
+  assert.equal((await post('/api/auth/profile',{name:'New',avatar},registered.cookie,'https://evil.example')).response.status,403);
+  assert.equal((await post('/api/auth/profile',{name:'<script>',avatar},registered.cookie)).response.status,400);
+  assert.equal((await post('/api/auth/profile',{name:'New',avatar:'data:image/svg+xml;base64,PHN2Zz4='},registered.cookie)).response.status,400);
+  assert.equal((await post('/api/auth/profile',{name:'New',avatar:'x'.repeat(106000)},registered.cookie)).response.status,400);
+  const edited=await post('/api/auth/profile',{name:'Новое имя',avatar,id:'someone-else',email:'fake@example.invalid'},registered.cookie);
+  assert.equal(edited.response.status,200,edited.data.error); assert.equal(edited.data.user.id,registered.data.user.id);
+  assert.equal(edited.data.user.email,email); assert.equal(edited.data.user.name,'Новое имя');
+  assert.equal((await session(registered.cookie)).user.avatar,avatar);
+  await post('/api/auth/profile',{name:'Тестовый игрок',avatar:null},registered.cookie);
+  assert.equal((await session(registered.cookie)).user.avatar,null);
   const room = await post('/api/rooms', {}, registered.cookie);
   assert.equal(room.response.status, 201);
   assert.equal(room.data.names.white, 'Тестовый игрок');

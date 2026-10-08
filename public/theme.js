@@ -17,19 +17,19 @@
     selected = id;
     document.documentElement.dataset.theme = id;
     document.querySelector('meta[name="theme-color"]').content = theme[3];
+    document.querySelectorAll('[data-theme-choice]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.themeChoice === id)));
   }
   apply(selected);
   document.addEventListener('DOMContentLoaded', () => {
     const picker = document.getElementById('theme-options');
     for (const [id, name, description] of themes) {
-      const label = document.createElement('label');
-      label.className = 'theme-option'; label.dataset.palette = id;
-      label.innerHTML = `<input type="radio" name="appearance" value="${id}" ${id === selected ? 'checked' : ''}><span class="theme-option-content"><span class="theme-name"><strong>${name}</strong><small>${description}</small></span><span class="theme-swatches" aria-hidden="true"><i></i><i></i><i></i></span></span>`;
-      picker.append(label);
+      const button = document.createElement('button');
+      button.type = 'button'; button.dataset.palette = id; button.dataset.themeChoice = id;
+      button.setAttribute('role', 'menuitemradio'); button.setAttribute('aria-checked', String(id === selected));
+      button.innerHTML = '<span class="theme-dot" aria-hidden="true"></span><span>'+name+'</span><span class="menu-check" aria-hidden="true">✓</span>';
+      button.onclick = () => { apply(id); try { localStorage.setItem(key, selected); } catch {} };
+      picker.append(button);
     }
-    picker.addEventListener('change', event => {
-      apply(event.target.value);
-      try { localStorage.setItem(key, selected); } catch { /* Keep the theme for this visit. */ }
-    });
+    document.dispatchEvent(new Event('themesready'));
   });
 })();

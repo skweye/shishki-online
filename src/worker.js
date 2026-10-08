@@ -7,7 +7,7 @@ export { PasswordService } from './password-service.js';
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 const fail = (message, status = 400) => json({ error: message }, status);
 const TTL = 60 * 60 * 1000;
-async function bodyOf(request) {
+async function bodyOf(request, maximum = 2048) {
   // Bound the actual body, not just a user-controlled Content-Length header.
   const reader = request.body?.getReader();
   if (!reader) return {};
@@ -16,7 +16,7 @@ async function bodyOf(request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > 2048) { await reader.cancel(); throw new Error('Слишком большой запрос.'); }
+    if (size > maximum) { await reader.cancel(); throw new Error('Слишком большой запрос.'); }
     chunks.push(value);
   }
   const bytes = new Uint8Array(size); let offset = 0;
@@ -169,7 +169,7 @@ export class GameRoom extends DurableObject {
         if (data.type === 'move' || data.type === 'shot') {
           if (this.room.game.winner) throw new Error('Партия уже завершена.');
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
-          this.room.game = data.type === 'shot' ? applyShot(this.room.game, data.id, data.dx, data.dy) : applyMove(this.room.game, data.from, data.to);
+          this.room.game = data.type === 'shot' ? applyShot(this.room.game, data.id, data.dx, data.dy) : applyMove(this.room.game, data.from, data.to, data.promotion);
           this.room.drawOffer = null;
         } else if (data.type === 'resign' && !this.room.game.winner) {
           this.room.game.winner = opposite(role); this.room.game.reason = 'resign'; this.room.game.revision++;

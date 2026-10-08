@@ -1,3 +1,4 @@
+import { closeAccountMenu } from './account-menu.js';
 import { newGame, legalMoves, applyMove, sideOf, opposite, squareName, VARIANTS, boardSize, variantOf } from './game.js';
 import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
@@ -15,6 +16,9 @@ let room = null, socket = null, connected = false, pending = false, reconnectTim
 let toastTimer, confirmAction, savedLocal;
 let shownResult = null;
 let animating = false;
+const isChess = () => variantOf(game) === 'chess';
+const chessNames = ['', 'пешка', 'конь', 'слон', 'ладья', 'ферзь', 'король'];
+let promotionMove = null;
 const isChapaev = () => variantOf(game) === 'chapaev';
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
@@ -46,6 +50,7 @@ function confirm(title, message, action, label = 'Продолжить') {
 function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
 function canPlay() { return !animating && !game.winner && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
 function pieceHTML(piece, captured = false) {
+  if (isChess()) return '<span class="piece chess-piece '+sideOf(piece)+'" aria-hidden="true">'+['', '♟', '♞', '♝', '♜', '♛', '♚'][Math.abs(piece)]+'</span>';
   return `<span class="piece ${sideOf(piece)} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
 }
 function playerHTML(side) {
@@ -53,7 +58,7 @@ function playerHTML(side) {
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
   const count = isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
-  return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : escapeHTML(room?.names?.[side] || names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
@@ -70,14 +75,14 @@ function renderBoard(keepDrag = false) {
   const last = game.history.at(-1);
   const size = boardSize(game), total = size * size;
   $('board').dataset.size = size;
-  $('board').setAttribute('aria-label', `Шашечная доска ${size} на ${size}`);
+  $('board').setAttribute('aria-label', isChess() ? 'Шахматная доска' : `Шашечная доска ${size} на ${size}`);
   const indexes = Array.from({ length: total }, (_, i) => flipped ? total - 1 - i : i);
   $('board').innerHTML = indexes.map((index, visual) => {
     const row = Math.floor(index / size), col = index % size, piece = game.board[index];
     const legal = destinations.includes(index), available = moves.some(m => m.from === index);
     const highlighted = game.path.length ? game.path.includes(index) : last && (last.from === index || last.to === index);
-    const label = `${squareName(index, size)}${piece ? ', ' + names[sideOf(piece)] + (Math.abs(piece) === 2 ? ', дамка' : ', шашка') : ', пусто'}${legal ? ', доступный ход' : ''}`;
-    return `<button class="square ${(row + col) % 2 ? 'dark' : ''} ${highlighted ? 'last' : ''} ${selected === index ? 'selected' : ''} ${legal ? 'legal' : ''} ${available ? 'available' : ''}" data-index="${index}" aria-label="${label}" aria-pressed="${selected === index}" ${((row + col) % 2 === 0) ? 'tabindex="-1"' : ''}>${piece ? pieceHTML(piece, game.captured.includes(index)) : ''}${visual >= total - size ? `<span class="coordinate file" aria-hidden="true">${'abcdefghijkl'[col]}</span>` : ''}${visual % size === 0 ? `<span class="coordinate rank" aria-hidden="true">${size - row}</span>` : ''}</button>`;
+    const label = `${squareName(index, size)}${piece ? ', ' + names[sideOf(piece)] + (isChess() ? ', ' + chessNames[Math.abs(piece)] : Math.abs(piece) === 2 ? ', дамка' : ', шашка') : ', пусто'}${legal ? ', доступный ход' : ''}`;
+    return `<button class="square ${isChess() && game.check && Math.abs(piece) === 6 && sideOf(piece) === game.turn ? 'in-check' : ''} ${(row + col) % 2 ? 'dark' : ''} ${highlighted ? 'last' : ''} ${selected === index ? 'selected' : ''} ${legal ? 'legal' : ''} ${available ? 'available' : ''}" data-index="${index}" aria-label="${label}" aria-pressed="${selected === index}" ${(!isChess() && (row + col) % 2 === 0) ? 'tabindex="-1"' : ''}>${piece ? pieceHTML(piece, game.captured.includes(index)) : ''}${visual >= total - size ? `<span class="coordinate file" aria-hidden="true">${'abcdefghijkl'[col]}</span>` : ''}${visual % size === 0 ? `<span class="coordinate rank" aria-hidden="true">${size - row}</span>` : ''}</button>`;
   }).join('');
   if (focused !== undefined) $('board').querySelector(`[data-index="${focused}"]`)?.focus({ preventScroll: true });
   $('top-player').innerHTML = playerHTML(flipped ? 'white' : 'black');
@@ -89,9 +94,11 @@ function status() {
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
+  if (isChess() && game.check) return mode === 'online' && game.turn !== room.role ? ['Шах', 'Король соперника под шахом. Дождитесь его хода.', '♚'] : ['Шах вашему королю', 'Защитите короля: уйдите, закройтесь или возьмите атакующую фигуру.', '♚'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
   if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
+  if (isChess()) return [mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Перетащите фигуру или выберите её и клетку кликом.', '♞'];
   return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Перетащите шашку или выберите её и клетку кликом.', '↗'];
 }
 function renderHistory() {
@@ -125,8 +132,8 @@ function render() {
   renderBoard(); renderHistory();
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
   $('variant-description').textContent = isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
-  $('move-help').textContent = isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
-  $('board-tip').innerHTML = isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
+  $('move-help').textContent = isChess() ? 'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.' : isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
+  $('board-tip').innerHTML = isChess() ? '<span aria-hidden="true">♚</span><p><strong>Берегите короля</strong><br>Рокировка — ход королём на две клетки. Цель игры — поставить мат.</p>' : isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
   $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
@@ -176,11 +183,21 @@ function renderResult() {
     confirmAction = null; dialog.showModal();
   }
 }
-function playMove(from, to) {
+function playMove(from, to, promotion) {
+  if (isChess() && !promotion && legalMoves(game).some(move => move.from === from && move.to === to && move.promotion)) {
+    if (!canPlay()) return;
+    promotionMove = { from, to, revision: game.revision, code: room?.code };
+    $('promotion-dialog').showModal(); return;
+  }
   if (!canPlay() || !legalMoves(game).some(move => move.from === from && move.to === to)) return;
-  if (mode === 'online') send({ type: 'move', from, to });
-  else { const previous = game; game = applyMove(game, from, to); sounds.transition(previous, game); selected = game.forced; localSave(); render(); }
+  if (mode === 'online') send({ type: 'move', from, to, ...(promotion ? { promotion } : {}) });
+  else { const previous = game; game = applyMove(game, from, to, promotion); sounds.transition(previous, game); selected = game.forced; localSave(); render(); }
 }
+document.querySelectorAll('[data-promotion]').forEach(button => { button.onclick = () => {
+  const move = promotionMove; $('promotion-dialog').close();
+  if (move && move.revision === game.revision && move.code === room?.code) playMove(move.from, move.to, button.dataset.promotion);
+}; });
+$('promotion-dialog').addEventListener('close', () => { promotionMove = null; });
 const boardDrag = attachBoardDrag($('board'), {
   moves: () => canPlay() ? legalMoves(game) : [],
   select: from => { selected = from; renderBoard(true); },
@@ -368,14 +385,14 @@ $('start-form').onsubmit = async event => {
 $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
-  $('draughts-rules').hidden = variant === 'chapaev'; $('chapaev-rules').hidden = variant !== 'chapaev';
-  $('rules-variant').textContent = variant === 'chapaev' ? 'Чапаев: партия из раундов на доске 8×8. Выигрывайте раунды и оттесняйте соперника к краю.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
+  $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = ['chapaev', 'chess'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
+  $('rules-variant').textContent = variant === 'chess' ? 'Классические шахматы. Белые начинают, взятие не обязательно.' : variant === 'chapaev' ? 'Чапаев: партия из раундов на доске 8×8. Выигрывайте раунды и оттесняйте соперника к краю.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
   $('rules-dialog').showModal();
 };
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
 $('home-join-button').onclick = $('join-button').onclick;
-$('settings-button').onclick = () => { $('profile-dialog').close(); $('settings-dialog').showModal(); };
-$('settings-back').onclick = () => { $('settings-dialog').close(); $('profile-dialog').showModal(); };
+$('settings-button').onclick = () => { closeAccountMenu(); $('profile-dialog').close(); $('settings-dialog').showModal(); };
+$('settings-back').onclick = () => $('settings-dialog').close();
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target !== dialog) return;

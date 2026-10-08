@@ -25,6 +25,26 @@ function client(code, token) {
   return { ws, wait, async send(data) { await delay(110); ws.send(JSON.stringify(data)); } };
 }
 
+test('chess rooms synchronize legal moves, reject cheating, detect mate and keep variant on rematch', { timeout: 30000 }, async t => {
+  const {data: room}=await post('/api/rooms',{variant:'chess'});
+  const a=client(room.code,room.token);t.after(()=>a.ws.close());await a.wait(m=>m.type==='state');
+  const {data:joined}=await post(`/api/rooms/${room.code}/join`);
+  const b=client(room.code,joined.token);t.after(()=>b.ws.close());await b.wait(m=>m.type==='state'&&m.ready);
+  await a.send({type:'move',from:52,to:28,revision:0}); await a.wait(m=>m.type==='error');
+  await b.send({type:'move',from:12,to:28,revision:0}); await b.wait(m=>m.type==='error');
+  let last;
+  for (const [i,[from,to]] of [[53,45],[12,28],[54,38],[3,39]].entries()) {
+    await (i%2?b:a).send({type:'move',from,to,revision:i});
+    last=await (i%2?a:b).wait(m=>m.type==='state'&&m.game.revision===i+1);
+  }
+  assert.equal(last.game.reason,'checkmate');assert.equal(last.game.winner,'black');
+  const {data:restored}=await post(`/api/rooms/${room.code}/join`,{token:room.token});
+  assert.deepEqual(restored.game,last.game);
+  await a.send({type:'rematch',revision:4});await b.wait(m=>m.type==='state'&&m.rematch.length===1);
+  await b.send({type:'rematch',revision:4}); const reset=await a.wait(m=>m.type==='state'&&m.game.revision===5);
+  assert.equal(reset.game.variant,'chess');assert.equal(reset.game.board.filter(Boolean).length,32);assert.equal(reset.game.winner,null);
+});
+
 test('Chapaev rooms validate impulses, sync physics, restore and rematch', { timeout: 30000 }, async t => {
   const { data: room } = await post('/api/rooms', { variant: 'chapaev' });
   const a = client(room.code, room.token); t.after(() => a.ws.close()); await a.wait(m => m.type === 'state');

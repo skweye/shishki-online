@@ -1,0 +1,10 @@
+.piece.chess-piece { border:0; border-radius:0; background:none; box-shadow:none; font-family:"Segoe UI Symbol","DejaVu Sans",serif; font-size:clamp(26px,5vw,64px); line-height:1; display:grid; place-items:center; }
+.piece.chess-piece::before,.piece.chess-piece::after { display:none; }
+.piece.chess-piece.white { color:#fff6e4; text-shadow:0 2px 2px #0009; -webkit-text-stroke:1px #534b42; }
+.piece.chess-piece.black { color:#22272b; text-shadow:0 1px 1px #fff8; -webkit-text-stroke:1px #999b96; }
+.square.in-check { box-shadow:inset 0 0 0 3px #ce5c52; background:color-mix(in srgb,#ce5c52 35%,var(--theme-panel)); }
+.player-avatar .chess-piece { font-size:27px; }
+.promotion-options { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.promotion-options button { display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px 6px; border:1px solid var(--theme-border); border-radius:8px; background:var(--theme-raised); color:var(--theme-text); cursor:pointer; }
+.promotion-options button:hover { border-color:var(--theme-accent); }
+.promotion-options button span:first-child { font-family:"Segoe UI Symbol",serif; font-size:42px; }
