@@ -1,5 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
 import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
+import { applyShot } from '../public/chapaev.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 export { PasswordService } from './password-service.js';
 
@@ -165,10 +166,10 @@ export class GameRoom extends DurableObject {
         if (data.type === 'sync') { ws.send(JSON.stringify({ type: 'state', ...this.snapshot() })); return; }
         if (!this.room.players.black) throw new Error('Дождитесь второго игрока.');
         if (data.revision !== this.room.game.revision) throw new Error('Позиция уже изменилась. Повторите действие.');
-        if (data.type === 'move') {
+        if (data.type === 'move' || data.type === 'shot') {
           if (this.room.game.winner) throw new Error('Партия уже завершена.');
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
-          this.room.game = applyMove(this.room.game, data.from, data.to);
+          this.room.game = data.type === 'shot' ? applyShot(this.room.game, data.id, data.dx, data.dy) : applyMove(this.room.game, data.from, data.to);
           this.room.drawOffer = null;
         } else if (data.type === 'resign' && !this.room.game.winner) {
           this.room.game.winner = opposite(role); this.room.game.reason = 'resign'; this.room.game.revision++;

@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
+import { applyShot } from '../public/chapaev.js';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
 async function post(path, body = {}) {
@@ -23,6 +24,31 @@ function client(code, token) {
   }
   return { ws, wait, async send(data) { await delay(110); ws.send(JSON.stringify(data)); } };
 }
+
+test('Chapaev rooms validate impulses, sync physics, restore and rematch', { timeout: 30000 }, async t => {
+  const { data: room } = await post('/api/rooms', { variant: 'chapaev' });
+  const a = client(room.code, room.token); t.after(() => a.ws.close()); await a.wait(m => m.type === 'state');
+  const { data: joined } = await post(`/api/rooms/${room.code}/join`);
+  const b = client(room.code, joined.token); t.after(() => b.ws.close()); await b.wait(m => m.type === 'state' && m.ready);
+  await b.send({ type: 'shot', id: 8, dx: 0, dy: .5, revision: 0 });
+  await b.wait(m => m.type === 'error' && /ход соперника/.test(m.message));
+  await a.send({ type: 'shot', id: 8, dx: 0, dy: -.5, revision: 0 });
+  await a.wait(m => m.type === 'error' && /свою шашку/.test(m.message));
+  await a.send({ type: 'shot', id: 3, dx: 1, dy: -1, revision: 0 });
+  await a.wait(m => m.type === 'error' && /Сила удара/.test(m.message));
+  await a.send({ type: 'shot', id: 3, dx: 0, dy: -.65, revision: 0, pieces: [] });
+  const moved = await b.wait(m => m.type === 'state' && m.game.revision === 1);
+  assert.deepEqual(moved.game, applyShot(room.game, 3, 0, -.65));
+  await a.send({ type: 'shot', id: 2, dx: 0, dy: -.5, revision: 0 });
+  await a.wait(m => m.type === 'error' && /изменилась/.test(m.message));
+  const { data: restored } = await post(`/api/rooms/${room.code}/join`, { token: room.token });
+  assert.deepEqual(restored.game, moved.game);
+  await b.send({ type: 'resign', revision: 1 }); await a.wait(m => m.type === 'state' && m.game.winner === 'white');
+  await a.send({ type: 'rematch', revision: 2 }); await b.wait(m => m.type === 'state' && m.rematch.length === 1);
+  await b.send({ type: 'rematch', revision: 2 });
+  const reset = await a.wait(m => m.type === 'state' && m.game.revision === 3);
+  assert.equal(reset.game.variant, 'chapaev'); assert.equal(reset.game.pieces.length, 16); assert.equal(reset.game.lastShot, null);
+});
 
 test('HTTP routes validate origins, room IDs and missing rooms', async () => {
   const response = await fetch(base); assert.equal(response.status, 200);

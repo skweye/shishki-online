@@ -9,9 +9,13 @@ function notify(message) {
 }
 function update(user, broadcast = true) {
   currentUser = user;
-  $('account-button-label').textContent = user ? user.name : 'Войти';
-  $('account-button').setAttribute('aria-label', user ? 'Аккаунт: ' + user.name : 'Войти или зарегистрироваться');
-  $('account-avatar').textContent = user ? user.name.slice(0, 1).toUpperCase() : '↗';
+  $('account-button-label').textContent = user ? user.name : 'Гость';
+  $('account-button').setAttribute('aria-label', user ? 'Аккаунт: ' + user.name : 'Профиль гостя и настройки');
+  $('account-avatar').textContent = user ? user.name.slice(0, 1).toUpperCase() : 'Г';
+  $('profile-title').textContent = user ? 'Приятно видеть вас.' : 'Играйте в своём стиле.';
+  for (const id of ['profile-card', 'profile-note', 'logout-button']) $(id).hidden = !user;
+  for (const id of ['guest-profile-note', 'guest-login']) $(id).hidden = !!user;
+  $('link-google').hidden = !user || user.googleLinked || !googleEnabled;
   if (user) {
     $('profile-name').textContent = user.name;
     $('profile-email').textContent = user.email;
@@ -49,7 +53,8 @@ export function openAuth() {
   if (currentUser) $('profile-dialog').showModal();
   else { setTab('login'); $('auth-dialog').showModal(); }
 }
-$('account-button').onclick = openAuth;
+$('account-button').onclick = () => $('profile-dialog').showModal();
+$('guest-login').onclick = () => { $('profile-dialog').close(); openAuth(); };
 $('auth-login-tab').onclick = () => setTab('login');
 $('auth-register-tab').onclick = () => setTab('register');
 
@@ -107,6 +112,7 @@ window.addEventListener('focus', () => {
     if (data.user?.id !== currentUser?.id) update(data.user);
   }).catch(() => {});
 });
+update(null, false);
 export const authReady = request('session').then(data => {
   googleEnabled = data.googleEnabled; update(data.user, false);
   $('google-signin').disabled = !googleEnabled;

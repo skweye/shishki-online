@@ -1,11 +1,13 @@
 // Shared, deterministic Russian draughts rules. Positive pieces are white;
 // negative are black. Absolute value 2 denotes a flying king.
+import { newChapaev } from './chapaev.js';
 export const sideOf = piece => piece > 0 ? 'white' : piece < 0 ? 'black' : null;
 export const opposite = side => side === 'white' ? 'black' : 'white';
 const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
 export const VARIANTS = Object.freeze({
   russian: { name: 'Русские шашки', size: 8, rows: 3 },
-  russian12: { name: 'Русские шашки 12×12', size: 12, rows: 5 }
+  russian12: { name: 'Русские шашки 12×12', size: 12, rows: 5 },
+  chapaev: { name: 'Шашки Чапаева', size: 8, rows: 1 }
 });
 export const validVariant = variant => typeof variant === 'string' && Object.hasOwn(VARIANTS, variant);
 export const variantOf = game => game.variant || 'russian';
@@ -17,6 +19,7 @@ const positionKey = game => game.board.join(',') + ':' + game.turn;
 
 export function newGame(variant = 'russian') {
   if (!validVariant(variant)) throw new Error('Неизвестный режим игры.');
+  if (variant === 'chapaev') return newChapaev();
   const { size, rows } = VARIANTS[variant];
   const board = Array.from({ length: size * size }, (_, i) => {
     const row = Math.floor(i / size), col = i % size;
@@ -54,6 +57,7 @@ function capturesFrom(board, from, captured, size) {
 }
 
 export function legalMoves(game) {
+  if (variantOf(game) === 'chapaev') return [];
   if (game.winner) return [];
   const size = boardSize(game);
   if (game.forced !== null) return capturesFrom(game.board, game.forced, game.captured, size);

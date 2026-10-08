@@ -3,6 +3,8 @@ import { attachBoardDrag } from './board-drag.js';
 import { matchResult } from './match-result.js';
 import { createSounds } from './sounds.js';
 import { authReady } from './auth.js';
+import { applyShot } from './chapaev.js';
+import { createChapaevBoard } from './chapaev-board.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
@@ -12,6 +14,8 @@ let mode = 'local', game = newGame(), selected = null, flipped = false;
 let room = null, socket = null, connected = false, pending = false, reconnectTimer, heartbeat, retry = 0;
 let toastTimer, confirmAction, savedLocal;
 let shownResult = null;
+let animating = false;
+const isChapaev = () => variantOf(game) === 'chapaev';
 const storage = {
   get(key) { try { return localStorage.getItem(key); } catch { return null; } },
   set(key, value) { try { localStorage.setItem(key, value); } catch { toast('Браузер не разрешает сохранение. Не закрывайте эту вкладку до конца партии.'); } }
@@ -23,6 +27,7 @@ for (const variant of Object.keys(VARIANTS)) {
   try {
     const saved = JSON.parse(storage.get(localKey(variant)));
     if (saved && variantOf(saved) === variant && saved.board?.length === VARIANTS[variant].size ** 2 && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
+      if (variant === 'chapaev' && (!Array.isArray(saved.pieces) || saved.pieces.length > 16 || saved.pieces.some(p => !Number.isInteger(p.id) || !['white', 'black'].includes(p.side) || !Number.isFinite(p.x) || !Number.isFinite(p.y)))) throw new Error('Invalid saved pieces');
       legalMoves(saved); localGames[variant] = saved;
     }
   } catch { /* Keep a fresh position if this variant's save is damaged. */ }
@@ -39,7 +44,7 @@ function confirm(title, message, action, label = 'Продолжить') {
   $('confirm-yes').textContent = label; confirmAction = action; $('confirm-dialog').showModal();
 }
 function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
-function canPlay() { return !game.winner && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
+function canPlay() { return !animating && !game.winner && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
 function pieceHTML(piece, captured = false) {
   return `<span class="piece ${sideOf(piece)} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
 }
@@ -47,11 +52,18 @@ function playerHTML(side) {
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
-  const count = game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
+  const count = isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
   return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : escapeHTML(room?.names?.[side] || names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
+  $('board').hidden = isChapaev(); $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
+  if (isChapaev()) {
+    chapaevBoard.render(game, flipped, canPlay());
+    $('top-player').innerHTML = playerHTML(flipped ? 'white' : 'black');
+    $('bottom-player').innerHTML = playerHTML(flipped ? 'black' : 'white');
+    return;
+  }
   const focused = document.activeElement?.dataset?.index;
   const moves = canPlay() ? legalMoves(game) : [];
   const destinations = moves.filter(m => m.from === selected).map(m => m.to);
@@ -73,19 +85,33 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
+  if (animating) return ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
+  if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
   return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Перетащите шашку или выберите её и клетку кликом.', '↗'];
 }
 function renderHistory() {
-  $('move-count').textContent = game.history.length + ' полуходов';
+  const count = game.history.length;
+  const shotsLabel = count % 10 === 1 && count % 100 !== 11 ? 'удар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'удара' : 'ударов';
+  $('move-count').textContent = count + ' ' + (isChapaev() ? shotsLabel : 'полуходов');
   if (!game.history.length) {
     $('history').innerHTML = '<div class="empty-history"><span aria-hidden="true">↗</span><p>У каждой партии есть начало.<br>Сделайте первый ход.</p></div>'; return;
   }
   const rows = [];
+  if (isChapaev()) {
+    game.history.forEach((move, i) => {
+      const row = document.createElement('div'); row.className = 'history-row';
+      for (const text of [String(i + 1).padStart(2, '0'), move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
+        const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
+      }
+      rows.push(row);
+    });
+    $('history').replaceChildren(...rows); $('history').scrollTop = $('history').scrollHeight; return;
+  }
   for (let i = 0; i < game.history.length; i += 2) {
     const row = document.createElement('div'); row.className = 'history-row';
     for (const text of [String(i / 2 + 1).padStart(2, '0'), game.history[i].notation, game.history[i + 1]?.notation || '—']) {
@@ -99,6 +125,10 @@ function render() {
   renderBoard(); renderHistory();
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
   $('variant-description').textContent = `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
+  $('move-help').textContent = isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
+  $('board-tip').innerHTML = isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Берегите свои шашки</strong><br>Выбили чужую и сохранили все свои? Ударьте ещё раз.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
+  $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Удачный удар даёт ещё один ход.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
+  $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
   $('game-panel-title').textContent = mode === 'local' ? 'За одной доской' : 'С другом онлайн';
@@ -109,8 +139,8 @@ function render() {
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
   $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
-  $('resign-button').disabled = !!game.winner || (mode === 'online' && (!connected || !room?.ready || pending));
-  $('draw-button').disabled = !!game.winner || (mode === 'online' && (!connected || pending || !!room?.drawOffer));
+  $('resign-button').disabled = animating || !!game.winner || (mode === 'online' && (!connected || !room?.ready || pending));
+  $('draw-button').disabled = animating || !!game.winner || (mode === 'online' && (!connected || pending || !!room?.drawOffer));
   $('draw-button').textContent = room?.drawOffer && room.drawOffer === room.role ? 'Ничья предложена' : 'Предложить ничью';
   $('draw-notice').hidden = !room?.drawOffer || room.drawOffer === room.role || !!game.winner;
   $('accept-draw').disabled = $('decline-draw').disabled = !connected || pending;
@@ -126,7 +156,7 @@ function render() {
 
 function renderResult() {
   const dialog = $('result-dialog');
-  if (!game.winner || $('game-screen').hidden) {
+  if (!game.winner || animating || $('game-screen').hidden) {
     dialog.close(); shownResult = null; return;
   }
   const result = matchResult(game, room?.role);
@@ -154,6 +184,28 @@ const boardDrag = attachBoardDrag($('board'), {
   select: from => { selected = from; renderBoard(true); },
   move: playMove
 });
+const chapaevBoard = createChapaevBoard({
+  impact: () => sounds.play('impact'),
+  shoot(id, dx, dy) {
+    if (!canPlay()) return;
+    if (mode === 'online') send({ type: 'shot', id, dx, dy });
+    else {
+      try { acceptGame(applyShot(game, id, dx, dy)); localSave(); render(); }
+      catch (error) { toast(error.message); }
+    }
+  }
+});
+function acceptGame(next, audible = true) {
+  const previous = game; game = next;
+  const shot = audible && next.variant === 'chapaev' && previous.variant === 'chapaev' && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
+  if (shot) {
+    animating = true; sounds.play('move');
+    chapaevBoard.animate(previous, next, () => { animating = false; sounds.transition(previous, next, room?.role, true); render(); });
+  } else {
+    if (previous.revision !== next.revision || previous.variant !== next.variant) { chapaevBoard.cancel(); animating = false; }
+    if (audible) sounds.transition(previous, next, room?.role);
+  }
+}
 $('board').addEventListener('click', event => {
   const button = event.target.closest('[data-index]');
   if (!button || !canPlay()) return;
@@ -181,6 +233,7 @@ async function api(path, data = {}) {
   return result;
 }
 function disconnect() {
+  chapaevBoard.cancel(); animating = false;
   clearTimeout(reconnectTimer); clearInterval(heartbeat);
   const previous = socket; socket = null;
   if (previous) previous.close();
@@ -188,8 +241,7 @@ function disconnect() {
 }
 function applySnapshot(data, audible = true) {
   const changed = game.revision !== data.game.revision;
-  if (audible) sounds.transition(game, data.game, room.role);
-  game = data.game;
+  acceptGame(data.game, audible);
   Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, accountBound: data.accountBound });
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
   pending = false; render();
@@ -263,6 +315,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
+  chapaevBoard.cancel(); animating = false;
   boardDrag.cancel();
   $('home-screen').hidden = screen !== 'home';
   $('game-screen').hidden = screen !== 'game';
@@ -308,12 +361,14 @@ $('start-form').onsubmit = async event => {
 $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
-  $('rules-variant').textContent = variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
+  $('draughts-rules').hidden = variant === 'chapaev'; $('chapaev-rules').hidden = variant !== 'chapaev';
+  $('rules-variant').textContent = variant === 'chapaev' ? 'Чапаев: быстрый раунд на доске 8×8. По восемь шашек, цель — выбить соперника за край.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
   $('rules-dialog').showModal();
 };
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
 $('home-join-button').onclick = $('join-button').onclick;
-$('settings-button').onclick = () => $('settings-dialog').showModal();
+$('settings-button').onclick = () => { $('profile-dialog').close(); $('settings-dialog').showModal(); };
+$('settings-back').onclick = () => { $('settings-dialog').close(); $('profile-dialog').showModal(); };
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
   if (event.target !== dialog) return;
@@ -337,7 +392,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { game = newGame(variantOf(game)); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { chapaevBoard.cancel(); animating = false; game = newGame(variantOf(game)); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
   else if (game.history.length || game.path.length) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
