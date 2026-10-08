@@ -39,6 +39,10 @@ test('Chapaev rooms validate impulses, sync physics, restore and rematch', { tim
   await a.send({ type: 'shot', id: 3, dx: 0, dy: -.65, revision: 0, pieces: [] });
   const moved = await b.wait(m => m.type === 'state' && m.game.revision === 1);
   assert.deepEqual(moved.game, applyShot(room.game, 3, 0, -.65));
+  assert.equal(moved.game.lastShot.otherLost, 1);
+  assert.equal(moved.game.turn, 'black');
+  await a.send({ type: 'shot', id: 2, dx: 0, dy: -.5, revision: 1 });
+  await a.wait(m => m.type === 'error' && /ход соперника/.test(m.message));
   await a.send({ type: 'shot', id: 2, dx: 0, dy: -.5, revision: 0 });
   await a.wait(m => m.type === 'error' && /изменилась/.test(m.message));
   const { data: restored } = await post(`/api/rooms/${room.code}/join`, { token: room.token });

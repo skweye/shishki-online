@@ -57,7 +57,7 @@ export function simulateShot(state, id, dx, dy, collectFrames = false) {
   next.revision++;
   next.lastShot = { id, dx, dy, ownLost, otherLost, revision: next.revision, duration: (steps + 1) * DT };
   next.history.push({ side: state.turn, notation: `№${id % 8 + 1} · −${otherLost}${ownLost ? ` / свои −${ownLost}` : ''}`, captured: otherLost });
-  next.turn = otherLost && !ownLost ? state.turn : state.turn === 'white' ? 'black' : 'white';
+  next.turn = state.turn === 'white' ? 'black' : 'white';
   const white = next.pieces.some(p => p.side === 'white'), black = next.pieces.some(p => p.side === 'black');
   if (!white || !black) { next.winner = white ? 'white' : black ? 'black' : 'draw'; next.reason = 'knockout'; }
   if (collectFrames) frames.push(next.pieces);

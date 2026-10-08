@@ -96,12 +96,18 @@ export function createChapaevBoard({ shoot, impact }) {
       if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }
       const { id, dx, dy } = next.lastShot;
       const { frames, collisions } = simulateShot(previous, id, dx, dy, true);
-      const started = performance.now(); let collision = 0;
+      // Interpolate at the display refresh rate; a little slow motion keeps contacts readable.
+      const started = performance.now(), playbackSpeed = .8; let collision = 0;
       animation = true;
       function tick(now) {
-        const elapsed = Math.max(0, (now - started) / 1000);
-        if (document.hidden || elapsed >= frames.length / 60) { animation = null; shown = next.pieces; draw(); done(); return; }
-        shown = frames[Math.min(frames.length - 1, Math.floor(elapsed * 60))];
+        const elapsed = Math.max(0, (now - started) / 1000) * playbackSpeed;
+        if (document.hidden || elapsed >= (frames.length - 1) / 60) { animation = null; shown = next.pieces; draw(); done(); return; }
+        const position = elapsed * 60, index = Math.floor(position), fraction = position - index;
+        const following = new Map(frames[index + 1].map(piece => [piece.id, piece]));
+        shown = frames[index].map(piece => {
+          const target = following.get(piece.id);
+          return target ? { ...piece, x: piece.x + (target.x - piece.x) * fraction, y: piece.y + (target.y - piece.y) * fraction } : piece;
+        });
         if (collision < collisions.length && collisions[collision] <= elapsed) { impact(); while (collisions[collision] <= elapsed) collision++; }
         draw(); raf = requestAnimationFrame(tick);
       }

@@ -13,13 +13,14 @@ test('Chapaev starts with eight pieces per edge and accepts no draughts moves', 
   assert.throws(() => applyMove(game, 56, 48));
   assert.throws(() => applyShot(newGame(), 0, 0, -.5));
 });
-test('collisions knock enemies off, preserve the input and give a successful shooter another turn', () => {
+test('collisions knock enemies off, preserve the input and pass the turn even after a successful shot', () => {
   const game = newGame('chapaev'), before = structuredClone(game);
   const result = simulateShot(game, 3, 0, -.65, true);
   assert.deepEqual(game, before);
   assert.equal(result.game.pieces.length, 15);
   assert.equal(result.game.lastShot.otherLost, 1); assert.equal(result.game.lastShot.ownLost, 0);
-  assert.equal(result.game.turn, 'white'); assert.equal(result.game.revision, 1);
+  assert.equal(result.game.turn, 'black'); assert.equal(result.game.revision, 1);
+  assert.throws(() => applyShot(result.game, 3, 0, -.65));
   assert.deepEqual(result.frames.at(-1), result.game.pieces);
   assert.ok(result.collisions.length > 0);
   assert.deepEqual(result.game, applyShot(before, 3, 0, -.65));
@@ -51,7 +52,9 @@ test('bounded deterministic simulations keep surviving pieces finite and on the 
     for (let turn = 0; turn < 70 && !game.winner; turn++) {
       const pieces = game.pieces.filter(p => p.side === game.turn), piece = pieces[Math.floor(random() * pieces.length)];
       const angle = random() * Math.PI * 2, force = .05 + random() * .95;
+      const previousTurn = game.turn;
       game = applyShot(game, piece.id, Math.sin(angle) * force, Math.cos(angle) * force);
+      assert.equal(game.turn, previousTurn === 'white' ? 'black' : 'white');
       assert.ok(game.lastShot.duration <= 6.01);
       assert.ok(game.pieces.every(p => Number.isFinite(p.x) && Number.isFinite(p.y) && p.x >= 0 && p.x <= 8 && p.y >= 0 && p.y <= 8));
       assert.equal(new Set(game.pieces.map(p => p.id)).size, game.pieces.length);

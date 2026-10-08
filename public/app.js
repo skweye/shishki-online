@@ -126,8 +126,8 @@ function render() {
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
   $('variant-description').textContent = `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
   $('move-help').textContent = isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
-  $('board-tip').innerHTML = isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Берегите свои шашки</strong><br>Выбили чужую и сохранили все свои? Ударьте ещё раз.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
-  $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Удачный удар даёт ещё один ход.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
+  $('board-tip').innerHTML = isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
+  $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
