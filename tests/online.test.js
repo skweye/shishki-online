@@ -45,6 +45,25 @@ test('chess rooms synchronize legal moves, reject cheating, detect mate and keep
   assert.equal(reset.game.variant,'chess');assert.equal(reset.game.board.filter(Boolean).length,32);assert.equal(reset.game.winner,null);
 });
 
+test('room clocks start on join, increment only the mover, and chat syncs independently of moves', { timeout: 30000 }, async t => {
+  const {data:room}=await post('/api/rooms',{variant:'russian'});
+  assert.equal(room.clock.white,300000);assert.equal(room.clock.startedAt,null);
+  const a=client(room.code,room.token);t.after(()=>a.ws.close());await a.wait(m=>m.type==='state');
+  const {data:joined}=await post(`/api/rooms/${room.code}/join`);
+  assert.ok(joined.clock.startedAt);assert.equal(joined.clock.black,300000);
+  const b=client(room.code,joined.token);t.after(()=>b.ws.close());await b.wait(m=>m.type==='state'&&m.ready);
+  await a.send({type:'chat',text:'Привет! Гарної гри ♟',name:'forged',side:'black'});
+  const message=await b.wait(m=>m.type==='chat');assert.equal(message.message.text,'Привет! Гарної гри ♟');assert.equal(message.message.side,'white');assert.equal(message.message.name,null);
+  await a.send({type:'move',from:42,to:35,revision:0,clock:{white:999999}});
+  const moved=await b.wait(m=>m.type==='state'&&m.game.revision===1);
+  assert.ok(moved.clock.white>295000&&moved.clock.white<=305000);assert.equal(moved.clock.black,300000);assert.equal(moved.game.turn,'black');
+  assert.equal(moved.chat.length,1);
+  await b.send({type:'chat',text:'Спасибо! <b>Без HTML</b>'});const reply=await a.wait(m=>m.type==='chat'&&m.message.side==='black');assert.ok(reply.message.text.includes('<b>'));
+  const {data:restored}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.equal(restored.chat.length,2);assert.deepEqual(restored.clock,moved.clock);
+  const {data:large}=await post('/api/rooms',{variant:'russian12'});assert.equal(large.clock.white,600000);
+  const {data:chapaev}=await post('/api/rooms',{variant:'chapaev'});assert.equal(chapaev.clock,null);
+});
+
 test('Chapaev rooms validate impulses, sync physics, restore and rematch', { timeout: 30000 }, async t => {
   const { data: room } = await post('/api/rooms', { variant: 'chapaev' });
   const a = client(room.code, room.token); t.after(() => a.ws.close()); await a.wait(m => m.type === 'state');

@@ -8,6 +8,8 @@ import { createRocketEffect, isFinishTransition } from './rocket.js';
 import { validSkin } from './shop-catalog.js';
 import { applyShot, nextChapaevRound } from './chapaev.js';
 import { createChapaevBoard } from './chapaev-board.js';
+import { createClock, expiredSide, advanceClock, timeoutGame } from './time-control.js';
+import { renderClock, createRoomChat } from './room-ui.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
@@ -19,6 +21,7 @@ let room = null, socket = null, connected = false, pending = false, reconnectTim
 let toastTimer, confirmAction, savedLocal;
 let shownResult = null;
 let animating = false;
+let clockSync = { now: Date.now(), received: performance.now() };
 const isChess = () => variantOf(game) === 'chess';
 const chessNames = ['', 'пешка', 'конь', 'слон', 'ладья', 'ферзь', 'король'];
 let promotionMove = null;
@@ -51,7 +54,22 @@ function confirm(title, message, action, label = 'Продолжить') {
   $('confirm-yes').textContent = label; confirmAction = action; $('confirm-dialog').showModal();
 }
 function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
-function canPlay() { return !animating && !game.winner && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
+function serverTime() { return clockSync.now + performance.now() - clockSync.received; }
+function canPlay() { return !animating && !game.winner && !expiredSide(mode === 'local' ? game.clock : room?.clock, game, mode === 'local' ? Date.now() : serverTime()) && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
+function expireLocal() {
+  if (mode !== 'local') return false;
+  const now = Date.now(), loser = expiredSide(game.clock, game, now);
+  if (!loser) return false;
+  const next = timeoutGame(game, loser); next.clock = advanceClock(game.clock, game, next, now);
+  acceptGame(next); selected = null; localSave(); render(); return true;
+}
+const roomChat = createRoomChat(data => {
+  if (!connected || socket?.readyState !== WebSocket.OPEN) return false;
+  socket.send(JSON.stringify(data)); return true;
+});
+function updateClock() {
+  renderClock(game, mode === 'local' ? game.clock : room?.clock, mode === 'local' ? Date.now() : serverTime(), mode === 'online' && !room?.ready, mode === 'local' || connected);
+}
 function pieceHTML(piece, captured = false) {
   if (isChess()) return '<span class="piece chess-piece '+sideOf(piece)+'" aria-hidden="true">'+['', '♟', '♞', '♝', '♜', '♛', '♚'][Math.abs(piece)]+'</span>';
   const skin = skinFor(sideOf(piece));
@@ -136,8 +154,9 @@ function renderHistory() {
 function render() {
   updateBackdrop();
   renderBoard(); renderHistory();
+  updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
-  $('variant-description').textContent = isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
+  $('variant-description').textContent = isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
   $('move-help').textContent = isChess() ? 'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.' : isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
   $('board-tip').innerHTML = isChess() ? '<span aria-hidden="true">♚</span><p><strong>Берегите короля</strong><br>Рокировка — ход королём на две клетки. Цель игры — поставить мат.</p>' : isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
   $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
@@ -190,6 +209,7 @@ function renderResult() {
   }
 }
 function playMove(from, to, promotion) {
+  if (expireLocal()) return;
   if (isChess() && !promotion && legalMoves(game).some(move => move.from === from && move.to === to && move.promotion)) {
     if (!canPlay()) return;
     promotionMove = { from, to, revision: game.revision, code: room?.code };
@@ -197,7 +217,7 @@ function playMove(from, to, promotion) {
   }
   if (!canPlay() || !legalMoves(game).some(move => move.from === from && move.to === to)) return;
   if (mode === 'online') send({ type: 'move', from, to, ...(promotion ? { promotion } : {}) });
-  else { const previous = game; game = applyMove(game, from, to, promotion); sounds.transition(previous, game); selected = game.forced; localSave(); render(); }
+  else { const previous = game; game = applyMove(game, from, to, promotion); game.clock = advanceClock(previous.clock, previous, game, Date.now()); sounds.transition(previous, game); selected = game.forced; localSave(); render(); }
 }
 document.querySelectorAll('[data-promotion]').forEach(button => { button.onclick = () => {
   const move = promotionMove; $('promotion-dialog').close();
@@ -283,7 +303,8 @@ function disconnect() {
 function applySnapshot(data, audible = true) {
   const changed = game.revision !== data.game.revision;
   acceptGame(data.game, audible);
-  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, cosmetics: data.cosmetics, accountBound: data.accountBound });
+  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, cosmetics: data.cosmetics, accountBound: data.accountBound, clock: data.clock, chat: data.chat });
+  if (Number.isFinite(data.serverNow)) clockSync = { now: data.serverNow, received: performance.now() };
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
   pending = false; render();
 }
@@ -307,7 +328,11 @@ function connect() {
     try {
       const data = JSON.parse(event.data);
       if (data.type === 'state') { applySnapshot(data, !firstSnapshot); firstSnapshot = false; }
-      if (data.type === 'error') { pending = false; toast(data.message); render(); }
+      if (data.type === 'chat') room.chat = roomChat.receive(data.message);
+      if (data.type === 'error') {
+        if (data.context === 'chat') roomChat.error(data.message);
+        else { pending = false; toast(data.message); render(); }
+      }
     } catch { toast('Не удалось обновить позицию. Перезагрузите страницу.'); }
   };
   ws.onclose = event => {
@@ -335,6 +360,7 @@ function enterRoom(code, data) {
   disconnect();
   if (mode === 'local') savedLocal = game;
   mode = 'online'; room = { code, ...data }; game = data.game;
+  if (Number.isFinite(data.serverNow)) clockSync = { now: data.serverNow, received: performance.now() };
   storage.set('shashki-room-' + code, data.token);
   selected = game.forced; flipped = room.role === 'black';
   const url = new URL(location.href); url.searchParams.set('room', code); history.replaceState(null, '', url);
@@ -399,6 +425,8 @@ $('start-form').onsubmit = async event => {
   if ($('start-form').elements['play-mode'].value === 'local') {
     mode = 'local'; game = localGames[variant]; savedLocal = game;
     if (game.winner && game.reason !== 'round') { game = newGame(variant); localSave(); }
+    if (!game.clock && !game.winner) game.clock = createClock(variant, Date.now());
+    localSave();
     sounds.play('start');
     selected = game.forced; flipped = false; showScreen('game'); render();
     return;
@@ -443,16 +471,18 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { chapaevBoard.cancel(); animating = false; game = newGame(variantOf(game)); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { chapaevBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
   else if (game.history.length || game.path.length) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
   else resetLocal();
 };
 function finishLocal(winner, reason) {
+  if (expireLocal()) return;
   const next = structuredClone(game);
   next.winner = winner; next.reason = reason; next.revision++;
   next.finishEffect = reason === 'resign' ? currentUser?.finishEffect || 'none' : 'none';
+  next.clock = advanceClock(game.clock, game, next, Date.now());
   acceptGame(next); selected = null; localSave(); render();
 }
 function confirmMatch(title, text, action, label) {
@@ -489,6 +519,11 @@ document.addEventListener('accountchange', async () => {
   catch (error) { leave(); mode = 'local'; showScreen('home'); render(); toast(error.message); }
 });
 updateStart(); render();
+setInterval(() => {
+  if ($('game-screen').hidden) return;
+  if (!expireLocal()) updateClock();
+}, 200);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('game-screen').hidden) { expireLocal(); updateClock(); } });
 await authReady;
 render();
 const invite = new URL(location.href).searchParams.get('room');

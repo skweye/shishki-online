@@ -1,0 +1,21 @@
+.clock-panel,.chat-panel { padding:20px 22px; }
+.clock-panel .panel-heading,.chat-panel .panel-heading { margin-bottom:16px; }
+.clock-pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.clock-face { display:flex; flex-direction:column; align-items:flex-start; gap:8px; padding:13px 15px; border:1px solid var(--theme-border); border-radius:9px; color:var(--theme-muted); background:var(--theme-panel); transition:border-color .15s; }
+.clock-face > span:first-child { font-size:11px; }
+.clock-face [role="timer"] { font-size:30px; font-variant-numeric:tabular-nums; font-weight:600; letter-spacing:-1px; line-height:1; }
+.clock-face.clock-active { border-color:var(--theme-accent); color:var(--theme-text); background:var(--theme-raised); box-shadow:inset 0 0 0 1px var(--theme-accent); }
+.clock-face.clock-low [role="timer"] { color:#e88172; }
+#clock-hint { margin:12px 0 0; font-size:10px; line-height:1.6; color:var(--theme-muted); }
+.chat-messages { max-height:240px; min-height:100px; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; display:flex; flex-direction:column; gap:10px; padding:0 3px 4px 0; }
+.chat-empty { align-self:center; margin:22px 8px; text-align:center; color:var(--theme-muted); font-size:12px; line-height:1.7; }
+.chat-message { max-width:94%; border-radius:9px; padding:10px 12px; background:var(--theme-bg); border:1px solid var(--theme-border); align-self:flex-start; min-width:65%; }
+.chat-message.own { align-self:flex-end; background:var(--theme-raised); }
+.chat-message-head { display:flex; justify-content:space-between; align-items:baseline; gap:12px; color:var(--theme-muted); font-size:9px; }
+.chat-message-head strong { overflow-wrap:anywhere; font-weight:500; }
+.chat-message p { margin:6px 0 0; font-size:12px; line-height:1.5; overflow-wrap:anywhere; color:var(--theme-text); white-space:pre-wrap; }
+#chat-form { display:flex; gap:8px; margin-top:14px; }
+#chat-input { min-width:0; flex:1; font-size:12px; padding:12px; }
+#chat-send { width:42px; flex:none; margin:0; padding:0; font-size:18px; }
+#chat-error { margin:8px 0 0; }
+.chat-note { margin:10px 0 0; font-size:9px; color:var(--theme-muted); line-height:1.6; }

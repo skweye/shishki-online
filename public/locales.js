@@ -1,5 +1,28 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Время на игру|Game clock|Час на гру
+Время белых|White's time|Час білих
+Время чёрных|Black's time|Час чорних
+После полного хода добавляется 5 секунд.|5 seconds are added after each complete turn.|Після повного ходу додається 5 секунд.
+Часы начнутся, когда присоединится соперник.|Clocks start when your opponent joins.|Годинники почнуть відлік, коли приєднається суперник.
+Переподключаемся. Часы продолжают идти.|Reconnecting. The clocks keep running.|Перепідключаємося. Годинники продовжують відлік.
+Партия завершена.|Game over.|Партію завершено.
+Время закончилось. Победа присуждена сопернику.|Time ran out. The opponent wins.|Час вичерпано. Перемогу присуджено супернику.
+Чат партии|Game chat|Чат партії
+Сообщения игроков|Player messages|Повідомлення гравців
+Сообщение сопернику|Message your opponent|Повідомлення супернику
+Напишите сообщение…|Write a message…|Напишіть повідомлення…
+Отправить сообщение|Send message|Надіслати повідомлення
+Поприветствуйте соперника. Хорошей игры!|Say hello to your opponent. Have a good game!|Привітайте суперника. Гарної гри!
+Чат виден только игрокам комнаты. Хранятся последние 50 сообщений до удаления комнаты.|Only room players can see the chat. The latest 50 messages are kept until the room expires.|Чат бачать лише гравці кімнати. Останні 50 повідомлень зберігаються до видалення кімнати.
+Введите сообщение.|Enter a message.|Введіть повідомлення.
+Сообщение должно содержать от 1 до 400 символов.|Messages must contain 1–400 characters.|Повідомлення має містити від 1 до 400 символів.
+Подождите секунду перед следующим сообщением.|Wait a second before sending another message.|Зачекайте секунду перед наступним повідомленням.
+Классическая доска 8 × 8 · 5 мин + 5 сек|Classic 8 × 8 board · 5 min + 5 sec|Класична дошка 8 × 8 · 5 хв + 5 с
+По 30 шашек · 10 мин + 5 сек|30 pieces each · 10 min + 5 sec|По 30 шашок · 10 хв + 5 с
+Шах, мат и рокировка · 5 мин + 5 сек|Check, mate and castling · 5 min + 5 sec|Шах, мат і рокіровка · 5 хв + 5 с
+Часы с добавлением|Clocks with increment|Годинники з додаванням
+8×8 и шахматы: 5 минут + 5 секунд за ход. 12×12: 10 минут + 5 секунд. Взятия в цепочке — один ход. Чапаев — без часов. При отключении время продолжает идти. Комната удаляется после часа без игровых действий.|8×8 draughts and chess: 5 minutes + 5 seconds per turn. 12×12: 10 minutes + 5 seconds. A capture sequence is one turn. Chapayev has no clock. Time keeps running when disconnected. Rooms expire after an hour without game actions.|8×8 та шахи: 5 хвилин + 5 секунд за хід. 12×12: 10 хвилин + 5 секунд. Серія взяттів — один хід. Чапаєв — без годинника. При відключенні час продовжує йти. Кімната видаляється після години без ігрових дій.
 Магазин и коллекция|Shop and collection|Магазин і колекція
 Красивый финал|A beautiful finish|Гарний фінал
 Соперник сдался. Показываем анимацию победителя.|Your opponent resigned. Playing the winner's animation.|Суперник здався. Показуємо анімацію переможця.
@@ -396,6 +419,7 @@ PNG, JPEG или WebP, до 5 МБ. Фото обрезается до квад�
 export const translations = Object.fromEntries(rows.trim().split('\n').map(row => { const [ru, en, uk] = row.split('|'); return [ru, { en, uk }]; }));
 const side = (value, locale) => locale === 'en' ? value === 'Белые' ? 'White' : 'Black' : value === 'Белые' ? 'Білі' : 'Чорні';
 export const patterns = [
+  [/^(\d+) × (\d+) · (\d+) мин \+ 5 сек$/, (m,l) => `${m[1]} × ${m[2]} · ${m[3]} ${l === 'en' ? 'min + 5 sec' : 'хв + 5 с'}`],
   [/^Шашка (\d+)$/, (m,l) => `${l === 'en' ? 'Piece' : 'Шашка'} ${m[1]}`],
   [/^(Два игрока, одно устройство|Комната [A-F0-9]{12}|Пригласите друга за доску) · Раунд (\d+) · (\d+):(\d+)$/, (m,l) => {
     const prefix = m[1].startsWith('Комната ') ? (l === 'en' ? 'Room ' : 'Кімната ') + m[1].slice(8) : translations[m[1]][l];
