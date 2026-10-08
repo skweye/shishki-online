@@ -16,11 +16,17 @@
   <link rel="stylesheet" href="/chess.css">
   <link rel="stylesheet" href="/chapaev.css">
   <link rel="stylesheet" href="/glass.css">
+  <link rel="stylesheet" href="/backdrops.css">
   <script src="/theme.js"></script>
   <script type="module" src="/app.js"></script>
 </head>
-<body>
-  <div class="ambient-scene" aria-hidden="true"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i></div>
+<body data-backdrop="russian">
+  <div class="ambient-scene" aria-hidden="true" data-no-translate>
+    <div class="ambient-mode" data-scene="russian"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i><i class="ambient-halo"></i></div>
+    <div class="ambient-mode" data-scene="russian12"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i><i class="ambient-piece ambient-extra"></i><i class="ambient-halo"></i></div>
+    <div class="ambient-mode" data-scene="chapaev"><i class="ambient-board"></i><i class="ambient-trail"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i><i class="ambient-halo"></i></div>
+    <div class="ambient-mode" data-scene="chess"><i class="ambient-board"></i><i class="ambient-chess ambient-knight">♞</i><i class="ambient-chess ambient-king">♚</i><i class="ambient-chess ambient-pawn">♟</i><i class="ambient-halo"></i></div>
+  </div>
   <header class="site-header">
     <a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a>
     <span class="header-caption">Простая игра. Красивые решения.</span>

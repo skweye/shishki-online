@@ -1,0 +1,65 @@
+/* Only the active scene animates. Two opacity layers crossfade on mode changes. */
+.ambient-scene { background:var(--theme-bg); }
+.ambient-mode {
+  --mode-color:#a5b881;
+  position:absolute; inset:0; opacity:0; animation-play-state:paused;
+  background:radial-gradient(ellipse at 88% 12%,color-mix(in srgb,var(--mode-color) 28%,transparent),transparent 52%),radial-gradient(ellipse at 10% 92%,color-mix(in srgb,var(--theme-accent) 28%,transparent),transparent 48%),radial-gradient(ellipse at 58% 60%,var(--theme-raised),transparent 60%);
+  transition:opacity 850ms ease;
+}
+body[data-backdrop="russian"] [data-scene="russian"],
+body[data-backdrop="russian12"] [data-scene="russian12"],
+body[data-backdrop="chapaev"] [data-scene="chapaev"],
+body[data-backdrop="chess"] [data-scene="chess"] { opacity:1; animation-play-state:running; }
+.ambient-mode>i { animation-play-state:paused; }
+body[data-backdrop="russian"] [data-scene="russian"]>i,
+body[data-backdrop="russian12"] [data-scene="russian12"]>i,
+body[data-backdrop="chapaev"] [data-scene="chapaev"]>i,
+body[data-backdrop="chess"] [data-scene="chess"]>i { animation-play-state:running; }
+.ambient-mode .ambient-board { animation:ambient-board-drift 32s ease-in-out infinite alternate; animation-play-state:inherit; border-color:color-mix(in srgb,var(--mode-color) 12%,transparent); }
+.ambient-mode .ambient-piece { animation:ambient-piece-drift 19s ease-in-out infinite alternate; animation-play-state:inherit; }
+.ambient-mode .ambient-dark { animation-delay:-8s; }
+.ambient-mode .ambient-light { left:max(-85px,calc(50% - 800px)); }
+.ambient-mode .ambient-dark { right:max(-90px,calc(50% - 850px)); }
+.ambient-halo { position:absolute; inset:12% -20% -20% 30%; border-radius:50%; background:radial-gradient(ellipse,color-mix(in srgb,var(--mode-color) 15%,transparent),transparent 65%); animation:ambient-light-drift 24s ease-in-out infinite alternate; animation-play-state:inherit; }
+[data-scene="russian"] .ambient-board { background-size:180px 180px; }
+[data-scene="russian12"] { --mode-color:#b59cdc; }
+[data-scene="russian12"] .ambient-board { right:-160px; top:20%; background-size:120px 120px; border-width:26px; filter:blur(8px); opacity:.42; animation-direction:alternate-reverse; }
+[data-scene="russian12"] .ambient-light { top:18%; width:125px; height:125px; }
+[data-scene="russian12"] .ambient-dark { top:62%; width:120px; height:120px; }
+[data-scene="russian12"] .ambient-extra { left:5%; top:75%; width:95px; height:95px; background:linear-gradient(145deg,#dfc9ec,#817188); opacity:.38; animation-delay:-13s; }
+[data-scene="chapaev"] { --mode-color:#ee995c; }
+[data-scene="chapaev"] .ambient-board { top:48%; right:-250px; opacity:.27; filter:blur(18px); }
+[data-scene="chapaev"] .ambient-light { top:32%; animation:ambient-strike 11s cubic-bezier(.3,0,.2,1) infinite; animation-play-state:inherit; }
+[data-scene="chapaev"] .ambient-dark { top:55%; animation:ambient-recoil 11s cubic-bezier(.3,0,.2,1) infinite; animation-play-state:inherit; }
+.ambient-trail { position:absolute; left:-10%; top:43%; width:48vw; height:3px; background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--mode-color) 45%,transparent),transparent); transform:rotate(-22deg); filter:blur(5px); animation:ambient-trail-pulse 11s ease-in-out infinite; animation-play-state:inherit; }
+[data-scene="chess"] { --mode-color:#8daecb; }
+[data-scene="chess"] .ambient-board { right:-280px; top:24%; filter:blur(9px); opacity:.3; }
+.ambient-chess { position:absolute; font-family:Georgia,'Times New Roman',serif; font-style:normal; line-height:1; font-size:230px; filter:blur(3px); color:var(--theme-secondary); text-shadow:0 9px 0 color-mix(in srgb,var(--theme-accent) 45%,var(--theme-bg)),0 25px 24px #0008; opacity:.35; animation:ambient-chess-drift 22s ease-in-out infinite alternate; animation-play-state:inherit; }
+.ambient-knight { left:max(-35px,calc(50% - 815px)); top:22%; }
+.ambient-king { right:max(-45px,calc(50% - 845px)); top:48%; font-size:280px; animation-delay:-10s; color:color-mix(in srgb,var(--mode-color) 65%,var(--theme-secondary)); }
+.ambient-pawn { left:22%; bottom:-60px; font-size:190px; filter:blur(7px); opacity:.18; animation-delay:-6s; }
+@keyframes ambient-board-drift { from { transform:translate3d(0,-12px,0) rotate(20deg); } to { transform:translate3d(-22px,20px,0) rotate(27deg); } }
+@keyframes ambient-piece-drift { from { transform:translate3d(0,0,0) rotate(-25deg) scaleY(.72); } to { transform:translate3d(22px,-30px,0) rotate(-12deg) scaleY(.76); } }
+@keyframes ambient-light-drift { from { transform:translate3d(-6%,0,0) scale(.95); } to { transform:translate3d(6%,-8%,0) scale(1.08); } }
+@keyframes ambient-chess-drift { from { transform:translate3d(0,0,0) rotate(-14deg); } to { transform:translate3d(12px,-25px,0) rotate(-6deg); } }
+@keyframes ambient-strike { 0%,15%,100% { transform:translate3d(0,0,0) rotate(-25deg) scaleY(.72); } 45%,62% { transform:translate3d(125px,-60px,0) rotate(12deg) scaleY(.72); } }
+@keyframes ambient-recoil { 0%,28%,100% { transform:translate3d(0,0,0) rotate(-25deg) scaleY(.72); } 58%,74% { transform:translate3d(-95px,55px,0) rotate(-55deg) scaleY(.72); } }
+@keyframes ambient-trail-pulse { 0%,15%,75%,100% { opacity:0; } 40%,50% { opacity:.6; } }
+@media(max-width:720px) {
+  .ambient-mode .ambient-board { right:-460px; opacity:.2; }
+  .ambient-mode .ambient-piece { width:105px; height:105px; filter:blur(7px); opacity:.3; }
+  .ambient-mode .ambient-light { left:-65px; } .ambient-mode .ambient-dark { right:-60px; }
+  [data-scene="russian12"] .ambient-extra { left:-35px; }
+  .ambient-knight { left:-48px; font-size:170px; top:25%; opacity:.22; }
+  .ambient-king { right:-60px; font-size:200px; top:64%; opacity:.22; }
+  .ambient-pawn { display:none; }
+  .ambient-trail { width:70vw; opacity:.2; }
+}
+:root[data-theme="classic"] .ambient-mode { --mode-color:var(--theme-accent); }
+:root[data-theme="classic"] .ambient-chess { opacity:.2; }
+body.ambient-paused .ambient-mode>i { animation-play-state:paused!important; }
+@media(prefers-reduced-motion:reduce) {
+  .ambient-mode { transition:none; }
+  .ambient-mode>i { animation:none!important; }
+  .ambient-trail { display:none; }
+}

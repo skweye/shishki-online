@@ -129,6 +129,7 @@ function renderHistory() {
   $('history').replaceChildren(...rows); $('history').scrollTop = $('history').scrollHeight;
 }
 function render() {
+  updateBackdrop();
   renderBoard(); renderHistory();
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
   $('variant-description').textContent = isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · Без таймера`;
@@ -343,6 +344,7 @@ function showScreen(screen) {
   boardDrag.cancel();
   $('home-screen').hidden = screen !== 'home';
   $('game-screen').hidden = screen !== 'game';
+  updateBackdrop();
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (screen === 'home') { updateStart(); $('home-title').focus({ preventScroll: true }); }
   else $('home-button').focus({ preventScroll: true });
@@ -355,7 +357,15 @@ function goHome() {
   if (room) confirm('Вернуться на главную?', 'Вы отключитесь от комнаты. Партия сохранится — вернуться можно по ссылке приглашения в этом браузере.', action, 'На главную');
   else action();
 }
+function updateBackdrop() {
+  const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
+  if (document.body.dataset.backdrop !== variant) document.body.dataset.backdrop = variant;
+}
+const pauseAmbient = () => document.body.classList.toggle('ambient-paused', document.hidden);
+document.addEventListener('visibilitychange', pauseAmbient);
+pauseAmbient();
 function updateStart() {
+  updateBackdrop();
   const local = $('start-form').elements['play-mode'].value === 'local';
   const saved = localGames[$('start-form').elements.variant.value];
   const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length);
