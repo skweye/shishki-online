@@ -42,7 +42,7 @@ export default {
       const headers = new Headers(request.headers);
       // Identity is supplied only by this Worker, never by a browser header.
       headers.delete('X-Auth-User');
-      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, finishEffect: identity.finishEffect, victoryEffect: identity.victoryEffect })));
+      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, cueSkin: identity.cueSkin, finishEffect: identity.finishEffect, victoryEffect: identity.victoryEffect })));
       request = new Request(request, { headers });
       if (request.method === 'POST') {
         let data;
@@ -186,7 +186,7 @@ export class GameRoom extends DurableObject {
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         this.room.clock = createClock(variant); this.room.chat = [];
         this.room.code = url.searchParams.get('code');
-        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
+        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', cue: identity?.cueSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
@@ -211,7 +211,7 @@ export class GameRoom extends DurableObject {
         if (identity) {
           this.room.accounts[role] = identity.id; this.room.names[role] = identity.name;
           this.room.cosmetics ||= {};
-          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', effect: identity.finishEffect || 'none', victory: identity.victoryEffect || 'none' };
+          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', cue: identity.cueSkin || 'classic', effect: identity.finishEffect || 'none', victory: identity.victoryEffect || 'none' };
           const code = this.room.code || url.pathname.match(/\/rooms\/([A-F0-9]{12})\//)?.[1];
           if (code) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, code).run();
         }

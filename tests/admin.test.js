@@ -86,10 +86,10 @@ test('grant/revoke is audited once, protects admins, preserves purchases and rej
     await changeShopAccess(env,'owner',{userId:'player',enabled:true,expected:false});
     await assert.rejects(changeShopAccess(env,'owner',{userId:'player',enabled:true,expected:false}),{status:409});
     await assert.rejects(changeShopAccess(env,'owner',{userId:'owner',enabled:false,expected:true}),{status:409});
-    db.exec("INSERT INTO account_wallets VALUES('player',100); INSERT INTO account_items VALUES('player','skin-jade',60,1); UPDATE users SET piece_skin='jade',finish_effect='portal',victory_effect='comet' WHERE id='player'");
+    db.exec("INSERT INTO account_wallets VALUES('player',100); INSERT INTO account_items VALUES('player','skin-jade',60,1); UPDATE users SET piece_skin='jade',cue_skin='carbon',finish_effect='portal',victory_effect='comet' WHERE id='player'");
     await changeShopAccess(env,'owner',{userId:'player',enabled:false,expected:true});
     const row=db.prepare('SELECT * FROM users WHERE id=?').get('player');
-    assert.equal(row.shop_access,0);assert.equal(row.piece_skin,'jade');assert.equal(row.finish_effect,'none');assert.equal(row.victory_effect,'none');
+    assert.equal(row.cue_skin,'classic');assert.equal(row.shop_access,0);assert.equal(row.piece_skin,'jade');assert.equal(row.finish_effect,'none');assert.equal(row.victory_effect,'none');
     assert.equal(db.prepare('SELECT balance FROM account_wallets WHERE user_id=?').get('player').balance,40);
     const view=await adminOverview(env,'owner','player@example.invalid');assert.equal(view.total,1);assert.equal(view.audit.length,2);
     assert.equal((await adminOverview(env,'owner',"%' OR 1=1 --")).total,0);

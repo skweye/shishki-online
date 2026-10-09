@@ -24,6 +24,23 @@ test('physics transfers momentum and pockets an object ball in a corner',()=>{
   const s=table();s.balls=[{id:0,x:3,y:3},{id:1,x:1.2,y:1.2}];
   const r=simulatePool(s,-.2,-.2);assert.equal(r.firstContact,1);assert.ok(r.potted.some(b=>b.id===1&&b.pocket===0));
 });
+test('nearby parallel shots are not pulled into middle pockets at any speed',()=>{
+  for(const y of [.27,.4,.6,9.4,9.6,9.73])for(const speed of [.1,.35,1]){
+    const s=table();s.balls=[{id:0,x:9.5,y}];
+    const r=simulatePool(s,speed,0,true);
+    assert.ok(r.potted.every(b=>![1,4].includes(b.pocket)),`y=${y}, speed=${speed}`);
+    assert.ok(r.frames.every(frame=>!frame.length||Math.abs(frame[0].y-y)<1e-8));
+  }
+});
+test('direct shots enter the recessed middle openings and glancing shots hit the cushion',()=>{
+  for(const bottom of [false,true]){
+    const s=table();s.balls=[{id:0,x:10,y:bottom?8:2}];
+    assert.deepEqual(simulatePool(s,0,bottom?.2:-.2).potted,[{id:0,pocket:bottom?4:1}]);
+    s.balls[0].x=10.55;
+    const miss=simulatePool(s,0,bottom?.1:-.1,true);
+    assert.deepEqual(miss.potted,[]);assert.ok(miss.events.some(e=>e.kind==='rail'));
+  }
+});
 test('invalid and cross-mode shots cannot mutate a game',()=>{
   const s=newPool();for(const [dx,dy] of [[0,0],[NaN,0],[Infinity,0],[2,0],['1',0]])assert.throws(()=>applyPoolShot(s,{dx,dy}));
   assert.throws(()=>applyPoolShot(newGame(),command));assert.throws(()=>applyPoolShot({...s,winner:'white'},command));

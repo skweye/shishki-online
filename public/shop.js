@@ -1,4 +1,6 @@
 import { CATALOG } from './shop-catalog.js';
+import './i18n.js';
+import { drawCue } from './pool-cue.js';
 import { pieceArt } from './skin-art.js';
 import { createRocketEffect } from './rocket.js';
 const $ = id => document.getElementById(id);
@@ -17,7 +19,7 @@ async function request(path = '', data) {
 }
 function notice(text, error = false) { $('shop-status').textContent = text; $('shop-status').dataset.error = String(error); }
 function isOwned(item) { return !!state?.owned.includes(item.id); }
-function isEquipped(item) { return !!state && (item.type === 'skin' ? state.user.pieceSkin : effectSlot === 'victory' ? state.user.victoryEffect : state.user.finishEffect) === item.value; }
+function isEquipped(item) { return !!state && (item.type === 'skin' ? state.user.pieceSkin : item.type === 'cue' ? state.user.cueSkin : effectSlot === 'victory' ? state.user.victoryEffect : state.user.finishEffect) === item.value; }
 function render() {
   for (const slot of ['victory', 'resign']) {
     const value = slot === 'victory' ? state?.user.victoryEffect : state?.user.finishEffect;
@@ -32,6 +34,7 @@ function render() {
     const card = el('article', '', 'shop-item'); card.dataset.equipped = String(equipped);
     const art = el('div', '', 'shop-art'); art.setAttribute('aria-hidden', 'true');
     if (item.type === 'skin') for (const side of ['white', 'black']) { const piece = el('span', '', `piece ${side} skin-${item.value}`); piece.innerHTML = pieceArt(item.value); art.append(piece); }
+    else if (item.type === 'cue') { const canvas = document.createElement('canvas'); canvas.width = 400; canvas.height = 140; canvas.className = 'shop-cue-preview'; const ctx = canvas.getContext('2d'); ctx.translate(365,70); drawCue(ctx,item.value,0); art.append(canvas); }
     else { art.dataset.effect = item.value; art.append(el('span', item.symbol, 'shop-art-symbol')); }
     if (owned) art.append(el('span', equipped ? 'Выбрано' : 'В коллекции', 'item-status'));
     const body = el('div', '', 'shop-item-body'), heading = el('div', '', 'item-heading');
@@ -69,7 +72,7 @@ async function load() {
 async function equip(item) {
   if (busy) return; busy = true; render(); notice('Выбираем оформление…');
   const slot = effectSlot;
-  try { state = await request('/equip', { item: item.id, slot }); notice(item.type === 'skin' ? `${item.name} — выбрано. Скин появится при следующем входе в комнату.` : `${item.name} — ${slot === 'victory' ? 'при победе' : 'при сдаче соперника'}.`); }
+  try { state = await request('/equip', { item: item.id, slot }); notice(item.type !== 'effect' ? `${item.name} — выбрано. Скин появится при следующем входе в комнату.` : `${item.name} — ${slot === 'victory' ? 'при победе' : 'при сдаче соперника'}.`); }
   catch (error) { notice(error.message, true); }
   finally { busy = false; render(); }
 }
@@ -90,6 +93,9 @@ $('purchase-dialog').addEventListener('cancel', event => { if (busy) event.preve
 function openPreview(item) {
   preview.cancel(); previewItem = item; $('preview-title').textContent = item.name;
   $('preview-description').textContent = item.type === 'effect' ? `Пример анимации. В игре её увидят оба игрока ${effectSlot === 'victory' ? 'после вашей победы' : 'при сдаче вашего соперника'}.` : 'Ваши фишки сохраняют цвет стороны и получают выбранное оформление. Рисунок виден на доске, а дамки отмечены короной.';
+  $('preview-board').hidden = item.type === 'cue';
+  $('preview-cue').hidden = item.type !== 'cue';
+  if (item.type === 'cue') { const ctx = $('preview-cue').getContext('2d'); ctx.clearRect(0,0,400,140); ctx.save(); ctx.translate(365,70); drawCue(ctx,item.value,0); ctx.restore(); $('preview-description').textContent = item.description; }
   for (const side of ['white', 'black']) for (const suffix of ['', '-second']) {
     const skin = item.type === 'skin' ? item.value : state?.user.pieceSkin || 'classic', piece = $('preview-' + side + suffix);
     piece.className = `piece ${side} skin-${skin}`; piece.innerHTML = pieceArt(skin);

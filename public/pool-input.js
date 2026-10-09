@@ -12,7 +12,7 @@ export function attachPoolInput(canvas, { point, current, aim, adjustPower, shoo
   canvas.addEventListener('wheel', event => {
     if (event.ctrlKey || !event.deltaY || !ready(current()) || !inside(point(event))) return;
     event.preventDefault();
-    adjustPower(event.deltaY < 0 ? .05 : -.05);
+    adjustPower(event.deltaY < 0 ? -.05 : .05);
   }, { passive: false });
   canvas.addEventListener('pointerdown', event => {
     const state = current(), p = point(event);

@@ -1,6 +1,8 @@
-import { TABLE, POCKETS, simulatePool, validCuePosition } from './pool.js';
+import { TABLE, POCKETS, pocketGeometry, simulatePool, validCuePosition } from './pool.js';
 import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter } from './pool-visuals.js';
 import { t } from './i18n.js';
+import { drawCue, validCueSkin } from './pool-cue.js';
+import { pieceReaction } from './finish-interactions.js';
 import { attachPoolInput } from './pool-input.js';
 const foulText={scratch:'Биток в лузе.', 'no-contact':'Биток не коснулся прицельного шара.', 'wrong-ball':'Первое касание чужого шара.', kitchen:'Первое касание должно быть за линией дома.', 'no-rail':'После касания нужен борт или забитый шар.',break:'Слабый разбой: пирамида восстановлена.'};
 export function createPoolBoard({shoot,place,sound}) {
@@ -8,19 +10,27 @@ export function createPoolBoard({shoot,place,sound}) {
   root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
   const $=id=>document.getElementById('pool-'+id),canvas=$('canvas'),ctx=canvas.getContext('2d'),paintBall=createBallPainter();
   let state,flipped=false,playable=false,placing=false,shown=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
+  let cueSkin='classic',finishInteraction=null;
   const orientations=new Map();
   const portrait=()=>matchMedia('(max-width:600px)').matches;
   const point=(x,y)=>({x:60+(flipped?20-x:x)*54,y:60+(flipped?10-y:y)*54});
-  // Seat the middle pockets 12 pixels deeper in the rail, keeping their full opening.
-  const pocketCenter=p=>({x:p.x,y:p.y+(p.x===10?(p.y===0?-12:12)/54:0)});
   function ball(b,scale=1,opacity=1) {
     const p=point(b.x,b.y),r=TABLE.radius*54*scale;
     ctx.save();ctx.globalAlpha=opacity;
+    if(finishInteraction){
+      const {effect,elapsed,options}=finishInteraction;
+      const side=b.id===0||b.id===8?options.winner:state.groups.white===(b.id<8?'solid':'stripe')?'white':state.groups.black===(b.id<8?'solid':'stripe')?'black':b.id<8?'white':'black';
+      const vertical=portrait(),screen=vertical?{x:660-p.y,y:p.x}:p;
+      const reaction=pieceReaction(effect,{x:screen.x/canvas.width,y:screen.y/canvas.height,side},elapsed,options);
+      const offset=vertical?{x:reaction.y*canvas.height,y:-reaction.x*canvas.width}:{x:reaction.x*canvas.width,y:reaction.y*canvas.height};
+      ctx.translate(p.x+offset.x,p.y+offset.y);ctx.rotate(reaction.rotation*Math.PI/180);ctx.scale(reaction.scale,reaction.scale);ctx.translate(-p.x,-p.y);
+      ctx.globalAlpha*=reaction.opacity;ctx.filter=`brightness(${reaction.brightness}) hue-rotate(${reaction.hue}deg)`;ctx.shadowColor=reaction.color;ctx.shadowBlur=reaction.glow;
+    }
     const shade=ctx.createRadialGradient(p.x+2,p.y+5,0,p.x+2,p.y+5,r*1.4);shade.addColorStop(0,'#0008');shade.addColorStop(1,'#0000');ctx.fillStyle=shade;ctx.fillRect(p.x-r*1.5,p.y-r*1.2,r*3,r*3);
     ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();paintBall(ctx,b,p,r,orientations.get(b.id)||[0,0,0,1],flipped);ctx.restore();
   }
   function pocket(p) {
-    const center=pocketCenter(p),q=point(center.x,center.y),r=p.x===10?29:32;
+    const center=pocketGeometry(p),q=point(center.x,center.y),r=center.radius*54;
     ctx.save();
     // A cut-out in the rail: a dark well, with a thin edge only on the outside.
     const g=ctx.createRadialGradient(q.x,q.y+4,2,q.x,q.y,r);g.addColorStop(0,'#010203');g.addColorStop(.75,'#020608');g.addColorStop(1,'#10201f');
@@ -43,9 +53,7 @@ export function createPoolBoard({shoot,place,sound}) {
       ctx.strokeStyle='#ffffff60';ctx.beginPath();ctx.moveTo(end.x,end.y);ctx.lineTo(end.x+tx*65,end.y+ty*65);ctx.stroke();
     }
     ctx.translate(q.x,q.y);ctx.rotate(Math.atan2(dy,dx));const gap=23+power*28;
-    const wood=ctx.createLinearGradient(0,-5,0,5);wood.addColorStop(0,'#f0d4a6');wood.addColorStop(.45,'#c48d53');wood.addColorStop(1,'#634124');
-    ctx.shadowColor='#0007';ctx.shadowBlur=5;ctx.shadowOffsetY=4;ctx.fillStyle=wood;ctx.beginPath();ctx.moveTo(-gap,-2.5);ctx.lineTo(-gap-230,-6);ctx.lineTo(-gap-230,6);ctx.lineTo(-gap,2.5);ctx.closePath();ctx.fill();ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-    ctx.fillStyle='#efe6d1';ctx.fillRect(-gap-11,-2.8,10,5.6);ctx.fillStyle='#609d9b';ctx.fillRect(-gap-2,-2.8,3,5.6);ctx.restore();
+    drawCue(ctx,cueSkin,gap);ctx.restore();
   }
   function draw() {
     if(!state)return;const theme=getComputedStyle(document.documentElement),accent=theme.getPropertyValue('--theme-accent').trim()||'#cfae90';
@@ -109,7 +117,7 @@ export function createPoolBoard({shoot,place,sound}) {
       const previous=new Map(last.map(b=>[b.id,b]));
       for(const b of shown){const old=previous.get(b.id);if(old)orientations.set(b.id,rollOrientation(orientations.get(b.id)||[0,0,0,1],b.x-old.x,b.y-old.y));}last=shown;
       while(soundIndex<sim.events.length&&sim.events[soundIndex].time<=elapsed){const event=sim.events[soundIndex++];sound(event.kind,event.strength);}
-      sinking=sim.events.filter(e=>e.kind==='pocket'&&elapsed>=e.time&&elapsed<e.time+.2).map(e=>{const progress=(elapsed-e.time)/.2,p=pocketCenter(POCKETS[e.pocket]);return{id:e.id,x:e.x+(p.x-e.x)*progress,y:e.y+(p.y-e.y)*progress,progress};});
+      sinking=sim.events.filter(e=>e.kind==='pocket'&&elapsed>=e.time&&elapsed<e.time+.2).map(e=>({id:e.id,x:e.x,y:e.y,progress:(elapsed-e.time)/.2}));
       draw();raf=requestAnimationFrame(tick);
     };raf=requestAnimationFrame(tick);
   }
@@ -119,5 +127,5 @@ export function createPoolBoard({shoot,place,sound}) {
   window.addEventListener('resize',draw);
   new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   document.addEventListener('languagechange',()=>{canvas.setAttribute('aria-label',t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.'));controls();});
-  return {render(next,flip,canPlay){const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
+  return {setFinishInteraction(value){finishInteraction=value;draw();},render(next,flip,canPlay,skin){cueSkin=validCueSkin(skin);const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
 }

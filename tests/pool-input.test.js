@@ -13,7 +13,7 @@ function setup(){
 test('mouse hover aims, wheel adjusts power only over playable felt and left click shoots once',()=>{
   const {event,calls,state}=setup();
   event('pointermove',{clientX:40,clientY:80});assert.equal(calls.aim.at(-1)[0],90);
-  assert.equal(event('wheel',{deltaY:-100}).defaultPrevented,true);assert.equal(event('wheel',{deltaY:100}).defaultPrevented,true);assert.deepEqual(calls.power,[.05,-.05]);
+  assert.equal(event('wheel',{deltaY:-100}).defaultPrevented,true);assert.equal(event('wheel',{deltaY:100}).defaultPrevented,true);assert.deepEqual(calls.power,[-.05,.05]);
   for(const props of [{clientX:-10,deltaY:100},{ctrlKey:true,deltaY:100},{deltaY:0}])assert.equal(event('wheel',props).defaultPrevented,false);
   event('pointerdown');assert.equal(calls.shots,0);event('pointerup');assert.equal(calls.shots,1);
   event('pointerdown');event('pointerup');assert.equal(calls.shots,1);

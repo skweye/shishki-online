@@ -19,11 +19,12 @@ export async function changeShopAccess(env, actorId, data) {
   // Check both permissions and the displayed previous state inside the atomic UPDATE.
   const result = await env.AUTH_DB.batch([
     env.AUTH_DB.prepare(`UPDATE users SET shop_access = ?,
+      cue_skin = CASE WHEN ? = 1 OR cue_skin = 'classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'cue-' || users.cue_skin) THEN cue_skin ELSE 'classic' END,
       piece_skin = CASE WHEN ? = 1 OR piece_skin = 'classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'skin-' || users.piece_skin) THEN piece_skin ELSE 'classic' END,
       finish_effect = CASE WHEN ? = 1 OR finish_effect = 'none' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'effect-' || users.finish_effect) THEN finish_effect ELSE 'none' END,
       victory_effect = CASE WHEN ? = 1 OR victory_effect = 'none' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'effect-' || users.victory_effect) THEN victory_effect ELSE 'none' END
       WHERE id = ? AND is_admin = 0 AND shop_access = ? AND EXISTS(SELECT 1 FROM users actor WHERE actor.id = ? AND actor.is_admin = 1)`)
-      .bind(Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), data.userId, Number(data.expected), actorId),
+      .bind(Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), data.userId, Number(data.expected), actorId),
     env.AUTH_DB.prepare('INSERT INTO admin_audit(id, actor_id, target_id, action, created_at) SELECT ?, ?, ?, ?, ? WHERE changes() > 0')
       .bind(crypto.randomUUID(), actorId, data.userId, data.enabled ? 'grant_shop' : 'revoke_shop', Math.floor(Date.now() / 1000))
   ]);

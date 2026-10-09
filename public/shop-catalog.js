@@ -1,4 +1,10 @@
 export const CATALOG = Object.freeze([
+  { id: 'cue-classic', type: 'cue', value: 'classic', name: 'Кий · Классика', description: 'Клён, тёмная рукоять и латунные кольца.', price: 0, symbol: '╱' },
+  { id: 'cue-carbon', type: 'cue', value: 'carbon', name: 'Кий · Карбон', description: 'Графит и холодные голубые акценты.', price: 80, symbol: '╱' },
+  { id: 'cue-emerald', type: 'cue', value: 'emerald', name: 'Кий · Изумруд', description: 'Зелёный лак и золотые вставки.', price: 100, symbol: '╱' },
+  { id: 'cue-royal', type: 'cue', value: 'royal', name: 'Кий · Аметист', description: 'Фиолетовое дерево с золотой инкрустацией.', price: 120, symbol: '╱' },
+  { id: 'cue-ember', type: 'cue', value: 'ember', name: 'Кий · Жар', description: 'Медный блеск и тёплая янтарная рукоять.', price: 100, symbol: '╱' },
+  { id: 'cue-neon', type: 'cue', value: 'neon', name: 'Кий · Неон', description: 'Бирюзовый корпус с розовыми кольцами.', price: 150, symbol: '╱' },
   { id: 'skin-classic', type: 'skin', value: 'classic', name: 'Классика', description: 'Тёплое дерево и знакомый рельеф.', price: 0, symbol: '◉' },
   { id: 'skin-fox', type: 'skin', value: 'fox', name: 'Лунный лис', description: 'Гравировка лисы, полумесяц и искры на фарфоре.', price: 100, symbol: '☾' },
   { id: 'skin-compass', type: 'skin', value: 'compass', name: 'Роза ветров', description: 'Восемь лучей компаса на слоновой кости и обсидиане.', price: 120, symbol: '✥' },

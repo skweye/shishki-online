@@ -11,6 +11,27 @@ const post = async (path, data, cookie = '', origin = base) => {
 };
 const session = async cookie => (await fetch(base + '/api/auth/session', { headers: { Cookie: cookie } })).json();
 
+test('purchased cue skin persists in account and online room cosmetics through reconnection', {timeout:30000}, async()=>{
+  const email=`cue-${crypto.randomUUID()}@example.invalid`,password='Cue-test-password-2026!!';
+  const account=await post('/api/auth/register',{name:'Cue player',email,password,confirmPassword:password});
+  assert.equal(account.response.status,201);
+  try{
+    assert.equal((await post('/api/auth/shop/equip',{item:'cue-carbon'},account.cookie)).response.status,403);
+    assert.equal((await post('/api/auth/shop/buy',{item:'cue-carbon'},account.cookie)).response.status,200);
+    const equipped=await post('/api/auth/shop/equip',{item:'cue-carbon'},account.cookie);
+    assert.equal(equipped.response.status,200);assert.equal(equipped.data.user.cueSkin,'carbon');assert.equal(equipped.data.user.pieceSkin,'classic');
+    assert.equal((await session(account.cookie)).user.cueSkin,'carbon');
+    const room=await post('/api/rooms',{variant:'pool8'},account.cookie);
+    assert.equal(room.response.status,201);assert.equal(room.data.cosmetics.white.cue,'carbon');
+    const restored=await post(`/api/rooms/${room.data.code}/join`,{token:room.data.token},account.cookie);
+    assert.equal(restored.response.status,200);assert.equal(restored.data.cosmetics.white.cue,'carbon');
+    const opponent=await post(`/api/rooms/${room.data.code}/join`,{});
+    assert.equal(opponent.response.status,200);assert.equal(opponent.data.cosmetics.white.cue,'carbon');
+  }finally{
+    assert.equal((await post('/api/auth/delete-account',{email,password,confirmation:'DELETE'},account.cookie)).response.status,200);
+  }
+});
+
 test('registration, session, sign-out, credential login, duplicate and CSRF protection', { timeout: 30000 }, async () => {
   const email = `test-${crypto.randomUUID()}@example.invalid`, password = 'Test-only-phrase-2026!!';
   assert.equal((await session('')).user, null);
@@ -167,7 +188,7 @@ test('shop charges once, rejects forged purchases, synchronizes skins and awards
   for (const user of [a, b, c]) assert.equal((await post('/api/auth/delete-account', { email: user.email, password, confirmation: 'DELETE' }, user.cookie)).response.status, 200);
   const recreated = await post('/api/auth/register', { name: 'Заново', email: c.email, password, confirmPassword: password });
   assert.equal(recreated.response.status, 201, recreated.data.error);
-  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100); assert.equal(fresh.owned.length, 2);
+  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100); assert.deepEqual(fresh.owned.sort(), ['cue-classic','effect-none','skin-classic']);
   await post('/api/auth/delete-account', { email: c.email, password, confirmation: 'DELETE' }, recreated.cookie);
 });
 

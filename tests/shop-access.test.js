@@ -11,6 +11,7 @@ function database(verified = true) {
   db.prepare('INSERT INTO users(id,name,email,created_at,email_verified,google_sub) VALUES(?,?,?,?,?,?)').run('owner', 'Owner', 'kkoallqq@gmail.com', 1, verified ? 1 : 0, verified ? 'verified-google-id' : null);
   db.prepare('INSERT INTO users(id,name,email,created_at) VALUES(?,?,?,?)').run('other', 'Other', 'other@example.invalid', 1);
   db.exec(readFileSync(new URL('../migrations/0006_shop_access.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0009_cue_skin.sql', import.meta.url), 'utf8'));
   const env = { AUTH_DB: {
     prepare(sql) { return { bind(...args) { const statement = db.prepare(sql); return {
       first: async () => statement.get(...args),
@@ -46,4 +47,16 @@ test('unverified matching email and a newly recreated account never inherit owne
     db.prepare('INSERT INTO users(id,name,email,created_at) VALUES(?,?,?,?)').run('new-owner', 'New', 'kkoallqq@gmail.com', 2);
     assert.equal((await shopState(env, 'new-owner')).fullAccess, false);
   } finally { db.close(); }
+});
+test('cue skins require ownership, charge once and keep checker skins and effects independent',async()=>{
+  const {db,env}=database();try{
+    await assert.rejects(equipItem(env,'other','cue-carbon'),{status:403});
+    await buyItem(env,'other','cue-carbon');await buyItem(env,'other','cue-carbon');
+    await equipItem(env,'other','cue-carbon');
+    assert.equal((await shopState(env,'other')).balance,20);
+    const user=db.prepare('SELECT cue_skin,piece_skin,finish_effect,victory_effect FROM users WHERE id=?').get('other');
+    assert.equal(user.cue_skin,'carbon');assert.equal(user.piece_skin,'classic');assert.equal(user.finish_effect,'none');assert.equal(user.victory_effect,'none');
+    await equipItem(env,'other','cue-classic');
+    assert.equal(db.prepare('SELECT cue_skin FROM users WHERE id=?').get('other').cue_skin,'classic');
+  }finally{db.close();}
 });

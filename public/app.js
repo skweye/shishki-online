@@ -105,7 +105,7 @@ function renderBoard(keepDrag = false) {
   $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
   if (isPool()) {
-    poolBoard.render(game,flipped,canPlay());
+    poolBoard.render(game,flipped,canPlay(), mode === 'local' ? currentUser?.cueSkin : room?.cosmetics?.[game.turn]?.cue);
     $('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;
   }
   if (isNarde()) {
@@ -318,7 +318,7 @@ function acceptGame(next, audible = true) {
     confirmAction = null;
     rocketEffect.launch(next.winner === (flipped ? 'white' : 'black'), () => {
       animating = false; sounds.transition(previous, next, room?.role); render();
-    }, next.finishEffect, { winner: next.winner, canvasBoard: isChapaev() ? chapaevBoard : null });
+    }, next.finishEffect, { winner: next.winner, canvasBoard: isPool() ? poolBoard : isChapaev() ? chapaevBoard : null });
   };
   if (finishing && !shot) {
     showFinish();

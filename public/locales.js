@@ -1,5 +1,19 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Скины кия|Cue skins|Скіни кия
+Предпросмотр кия|Cue preview|Попередній перегляд кия
+Кий · Классика|Cue · Classic|Кий · Класика
+Кий · Карбон|Cue · Carbon|Кий · Карбон
+Кий · Изумруд|Cue · Emerald|Кий · Смарагд
+Кий · Аметист|Cue · Amethyst|Кий · Аметист
+Кий · Жар|Cue · Ember|Кий · Жар
+Кий · Неон|Cue · Neon|Кий · Неон
+Клён, тёмная рукоять и латунные кольца.|Maple, a dark grip and brass rings.|Клен, темне руків’я та латунні кільця.
+Графит и холодные голубые акценты.|Graphite with cool blue accents.|Графіт і холодні блакитні акценти.
+Зелёный лак и золотые вставки.|Green lacquer with gold inlays.|Зелений лак і золоті вставки.
+Фиолетовое дерево с золотой инкрустацией.|Violet wood with gold inlays.|Фіолетове дерево із золотою інкрустацією.
+Медный блеск и тёплая янтарная рукоять.|Copper shine with a warm amber grip.|Мідний блиск і тепле бурштинове руків’я.
+Бирюзовый корпус с розовыми кольцами.|Turquoise shaft with pink rings.|Бірюзовий корпус із рожевими кільцями.
 Шары игрока|Player balls|Кулі гравця
 Забит|Pocketed|Забито
 На столе|On the table|На столі

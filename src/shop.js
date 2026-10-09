@@ -31,7 +31,7 @@ export async function equipItem(env, userId, itemId, slot = 'resign') {
   if (!item) fail('Такого предмета нет в коллекции.');
   if (!['resign', 'victory'].includes(slot)) fail('Неизвестный вид анимации.');
   // The column is selected from a fixed enum; ownership is checked by the same UPDATE.
-  const column = item.type === 'skin' ? 'piece_skin' : slot === 'victory' ? 'victory_effect' : 'finish_effect';
+  const column = item.type === 'skin' ? 'piece_skin' : item.type === 'cue' ? 'cue_skin' : slot === 'victory' ? 'victory_effect' : 'finish_effect';
   const result = await env.AUTH_DB.prepare(`UPDATE users SET ${column} = ? WHERE id = ?
     AND (shop_access = 1 OR ? = 0 OR EXISTS (SELECT 1 FROM account_items WHERE user_id = ? AND item_id = ?))`)
     .bind(item.value, userId, item.price, userId, item.id).run();

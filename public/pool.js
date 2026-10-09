@@ -1,6 +1,8 @@
 // Deterministic, fixed-step, top-down pool. No spin or airborne balls.
 export const TABLE = Object.freeze({ width:20, height:10, radius:.27, pocket:.62 });
 export const POCKETS = Object.freeze([{x:0,y:0},{x:10,y:0},{x:20,y:0},{x:0,y:10},{x:10,y:10},{x:20,y:10}]);
+// Shared by physics and rendering: middle openings sit deeper in the rail.
+export const pocketGeometry=p=>({x:p.x,y:p.y+(p.x===10?(p.y===0?-12:12)/54:0),radius:(p.x===10?29:32)/54});
 const R=TABLE.radius, DT=1/240, MAX_SPEED=36, DRAG=2.8;
 const opposite=side=>side==='white'?'black':'white';
 export const ballGroup=id=>id>=1&&id<=7?'solid':id>=9&&id<=15?'stripe':null;
@@ -36,13 +38,15 @@ export function simulatePool(state,dx,dy,collectFrames=false) {
   const frame=()=>balls.filter(b=>!b.out).map(({id,x,y})=>({id,x,y}));
   if(collectFrames)frames.push(frame());
   function rails(b) {
-    const pocket=POCKETS.findIndex(p=>Math.hypot(b.x-p.x,b.y-p.y)<TABLE.pocket);
+    const pocket=POCKETS.findIndex(p=>{const g=pocketGeometry(p);return Math.hypot(b.x-g.x,b.y-g.y)<g.radius-R*.35;});
     if(pocket>=0){if(collectFrames)events.push({time,kind:'pocket',id:b.id,pocket,x:b.x,y:b.y,strength:Math.min(1,Math.hypot(b.vx,b.vy)/20)});b.out=true;b.vx=b.vy=0;potted.push({id:b.id,pocket});return;}
     let hit=false;
     if(b.x<R){b.x=R;if(b.vx<0){b.vx=-b.vx*.82;hit=true;}}
     if(b.x>20-R){b.x=20-R;if(b.vx>0){b.vx=-b.vx*.82;hit=true;}}
-    if(b.y<R){b.y=R;if(b.vy<0){b.vy=-b.vy*.82;hit=true;}}
-    if(b.y>10-R){b.y=10-R;if(b.vy>0){b.vy=-b.vy*.82;hit=true;}}
+    // Leave an actual opening in the middle cushion; nearby parallel shots stay on the cloth.
+    const middleMouth=Math.abs(b.x-10)<.38;
+    if(b.y<R&&!middleMouth){b.y=R;if(b.vy<0){b.vy=-b.vy*.82;hit=true;}}
+    if(b.y>10-R&&!middleMouth){b.y=10-R;if(b.vy>0){b.vy=-b.vy*.82;hit=true;}}
     if(hit){if(b.id)railBalls.add(b.id);if(firstContact!==null)railAfterContact=true;if(collectFrames)events.push({time,kind:'rail',strength:Math.min(1,Math.hypot(b.vx,b.vy)/25)});}
   }
   for(let step=0;step<2400;step++){

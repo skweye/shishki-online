@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN cue_skin TEXT NOT NULL DEFAULT 'classic';
