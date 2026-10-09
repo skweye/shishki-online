@@ -1,4 +1,4 @@
-import { lowPerformance } from './performance.js';
+
 import { RADIUS, simulateShot, chapaevRows, chapaevLineup } from './chapaev.js';
 import { SKIN_COLORS } from './shop-catalog.js';
 import { drawEngraving } from './skin-art.js';
@@ -99,14 +99,14 @@ export function createChapaevBoard({ shoot, impact }) {
     setFinishInteraction(value) { finishInteraction = value; draw(); },
     animateRound(previous, next, done) {
       cancel();
-      if (lowPerformance() || matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }
       const from = chapaevLineup(chapaevRows(previous)), started = performance.now();
       animation = true;
       function tick(now) {
         const progress = Math.max(0, Math.min(1, (now - started) / 850)), eased = progress * progress * (3 - 2 * progress);
         shown = next.pieces.map((piece, i) => ({ ...piece, y: from[i].y + (piece.y - from[i].y) * eased }));
         draw();
-        if (progress >= 1 || document.hidden || lowPerformance()) { animation = null; shown = next.pieces; done(); return; }
+        if (progress >= 1 || document.hidden) { animation = null; shown = next.pieces; done(); return; }
         raf = requestAnimationFrame(tick);
       }
       raf = requestAnimationFrame(tick);
@@ -126,7 +126,7 @@ export function createChapaevBoard({ shoot, impact }) {
     },
     animate(previous, next, done) {
       cancel();
-      if (lowPerformance() || matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }
       const { id, dx, dy } = next.lastShot;
       const { frames, collisions } = simulateShot(previous, id, dx, dy, true);
       // Interpolate at the display refresh rate; a little slow motion keeps contacts readable.
@@ -134,7 +134,7 @@ export function createChapaevBoard({ shoot, impact }) {
       animation = true;
       function tick(now) {
         const elapsed = Math.max(0, (now - started) / 1000) * playbackSpeed;
-        if (lowPerformance() || document.hidden || elapsed >= (frames.length - 1) / 60) { animation = null; shown = next.pieces; draw(); done(); return; }
+        if (document.hidden || elapsed >= (frames.length - 1) / 60) { animation = null; shown = next.pieces; draw(); done(); return; }
         const position = elapsed * 60, index = Math.floor(position), fraction = position - index;
         const following = new Map(frames[index + 1].map(piece => [piece.id, piece]));
         shown = frames[index].map(piece => {

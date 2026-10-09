@@ -111,7 +111,7 @@ export function createPoolBoard({shoot,place,sound}) {
   });
   function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;sinking=[];finish=null;input.cancel();}
   function animate(before,next,done){
-    cancel();if(lowPerformance()){state=next;sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));draw();done();return;}
+    cancel();
     const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
     sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
     finish=()=>{cancel();state=next;draw();done();};
@@ -131,7 +131,7 @@ export function createPoolBoard({shoot,place,sound}) {
     };raf=requestAnimationFrame(tick);
   }
   document.addEventListener('visibilitychange',()=>{if(document.hidden){input.cancel();finish?.();}});
-  document.addEventListener('performancechange',()=>{if(lowPerformance()){input.cancel();finish?.();}draw();});
+  document.addEventListener('performancechange',draw);
   window.addEventListener('blur',()=>input.cancel());
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches)finish?.();});
   window.addEventListener('resize',draw);
