@@ -16,8 +16,8 @@ const rows = `
 Полосатые|Stripes|Смугасті
 Группа не выбрана|Open table|Групу не обрано
 Шары в движении|Balls in motion|Кулі в русі
-Прицельтесь, выберите силу и нажмите «Ударить».|Aim, choose the power and press “Shoot”.|Прицільтесь, оберіть силу та натисніть «Ударити».
-Нажмите на стол для прицеливания или оттяните биток. Затем нажмите «Ударить». 0° — вправо по столу.|Click the table to aim or pull back the cue ball. Then press “Shoot”. 0° points right along the table.|Натисніть на стіл для прицілювання або відтягніть биток. Потім натисніть «Ударити». 0° — праворуч по столу.
+Прицельтесь и ударьте: ЛКМ по столу или кнопка «Ударить».|Aim and shoot: left-click the table or press “Shoot”.|Прицільтесь і вдарте: ЛКМ по столу або кнопка «Ударити».
+Мышь — прицел, колесо — сила, ЛКМ по столу — удар. На телефоне прицельтесь касанием и нажмите «Ударить». Оттягивание битка и ползунки также доступны. 0° — вправо по столу.|Move the mouse to aim, scroll to change power, left-click the table to shoot. On touchscreens, tap to aim and press “Shoot”. Cue-ball dragging and sliders remain available. 0° points right along the table.|Миша — приціл, колесо — сила, ЛКМ по столу — удар. На телефоні прицільтесь дотиком і натисніть «Ударити». Відтягування битка та повзунки також доступні. 0° — праворуч по столу.
 Оставьте восьмёрку напоследок|Save the eight for last|Залиште вісімку наостанок
 Сначала забейте свою группу шаров, затем восьмёрку. Заказ не нужен.|Clear your group, then pocket the eight. No call required.|Спочатку забийте свою групу куль, потім вісімку. Замовлення не потрібне.
 Разбейте пирамиду. Группы определяются первым шаром, забитым без фола после разбоя.|Break the rack. The first ball legally pocketed after the break assigns groups.|Розбийте піраміду. Групи визначаються першою кулею, забитою без фолу після розбиття.
@@ -28,7 +28,7 @@ const rows = `
 После фола соперник ставит биток на свободное место. После фола на разбое — только в доме, X меньше 5; первое касание должно быть за линией дома.|After a foul, the opponent places the cue ball in a free spot. After a break foul, place it behind the head string, X below 5; first contact must be beyond the string.|Після фолу суперник ставить биток на вільне місце. Після фолу на розбитті — лише в домі, X менше 5; перше торкання має бути за лінією дому.
 При разбое забейте шар или доведите минимум четыре прицельных шара до бортов. Иначе пирамида восстанавливается, разбивает соперник. Восьмёрка на разбое возвращается на стол.|On the break, pocket a ball or send at least four object balls to rails. Otherwise, the rack resets and the opponent breaks. An eight pocketed on the break is spotted.|Під час розбиття забийте кулю або доведіть щонайменше чотири прицільні кулі до бортів. Інакше піраміда відновлюється, розбиває суперник. Вісімка на розбитті повертається на стіл.
 Ранняя восьмёрка или восьмёрка с фолом — поражение. Последний свой шар и восьмёрку нужно забивать разными ударами.|An early eight or an eight on a foul loses the game. Your final group ball and the eight require separate shots.|Рання вісімка або вісімка з фолом — поразка. Останню свою кулю та вісімку потрібно забивати різними ударами.
-Бильярдный стол. Нажмите для прицеливания; управление с клавиатуры ниже.|Pool table. Click to aim; keyboard controls below.|Більярдний стіл. Натисніть для прицілювання; керування з клавіатури нижче.
+Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.|Pool table. Move the mouse to aim, scroll for power, left-click to shoot. Keyboard controls below.|Більярдний стіл. Миша — приціл, колесо — сила, ЛКМ — удар. Керування з клавіатури нижче.
 Заказать шар|Call ball|Замовити кулю
 Заказать лузу|Call pocket|Замовити лузу
 Переставить биток|Reposition cue ball|Переставити биток

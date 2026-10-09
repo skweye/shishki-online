@@ -1,12 +1,13 @@
 import { TABLE, POCKETS, simulatePool, validCuePosition } from './pool.js';
 import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter } from './pool-visuals.js';
 import { t } from './i18n.js';
+import { attachPoolInput } from './pool-input.js';
 const foulText={scratch:'Биток в лузе.', 'no-contact':'Биток не коснулся прицельного шара.', 'wrong-ball':'Первое касание чужого шара.', kitchen:'Первое касание должно быть за линией дома.', 'no-rail':'После касания нужен борт или забитый шар.',break:'Слабый разбой: пирамида восстановлена.'};
 export function createPoolBoard({shoot,place,sound}) {
   const root=document.getElementById('pool-board');
-  root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Нажмите для прицеливания; управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
+  root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
   const $=id=>document.getElementById('pool-'+id),canvas=$('canvas'),ctx=canvas.getContext('2d'),paintBall=createBallPainter();
-  let state,flipped=false,playable=false,placing=false,shown=null,raf=0,finish=null,angle=0,power=.85,drag=null,sinking=[];
+  let state,flipped=false,playable=false,placing=false,shown=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
   const orientations=new Map();
   const portrait=()=>matchMedia('(max-width:600px)').matches;
   const point=(x,y)=>({x:60+(flipped?20-x:x)*54,y:60+(flipped?10-y:y)*54});
@@ -19,13 +20,13 @@ export function createPoolBoard({shoot,place,sound}) {
   function pocket(p) {
     const q=point(p.x,p.y),r=p.x===10?29:32;
     ctx.save();
-    // A raised leather lip, inner bevel and deep well; the felt falls into it.
-    let g=ctx.createRadialGradient(q.x-7,q.y-9,10,q.x,q.y,r+10);g.addColorStop(0,'#b09872');g.addColorStop(.72,'#77644d');g.addColorStop(1,'#211b18');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(q.x,q.y,r+9,0,Math.PI*2);ctx.fill();
-    g=ctx.createRadialGradient(q.x,q.y-9,4,q.x,q.y+3,r);g.addColorStop(0,'#1d2727');g.addColorStop(.55,'#080e10');g.addColorStop(1,'#010405');
+    // A cut-out in the rail: a dark well, with a thin edge only on the outside.
+    const g=ctx.createRadialGradient(q.x,q.y+4,2,q.x,q.y,r);g.addColorStop(0,'#010203');g.addColorStop(.75,'#020608');g.addColorStop(1,'#10201f');
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(q.x,q.y,r,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#000a';ctx.lineWidth=6;ctx.beginPath();ctx.arc(q.x,q.y,r-3,Math.PI,Math.PI*2);ctx.stroke();
-    ctx.strokeStyle='#d2b99050';ctx.lineWidth=2;ctx.beginPath();ctx.arc(q.x,q.y,r+5,.15,Math.PI-.15);ctx.stroke();ctx.restore();
+    const mouth=Math.atan2(330-q.y,600-q.x);
+    ctx.strokeStyle='#8baba780';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(q.x,q.y,r,mouth+.8,mouth+Math.PI*2-.8);ctx.stroke();
+    ctx.beginPath();ctx.arc(q.x,q.y,r-1,0,Math.PI*2);ctx.clip();
+    ctx.strokeStyle='#000b';ctx.lineWidth=5;ctx.beginPath();ctx.arc(q.x,q.y+3,r-2,Math.PI,Math.PI*2);ctx.stroke();ctx.restore();
   }
   function guide(balls) {
     const path=poolAim(balls,angle);if(!path)return;
@@ -73,19 +74,24 @@ export function createPoolBoard({shoot,place,sound}) {
     $('place').hidden=!state.ballInHand;$('placement').hidden=!placing;$('shoot').disabled=!playable||!!shown||placing||!state.balls.some(b=>b.id===0);
     readings();
     $('notice').textContent=[state.foul?t(foulText[state.foul]):'',state.winner?'':state.breaking?t('Разбейте пирамиду.'):state.ballInHand?t(state.ballInHand==='kitchen'?'Биток с руки в доме: X меньше 5.':'Биток с руки в любой свободной точке.'):t('Прицельтесь и выберите силу удара. Заказы не нужны.')].filter(Boolean).join(' ');
-    canvas.style.cursor=placing?'crosshair':'default';
+    canvas.style.cursor=playable&&!shown?'crosshair':'default';
   }
   $('angle').oninput=()=>{angle=Number($('angle').value);readings();draw();};
   $('power').oninput=()=>{power=Math.max(.05,Math.min(1,Number($('power').value)/100));readings();draw();};
   $('place').onclick=()=>{placing=!placing;controls();draw();};
   function position(x,y){if(playable&&state.ballInHand&&place(x,y)!==false){placing=false;controls();draw();}}
   $('position').onclick=()=>position(Number($('x').value),Number($('y').value));
-  $('shoot').onclick=()=>{if(!playable||shown||placing)return;shoot(shotVector(angle,power));};
+  function fire(){if(!playable||shown||placing)return;shoot(shotVector(angle,power));}
+  $('shoot').onclick=fire;
   const localPoint=e=>{const rect=canvas.getBoundingClientRect(),screenX=(e.clientX-rect.left)/rect.width*canvas.width,screenY=(e.clientY-rect.top)/rect.height*canvas.height,x=portrait()?screenY:screenX,y=portrait()?660-screenX:screenY;return{x:flipped?20-(x-60)/54:(x-60)/54,y:flipped?10-(y-60)/54:(y-60)/54};};
-  canvas.onpointerdown=e=>{if(!playable||shown)return;e.preventDefault();canvas.focus({preventScroll:true});const p=localPoint(e);if(placing){position(p.x,p.y);return;}const cue=state.balls.find(b=>b.id===0);if(!cue)return;canvas.setPointerCapture(e.pointerId);drag={cue,fromCue:Math.hypot(p.x-cue.x,p.y-cue.y)<.7};if(!drag.fromCue){angle=Math.atan2(p.y-cue.y,p.x-cue.x)*180/Math.PI;controls();draw();}};
-  canvas.onpointermove=e=>{if(!drag)return;const p=localPoint(e),dx=drag.fromCue?drag.cue.x-p.x:p.x-drag.cue.x,dy=drag.fromCue?drag.cue.y-p.y:p.y-drag.cue.y;if(Math.hypot(dx,dy)<.1)return;angle=Math.atan2(dy,dx)*180/Math.PI;if(drag.fromCue)power=Math.round(Math.max(.05,Math.min(1,Math.hypot(dx,dy)/5))*100)/100;controls();draw();};
-  canvas.onpointerup=canvas.onpointercancel=canvas.onlostpointercapture=()=>{drag=null;};
-  function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;sinking=[];finish=null;drag=null;}
+  const input=attachPoolInput(canvas,{
+    point:localPoint,
+    current:()=>({active:playable&&!shown,placing,cue:state?.balls.find(b=>b.id===0),revision:state?.revision,view:flipped}),
+    aim(value,force){angle=value;if(force!==undefined)power=force;controls();draw();},
+    adjustPower(delta){power=Math.max(.05,Math.min(1,Math.round((power+delta)*100)/100));$('power').value=Math.round(power*100);readings();draw();},
+    shoot:fire,place:position
+  });
+  function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;sinking=[];finish=null;input.cancel();}
   function animate(before,next,done){
     cancel();const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
     sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
@@ -105,10 +111,11 @@ export function createPoolBoard({shoot,place,sound}) {
       draw();raf=requestAnimationFrame(tick);
     };raf=requestAnimationFrame(tick);
   }
-  document.addEventListener('visibilitychange',()=>{if(document.hidden)finish?.();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){input.cancel();finish?.();}});
+  window.addEventListener('blur',()=>input.cancel());
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches)finish?.();});
   window.addEventListener('resize',draw);
   new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  document.addEventListener('languagechange',()=>{canvas.setAttribute('aria-label',t('Бильярдный стол. Нажмите для прицеливания; управление с клавиатуры ниже.'));controls();});
+  document.addEventListener('languagechange',()=>{canvas.setAttribute('aria-label',t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.'));controls();});
   return {render(next,flip,canPlay){const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
 }
