@@ -24,7 +24,8 @@ test('OAuth return URL cannot redirect off site or to arbitrary paths', () => {
   assert.equal(safeReturnTo('/?room=AABBCCDDEEFF'), '/?room=AABBCCDDEEFF');
   assert.equal(safeReturnTo('/profile'), '/profile');
   assert.equal(safeReturnTo('/profile?next=https://evil.example'), '/');
-  for (const url of ['https://evil.example', '//evil.example', '/admin', '/?room=bad', '/?room=AABBCCDDEEFF&next=https://evil.example']) {
+  assert.equal(safeReturnTo('/admin'), '/admin');
+  for (const url of ['https://evil.example', '//evil.example', '/admin?next=https://evil.example', '/?room=bad', '/?room=AABBCCDDEEFF&next=https://evil.example']) {
     assert.ok(['/', '/?room=AABBCCDDEEFF'].includes(safeReturnTo(url)));
   }
 });

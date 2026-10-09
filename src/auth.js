@@ -2,13 +2,14 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
 import { shopState, buyItem, equipItem } from './shop.js';
+import { adminOverview, changeShopAccess } from './admin.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
 const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none' } : null;
+const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.is_admin === 1 } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -129,6 +130,23 @@ async function googleCallback(request, env) {
 export async function handleAuth(request, env, ctx, readBody) {
   const url = new URL(request.url), path = url.pathname;
   try {
+
+    if (path.startsWith('/api/auth/admin')) {
+      const user = await authenticatedUser(request, env);
+      if (!user) return error('Войдите в аккаунт.', 401);
+      if (!user.isAdmin) return error('Доступ только для администратора.', 403);
+      if (!await limit(env, 'admin:' + user.id, 120, 600)) return error('Слишком много запросов. Попробуйте позже.', 429);
+      try {
+        if (request.method === 'GET' && path === '/api/auth/admin') return json(await adminOverview(env, user.id, url.searchParams.get('q') || '', Number(url.searchParams.get('offset') || 0)));
+        if (request.method !== 'POST' || path !== '/api/auth/admin/shop-access') return error('Запрос не найден.', 404);
+        if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
+        if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
+        let data;
+        try { data = await readBody(request, 2048); } catch { return error('Некорректный запрос.'); }
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return error('Некорректный запрос.');
+        return json(await changeShopAccess(env, user.id, data));
+      } catch (cause) { if (cause.status) return error(cause.message, cause.status); throw cause; }
+    }
     if (request.method === 'GET' && path === '/api/auth/account') {
       const user = await authenticatedUser(request, env);
       if (!user) return error('Войдите в аккаунт.', 401);
@@ -215,5 +233,5 @@ export async function handleAuth(request, env, ctx, readBody) {
     const user = await env.AUTH_DB.prepare('SELECT * FROM users WHERE email = ?').bind(fields.email).first();
     if (!await passwords.verify(fields.password, user?.password_hash || null)) return error('Неверная почта или пароль.', 401);
     return json({ user: publicUser(user) }, 200, { 'Set-Cookie': await startSession(request, env, user.id) });
-  } catch { if (path.includes('/shop')) return error('Магазин временно недоступен. Попробуйте ещё раз.', 503); return error(path.includes('profile') || path.includes('account') ? 'Сервис профиля временно недоступен. Попробуйте ещё раз.' : 'Не удалось выполнить вход. Попробуйте ещё раз.', 503); }
+  } catch { if (path.includes('/admin')) return error('Админ-панель временно недоступна.', 503); if (path.includes('/shop')) return error('Магазин временно недоступен. Попробуйте ещё раз.', 503); return error(path.includes('profile') || path.includes('account') ? 'Сервис профиля временно недоступен. Попробуйте ещё раз.' : 'Не удалось выполнить вход. Попробуйте ещё раз.', 503); }
 }

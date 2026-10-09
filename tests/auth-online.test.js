@@ -18,10 +18,12 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   assert.equal(invalid.response.status, 400);
   const csrf = await post('/api/auth/register', { name: 'Tester', email, password, confirmPassword: password }, '', 'https://evil.example');
   assert.equal(csrf.response.status, 403);
-  const registered = await post('/api/auth/register', { name: 'Тестовый игрок', email, password, confirmPassword: password });
+  const registered = await post('/api/auth/register', { name: 'Тестовый игрок', email, password, confirmPassword: password, isAdmin: true, is_admin: 1, shop_access: 1 });
   assert.equal(registered.response.status, 201, registered.data.error);
   assert.equal(registered.data.user.name, 'Тестовый игрок');
   assert.equal(registered.data.user.emailVerified, false);
+  assert.equal(registered.data.user.isAdmin, false);
+  assert.equal((await fetch(base + '/api/auth/admin', { headers: { Cookie: registered.cookie } })).status, 403);
   assert.equal('password_hash' in registered.data.user, false);
   assert.ok(registered.response.headers.get('Set-Cookie').includes('HttpOnly'));
   assert.ok(registered.response.headers.get('Set-Cookie').includes('SameSite=Lax'));
@@ -37,9 +39,13 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   assert.equal((await post('/api/auth/profile',{name:'<script>',avatar},registered.cookie)).response.status,400);
   assert.equal((await post('/api/auth/profile',{name:'New',avatar:'data:image/svg+xml;base64,PHN2Zz4='},registered.cookie)).response.status,400);
   assert.equal((await post('/api/auth/profile',{name:'New',avatar:'x'.repeat(106000)},registered.cookie)).response.status,400);
-  const edited=await post('/api/auth/profile',{name:'Новое имя',avatar,id:'someone-else',email:'fake@example.invalid'},registered.cookie);
+  const edited=await post('/api/auth/profile',{name:'Новое имя',avatar,id:'someone-else',email:'fake@example.invalid',isAdmin:true,is_admin:1,shop_access:1},registered.cookie);
   assert.equal(edited.response.status,200,edited.data.error); assert.equal(edited.data.user.id,registered.data.user.id);
   assert.equal(edited.data.user.email,email); assert.equal(edited.data.user.name,'Новое имя');
+  assert.equal(edited.data.user.isAdmin,false);
+  const denied=await post('/api/auth/admin/shop-access',{userId:registered.data.user.id,enabled:true,expected:false},registered.cookie);
+  assert.equal(denied.response.status,403);
+  assert.equal((await (await fetch(base + '/api/auth/shop', { headers: { Cookie: registered.cookie } })).json()).fullAccess,false);
   assert.equal((await session(registered.cookie)).user.avatar,avatar);
   await post('/api/auth/profile',{name:'Тестовый игрок',avatar:null},registered.cookie);
   assert.equal((await session(registered.cookie)).user.avatar,null);

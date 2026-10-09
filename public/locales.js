@@ -60,6 +60,7 @@ const rows = `
 Шах, мат и рокировка · 5 мин + 5 сек|Check, mate and castling · 5 min + 5 sec|Шах, мат і рокіровка · 5 хв + 5 с
 Часы с добавлением|Clocks with increment|Годинники з додаванням
 8×8 и шахматы: 5 минут + 5 секунд за ход. 12×12: 10 минут + 5 секунд. Взятия в цепочке — один ход. Чапаев — без часов. При отключении время продолжает идти. Комната удаляется после часа без игровых действий.|8×8 draughts and chess: 5 minutes + 5 seconds per turn. 12×12: 10 minutes + 5 seconds. A capture sequence is one turn. Chapayev has no clock. Time keeps running when disconnected. Rooms expire after an hour without game actions.|8×8 та шахи: 5 хвилин + 5 секунд за хід. 12×12: 10 хвилин + 5 секунд. Серія взяттів — один хід. Чапаєв — без годинника. При відключенні час продовжує йти. Кімната видаляється після години без ігрових дій.
+Админ-панель|Admin panel|Адмін-панель
 Магазин и коллекция|Shop and collection|Магазин і колекція
 Красивый финал|A beautiful finish|Гарний фінал
 Показываем анимацию победителя.|Playing the winner's animation.|Показуємо анімацію переможця.

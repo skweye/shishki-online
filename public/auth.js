@@ -11,6 +11,7 @@ function notify(message) {
 }
 function update(user, broadcast = true) {
   currentUser = user;
+  $('menu-admin').hidden = !user?.isAdmin;
   $('account-button-label').textContent = user ? user.name : 'Гость';
   $('account-button').setAttribute('aria-label', user ? 'Аккаунт: ' + user.name : 'Профиль гостя и настройки');
   showAvatar($('account-avatar'), user?.avatar, user?.name || t('Гость'));
@@ -51,6 +52,7 @@ export function openAuth() {
 $('menu-profile').onclick = () => {
   closeAccountMenu(); location.assign('/profile');
 };
+$('menu-admin').onclick = () => { closeAccountMenu(); location.assign('/admin'); };
 $('menu-shop').onclick = () => { closeAccountMenu(); location.assign('/shop'); };
 $('menu-login').onclick = () => { closeAccountMenu(); openAuth(); };
 $('auth-login-tab').onclick = () => setTab('login');
@@ -75,7 +77,7 @@ for (const type of ['login', 'register']) {
       $('auth-login-form').reset(); $('auth-register-form').reset();
       $('auth-dialog').close(); update(result.user);
       const destination = new URL(location.href).searchParams.get('returnTo');
-      if (['profile', 'shop'].includes(destination)) { location.assign('/' + destination); return; }
+      if (['profile', 'shop', 'admin'].includes(destination)) { location.assign('/' + destination); return; }
       notify(type === 'register' ? 'Аккаунт создан. Приятной игры!' : 'Вы вошли в аккаунт.');
     } catch (error) { $('auth-error').textContent = error.message; }
     finally {
@@ -89,7 +91,7 @@ function google() {
   if (!googleEnabled) return;
   const room = new URL(location.href).searchParams.get('room');
   const destination = new URL(location.href).searchParams.get('returnTo');
-  const returnTo = ['profile', 'shop'].includes(destination) ? '/' + destination : /^[A-F0-9]{12}$/.test(room || '') ? '/?room=' + room : '/';
+  const returnTo = ['profile', 'shop', 'admin'].includes(destination) ? '/' + destination : /^[A-F0-9]{12}$/.test(room || '') ? '/?room=' + room : '/';
   location.assign('/api/auth/google?returnTo=' + encodeURIComponent(returnTo));
 }
 $('google-signin').onclick = google;
@@ -130,7 +132,7 @@ export const authReady = request('session').then(data => {
 });
 const url = new URL(location.href), authError = url.searchParams.get('auth_error');
 if (url.searchParams.get('login') === '1' && !authError) authReady.then(() => {
-  if (currentUser && ['profile', 'shop'].includes(url.searchParams.get('returnTo'))) location.assign('/' + url.searchParams.get('returnTo'));
+  if (currentUser && ['profile', 'shop', 'admin'].includes(url.searchParams.get('returnTo'))) location.assign('/' + url.searchParams.get('returnTo'));
   else openAuth();
 });
 if (authError) {

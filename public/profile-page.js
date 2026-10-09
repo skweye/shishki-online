@@ -31,6 +31,7 @@ function feedback(id, message, error = false) { $(id).textContent = message; $(i
 function showUser(value) {
   user = value; draftAvatar = value.avatar;
   $('hero-name').textContent = user.name;
+  $('admin-link').hidden = !user.isAdmin;
   $('member-since').textContent = 'За доской с ' + new Date(user.createdAt * 1000).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   $('nickname').value = user.name;
   $('account-email').textContent = user.email;
