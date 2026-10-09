@@ -68,9 +68,12 @@ test('wrong ball, no contact and no rail award ball in hand; legal miss changes 
   }
   const next=resolvePool(s,result(s),command);assert.equal(next.foul,null);assert.equal(next.turn,'black');assert.equal(next.ballInHand,null);
 });
-test('illegal break resets rack for opponent; an eight on break is spotted',()=>{
-  const s=newPool(),next=resolvePool(s,result(s,{railBalls:[1]}),command);
-  assert.equal(next.breaking,true);assert.equal(next.foul,'break');assert.equal(next.turn,'black');assert.equal(next.balls.length,16);
+test('illegal break keeps final positions for opponent; an eight on break is spotted',()=>{
+  const s=newPool(),simulation=simulatePool(s,.4,0),next=applyPoolShot(s,{dx:.4,dy:0});
+  assert.equal(simulation.potted.length,0);assert.ok(simulation.railBalls.length<4);
+  assert.equal(next.breaking,false);assert.equal(next.foul,'break');assert.equal(next.turn,'black');assert.equal(next.ballInHand,'kitchen');
+  assert.deepEqual(next.balls,simulation.balls);assert.notDeepEqual(next.balls,s.balls);
+  assert.equal(next.history.length,1);assert.deepEqual(next.groups,{white:null,black:null});
   const eight=resolvePool(s,result(s,{potted:[{id:8,pocket:0}],balls:s.balls.filter(b=>b.id!==8)}),command);
   assert.equal(eight.winner,null);assert.equal(eight.balls.filter(b=>b.id===8).length,1);assert.equal(eight.groups.white,null);
 });

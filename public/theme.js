@@ -8,6 +8,7 @@
     ['8008', '8008', 'Серо-синий · яркий розовый', '#333a45'],
     ['classic', 'Классическая', 'Светлый лён · шалфей', '#f5f3ed']
   ];
+  try { document.documentElement.dataset.lowPerformance = String(localStorage.getItem('shashki-low-performance-v1') === 'true'); } catch {}
   const key = 'shashki-appearance-v1';
   let selected = 'mocha';
   try { const saved = localStorage.getItem(key); if (themes.some(([id]) => id === saved)) selected = saved; } catch { /* Storage is optional. */ }

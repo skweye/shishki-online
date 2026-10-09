@@ -1,10 +1,11 @@
+import { lowPerformance } from './performance.js';
 import { TABLE, POCKETS, pocketGeometry, simulatePool, validCuePosition } from './pool.js';
 import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter } from './pool-visuals.js';
 import { t } from './i18n.js';
 import { drawCue, validCueSkin } from './pool-cue.js';
 import { pieceReaction } from './finish-interactions.js';
 import { attachPoolInput } from './pool-input.js';
-const foulText={scratch:'Биток в лузе.', 'no-contact':'Биток не коснулся прицельного шара.', 'wrong-ball':'Первое касание чужого шара.', kitchen:'Первое касание должно быть за линией дома.', 'no-rail':'После касания нужен борт или забитый шар.',break:'Слабый разбой: пирамида восстановлена.'};
+const foulText={scratch:'Биток в лузе.', 'no-contact':'Биток не коснулся прицельного шара.', 'wrong-ball':'Первое касание чужого шара.', kitchen:'Первое касание должно быть за линией дома.', 'no-rail':'После касания нужен борт или забитый шар.',break:'Слабый разбой: позиция сохранена, биток с руки в доме.'};
 export function createPoolBoard({shoot,place,sound}) {
   const root=document.getElementById('pool-board');
   root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
@@ -17,6 +18,13 @@ export function createPoolBoard({shoot,place,sound}) {
   function ball(b,scale=1,opacity=1) {
     const p=point(b.x,b.y),r=TABLE.radius*54*scale;
     ctx.save();ctx.globalAlpha=opacity;
+    if(lowPerformance()){
+      const colors=['#f5f0e5','#e9b934','#3465bb','#bd423b','#77519a','#d57f32','#33765e','#803847','#182023'];
+      ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();ctx.fillStyle=b.id>8?'#f5f0e5':colors[b.id];ctx.fillRect(p.x-r,p.y-r,r*2,r*2);
+      if(b.id>8){ctx.fillStyle=colors[b.id-8];ctx.fillRect(p.x-r,p.y-r*.6,r*2,r*1.2);}
+      if(b.id){ctx.fillStyle='#fff4df';ctx.beginPath();ctx.arc(p.x,p.y,r*.55,0,Math.PI*2);ctx.fill();ctx.fillStyle='#17201b';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(b.id,p.x,p.y);}
+      ctx.restore();return;
+    }
     if(finishInteraction){
       const {effect,elapsed,options}=finishInteraction;
       const side=b.id===0||b.id===8?options.winner:state.groups.white===(b.id<8?'solid':'stripe')?'white':state.groups.black===(b.id<8?'solid':'stripe')?'black':b.id<8?'white':'black';
@@ -103,7 +111,8 @@ export function createPoolBoard({shoot,place,sound}) {
   });
   function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;sinking=[];finish=null;input.cancel();}
   function animate(before,next,done){
-    cancel();const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
+    cancel();if(lowPerformance()){state=next;sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));draw();done();return;}
+    const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
     sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
     finish=()=>{cancel();state=next;draw();done();};
     if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches){finish();return;}
@@ -122,6 +131,7 @@ export function createPoolBoard({shoot,place,sound}) {
     };raf=requestAnimationFrame(tick);
   }
   document.addEventListener('visibilitychange',()=>{if(document.hidden){input.cancel();finish?.();}});
+  document.addEventListener('performancechange',()=>{if(lowPerformance()){input.cancel();finish?.();}draw();});
   window.addEventListener('blur',()=>input.cancel());
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches)finish?.();});
   window.addEventListener('resize',draw);

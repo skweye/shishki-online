@@ -1,5 +1,8 @@
 import './account-shell.js';
+import { initPerformance, PERFORMANCE_KEY } from './performance.js';
 import { language, setLanguage } from './i18n.js';
+const performanceSettings = initPerformance();
+window.addEventListener('storage', event => { if(event.key === PERFORMANCE_KEY || event.key === null) performanceSettings.apply(event.newValue === 'true'); });
 const $ = id => document.getElementById(id);
 const menu = $('account-menu'), trigger = $('account-button');
 const sections = ['appearance', 'language'];

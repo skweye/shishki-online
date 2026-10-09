@@ -1,5 +1,10 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Производительность|Performance|Продуктивність
+Режим для слабых устройств|Low-end device mode|Режим для слабких пристроїв
+Статичный фон, без размытия и тяжёлых эффектов. Удары показываются сразу, шары рисуются проще.|Static backgrounds, no blur or heavy effects. Shots resolve instantly with simpler ball graphics.|Статичний фон, без розмиття та важких ефектів. Удари відображаються одразу, кулі малюються простіше.
+После пустого разбоя шары остаются там, где остановились, а ход переходит сопернику. Если до бортов дошло меньше четырёх прицельных шаров, это фол: соперник получает биток с руки в доме. Восьмёрка на разбое возвращается на стол.|After a dry break, balls stay where they stopped and the turn passes. Fewer than four object balls reaching rails is a foul: the opponent gets cue ball in hand behind the head string. An eight pocketed on the break is spotted.|Після розбиття без забитих куль вони залишаються там, де зупинилися, а хід переходить супернику. Якщо бортів торкнулося менше чотирьох прицільних куль, це фол: суперник отримує биток з руки в домі. Вісімка на розбитті повертається на стіл.
+Слабый разбой: позиция сохранена, биток с руки в доме.|Illegal break: position kept, cue ball in hand behind the head string.|Слабке розбиття: позицію збережено, биток з руки в домі.
 Скины кия|Cue skins|Скіни кия
 Предпросмотр кия|Cue preview|Попередній перегляд кия
 Кий · Классика|Cue · Classic|Кий · Класика

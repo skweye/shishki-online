@@ -1,3 +1,4 @@
+import { lowPerformance } from './performance.js';
 import { nardeMoves, nardeProgress } from './narde.js';
 import { attachBoardDrag } from './board-drag.js';
 import { pieceArt } from './skin-art.js';
@@ -63,7 +64,7 @@ export function createNardeBoard({move,roll}) {
     cancel();game=next;selected=null;chosenDie=null;dice.replaceChildren();rolling=true;draw();
     const id=animationId;
     const finish=()=>{if(id!==animationId)return;cancel();draw();done();};finishRoll=finish;
-    if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches){finish();return;}
+    if(lowPerformance()||document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches){finish();return;}
     [...dice.children].forEach((button,index)=>{
       const cube=button.querySelector('.narde-cube'),[rx,ry]=dieRotation(next.rolled[index]),sign=index?1:-1;
       animations.push(cube.animate([
@@ -83,6 +84,7 @@ export function createNardeBoard({move,roll}) {
     Promise.all(animations.map(a=>a.finished)).then(finish,()=>{});
   }
   document.addEventListener('visibilitychange',()=>{if(document.hidden)finishRoll?.();});
+  document.addEventListener('performancechange',()=>{if(lowPerformance())finishRoll?.();});
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',event=>{if(event.matches)finishRoll?.();});
   rollButton.onclick=()=>{if(!rolling&&!rollButton.disabled)roll();};
   document.addEventListener('languagechange',()=>{drag.cancel();draw();});

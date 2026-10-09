@@ -34,6 +34,12 @@ test('pool server validates shots and placement, synchronizes, restores, chats a
     await b.send({type:'resign',revision:3});await a.wait(m=>m.type==='state'&&m.game.winner==='white');
     await a.send({type:'rematch',revision:4});await b.send({type:'rematch',revision:4});
     const fresh=await a.wait(m=>m.type==='state'&&m.game.revision===5);assert.equal(fresh.game.variant,'pool8');assert.equal(fresh.game.balls.length,16);assert.equal(fresh.game.winner,null);assert.equal(fresh.clock,null);
+    await a.send({type:'pool-shot',dx:.4,dy:0,revision:5});
+    const weak=await a.wait(m=>m.type==='state'&&m.game.revision===6);
+    assert.equal(weak.game.breaking,false);assert.equal(weak.game.foul,'break');assert.equal(weak.game.turn,'black');
+    assert.deepEqual(weak.game,applyPoolShot(fresh.game,{dx:.4,dy:0}));assert.notDeepEqual(weak.game.balls,fresh.game.balls);
+    assert.deepEqual((await b.wait(m=>m.type==='state'&&m.game.revision===6)).game,weak.game);
+    const {data:weakRestore}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.deepEqual(weakRestore.game.balls,weak.game.balls);
   }finally{a.ws.close();b.ws.close();}
 });
 

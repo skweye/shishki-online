@@ -93,8 +93,7 @@ export function resolvePool(state, result, command) {
   if(invalidBreak)next.foul='break';
   if(state.breaking){
     if(eight)spotEight(next.balls);
-    if(invalidBreak){const rack=newPool();next.balls=rack.balls;next.breaking=true;next.turn=other;next.ballInHand='kitchen';}
-    else if(next.foul){next.turn=other;next.ballInHand='kitchen';}
+    if(next.foul){next.turn=other;next.ballInHand='kitchen';}
     else next.turn=result.potted.some(b=>b.id!==0)?side:other;
   } else if(eight){
     const won=!next.foul&&state.groups[side]&&remainingPool(state,side)===0;
