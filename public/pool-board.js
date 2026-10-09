@@ -87,12 +87,15 @@ export function createPoolBoard({shoot,place,sound}) {
   canvas.onpointerup=canvas.onpointercancel=canvas.onlostpointercapture=()=>{drag=null;};
   function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;sinking=[];finish=null;drag=null;}
   function animate(before,next,done){
-    cancel();const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=performance.now(),soundIndex=0,last=sim.frames[0];
+    cancel();const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
     sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
     finish=()=>{cancel();state=next;draw();done();};
     if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches){finish();return;}
     shown=sim.frames[0];controls();draw();const tick=now=>{
-      const elapsed=(now-started)/1000;
+      // requestAnimationFrame uses a frame timestamp which can precede performance.now().
+      // Establish the origin from the same clock on the first callback.
+      started??=now;
+      const elapsed=Math.max(0,(now-started)/1000);
       if(elapsed>=(sim.frames.length-1)/60+.2){finish?.();return;}
       shown=interpolatePoolFrame(sim.frames,elapsed);
       const previous=new Map(last.map(b=>[b.id,b]));

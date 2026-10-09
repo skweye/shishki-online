@@ -31,3 +31,5 @@
 
 .pool-player-ball { display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,#d7ccbb);color:#292521;font:bold 17px Georgia;box-shadow:2px 3px 5px #0006; }
 .pool-player-ball.black { background:radial-gradient(circle at 30% 25%,#727977,#172321 75%);color:#f6ebda; }
+
+.pool-color-1{--ball-color:#eebd32}.pool-color-2{--ball-color:#326ccc}.pool-color-3{--ball-color:#cb493d}.pool-color-4{--ball-color:#8155ae}.pool-color-5{--ball-color:#ed8739}.pool-color-6{--ball-color:#32836c}.pool-color-7{--ball-color:#923d4c}

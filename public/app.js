@@ -16,7 +16,7 @@ import { createNardeBoard } from './narde-board.js';
 import { isNardeRoll } from './narde-dice.js';
 import { applyPoolShot, placePoolCue, remainingPool } from './pool.js';
 import { createPoolBoard } from './pool-board.js';
-import { BALL_COLORS, poolRack } from './pool-visuals.js';
+import { poolRackMarkup } from './pool-visuals.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
@@ -87,9 +87,7 @@ function pieceHTML(piece, captured = false) {
 }
 function skinFor(side) { return validSkin(mode === 'local' ? currentUser?.pieceSkin : room?.cosmetics?.[side]?.skin); }
 function poolPlayerRack(side) {
-  const rack=poolRack(game,side);
-  if(!rack.length)return '';
-  return '<div class="pool-rack" role="group" aria-label="Шары игрока">'+rack.map(({id,potted})=>'<span class="pool-rack-ball '+(id>8?'striped ':'')+(potted?'potted':'')+'" style="--ball-color:'+BALL_COLORS[id>8?id-8:id]+'" role="img" aria-label="'+id+': '+(potted?'Забит':'На столе')+'"><b>'+id+'</b></span>').join('')+'</div>';
+  return poolRackMarkup(game,side);
 }
 function playerHTML(side) {
   const yours = room?.role === side;

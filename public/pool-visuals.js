@@ -20,6 +20,10 @@ export function poolRack(state,side){
   const group=state.groups[side];if(!group)return [];
   return Array.from({length:7},(_,i)=>i+(group==='solid'?1:9)).map(id=>({id,potted:!state.balls.some(b=>b.id===id)}));
 }
+export function poolRackMarkup(state,side){
+  const rack=poolRack(state,side);if(!rack.length)return '';
+  return '<div class="pool-rack" role="group" aria-label="Шары игрока">'+rack.map(({id,potted})=>'<span class="pool-rack-ball pool-color-'+(id>8?id-8:id)+' '+(id>8?'striped ':'')+(potted?'potted':'')+'" role="img" aria-label="'+id+': '+(potted?'Забит':'На столе')+'"><b>'+id+'</b></span>').join('')+'</div>';
+}
 // Quaternion orientation is presentation-only; no spin is added to the physics.
 export function rollOrientation(q,dx,dy){
   const distance=Math.hypot(dx,dy);if(distance<1e-10)return q;
@@ -33,7 +37,9 @@ export function rotateVector(q,[x,y,z]){
   return [x+w*tx+b*tz-c*ty,y+w*ty+c*tx-a*tz,z+w*tz+a*ty-b*tx];
 }
 export function interpolatePoolFrame(frames,seconds){
-  const index=Math.min(frames.length-1,Math.floor(seconds*60)),fraction=Math.min(1,seconds*60-index),next=new Map((frames[index+1]||frames[index]).map(b=>[b.id,b]));
+  if(!frames.length)return [];
+  const position=Number.isFinite(seconds)?Math.max(0,Math.min(frames.length-1,seconds*60)):seconds===Infinity?frames.length-1:0;
+  const index=Math.floor(position),fraction=position-index,next=new Map((frames[index+1]||frames[index]).map(b=>[b.id,b]));
   return frames[index].filter(b=>next.has(b.id)||fraction===0).map(b=>{const n=next.get(b.id)||b;return {...b,x:b.x+(n.x-b.x)*fraction,y:b.y+(n.y-b.y)*fraction};});
 }
 

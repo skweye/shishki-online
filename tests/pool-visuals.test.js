@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {poolAim,poolRack,rollOrientation,rotateVector,shotVector,interpolatePoolFrame} from '../public/pool-visuals.js';
+import {poolAim,poolRack,poolRackMarkup,rollOrientation,rotateVector,shotVector,interpolatePoolFrame} from '../public/pool-visuals.js';
+import {readFileSync} from 'node:fs';
 import {newPool,simulatePool,TABLE,applyPoolShot} from '../public/pool.js';
 import {transitionSounds} from '../public/sounds.js';
 test('aim stops at the nearest ball at cue-ball radius, or the cushion',()=>{
@@ -28,4 +29,27 @@ test('racks track assigned groups and contact sounds have physics timestamps, wi
   assert.ok(sim.events.some(e=>e.kind==='ball'));assert.ok(sim.events.some(e=>e.kind==='rail'));
   assert.ok(sim.events.every((e,i)=>e.time>=0&&e.strength>=0&&e.strength<=1&&(!i||e.time>=sim.events[i-1].time)));
   assert.deepEqual(transitionSounds(initial,applyPoolShot(initial,{dx:.85,dy:0})),[]);
+});
+test('frame timestamps before animation start and after the last frame stay in range',()=>{
+  const sim=simulatePool(newPool(),.85,0,true),frames=sim.frames,copy=structuredClone(frames);
+  for(const time of [-.001,-1,-Infinity,NaN,undefined,0])assert.deepEqual(interpolatePoolFrame(frames,time),frames[0]);
+  const end=(frames.length-1)/60;
+  for(const time of [end,end+.1,end+1,Infinity])assert.deepEqual(interpolatePoolFrame(frames,time),frames.at(-1));
+  for(let time=-.003;time<end+.2;time+=1/144)assert.ok(interpolatePoolFrame(frames,time).every(b=>Number.isFinite(b.x)&&Number.isFinite(b.y)));
+  assert.deepEqual(interpolatePoolFrame([],0),[]);
+  assert.deepEqual(interpolatePoolFrame([frames[0]],-.001),frames[0]);
+  assert.deepEqual(frames,copy);
+});
+test('player ball colors use external CSS classes compatible with strict CSP',()=>{
+  const game=newPool();game.groups={white:'solid',black:'stripe'};game.balls=game.balls.filter(b=>b.id!==3);
+  const css=readFileSync(new URL('../public/pool.css',import.meta.url),'utf8');
+  for(const side of ['white','black']){
+    const markup=poolRackMarkup(game,side);
+    assert.doesNotMatch(markup,/\sstyle\s*=/i);assert.equal((markup.match(/role="img"/g)||[]).length,7);
+    for(let i=1;i<=7;i++){assert.ok(markup.includes('pool-color-'+i+' '));assert.ok(css.includes('.pool-color-'+i+'{'));}
+  }
+  assert.match(poolRackMarkup(game,'white'),/3: Забит/);
+  assert.match(poolRackMarkup(game,'black'),/striped/);
+  const headers=readFileSync(new URL('../public/_headers',import.meta.url),'utf8');
+  assert.doesNotMatch(headers,/unsafe-inline/);
 });
