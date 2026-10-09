@@ -5,6 +5,50 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { applyShot } from '../public/chapaev.js';
 import { legalMoves } from '../public/game.js';
 import { applyPoolShot } from '../public/pool.js';
+import { dominoMoves } from '../public/domino.js';
+
+test('domino keeps hands private through HTTP, sockets, rejected moves and reconnects; synchronizes rounds and rematches', {timeout:60000}, async()=>{
+  const {data:room,status}=await post('/api/rooms',{variant:'domino'});assert.equal(status,201);assert.equal(room.clock,null);
+  const {data:joined}=await post(`/api/rooms/${room.code}/join`);
+  const a=client(room.code,room.token),b=client(room.code,joined.token),players={white:a,black:b};
+  function privateView(g,role){assert.equal('stock' in g,false);assert.equal(g.hands[role].length,g.handCounts[role]);if(!g.roundResult&&!g.winner)assert.deepEqual(g.hands[role==='white'?'black':'white'],[]);}
+  privateView(room.game,'white');privateView(joined.game,'black');
+  let views={white:room.game,black:joined.game};
+  async function receive(revision){
+    views.white=(await a.wait(m=>m.type==='state'&&m.game.revision===revision)).game;
+    views.black=(await b.wait(m=>m.type==='state'&&m.game.revision===revision)).game;
+    for(const side of ['white','black'])privateView(views[side],side);
+    for(const key of ['chain','score','roundResult','turn','stockCount','handCounts','readyNext'])assert.deepEqual(views.white[key],views.black[key]);
+  }
+  try{
+    await a.wait(m=>m.type==='state'&&m.ready);await b.wait(m=>m.type==='state'&&m.ready);
+    const active=room.game.turn,other=active==='white'?'black':'white';
+    await players[other].send({type:'domino-play',id:room.game.opening,end:'right',revision:0});await players[other].wait(m=>m.type==='error'&&m.message.includes('соперника'));
+    privateView((await players[other].wait(m=>m.type==='state'&&m.game.revision===0)).game,other);
+    await players[active].send({type:'domino-play',id:views[other].hands[other][0],end:'right',revision:0});await players[active].wait(m=>m.type==='error');
+    privateView((await players[active].wait(m=>m.type==='state'&&m.game.revision===0)).game,active);
+    await players[active].send({type:'domino-draw',revision:0});await players[active].wait(m=>m.type==='error');
+    let steps=0;
+    while(!views.white.roundResult&&steps++<100){
+      const side=views.white.turn,g=views[side],move=dominoMoves(g)[0];
+      await players[side].send({...move,type:move?'domino-play':g.stockCount?'domino-draw':'domino-pass',revision:g.revision,score:{white:999,black:999},hands:{white:[],black:[]}});
+      await receive(g.revision+1);
+    }
+    assert.ok(views.white.roundResult);assert.ok(views.white.score.white<999&&views.white.score.black<999);
+    if(!views.white.winner){
+      let revision=views.white.revision;await a.send({type:'domino-ready',revision});await receive(revision+1);assert.equal(views.white.round,1);assert.deepEqual(views.white.readyNext,['white']);
+      await b.send({type:'domino-ready',revision});await b.wait(m=>m.type==='error'&&m.message.includes('изменилась'));
+      revision=views.white.revision;await b.send({type:'domino-ready',revision});await receive(revision+1);assert.equal(views.white.round,2);assert.equal(views.white.handCounts.white,7);assert.equal(views.white.stockCount,14);
+    }
+    await a.send({type:'sync'});privateView((await a.wait(m=>m.type==='state'&&m.game.revision===views.white.revision)).game,'white');
+    const {data:restored}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.deepEqual(restored.game,views.white);privateView(restored.game,'white');
+    await a.send({type:'chat',text:'Домино!'});assert.equal((await b.wait(m=>m.type==='chat')).message.text,'Домино!');
+    if(!views.white.winner){const rev=views.white.revision;await b.send({type:'resign',revision:rev});await receive(rev+1);assert.equal(views.white.winner,'white');}
+    const rev=views.white.revision;await a.send({type:'rematch',revision:rev});await b.wait(m=>m.type==='state'&&m.rematch.length===1);
+    await b.send({type:'rematch',revision:rev});await receive(rev+1);
+    assert.equal(views.white.variant,'domino');assert.equal(views.white.round,1);assert.equal(views.white.winner,null);assert.deepEqual(views.white.score,{white:0,black:0});assert.equal(views.white.stockCount,14);
+  }finally{a.ws.close();b.ws.close();}
+});
 
 test('pool server validates shots and placement, synchronizes, restores, chats and rematches',async()=>{
   const {data:room,status}=await post('/api/rooms',{variant:'pool8'});assert.equal(status,201);assert.equal(room.clock,null);

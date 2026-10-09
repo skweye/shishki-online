@@ -1,5 +1,5 @@
 export function timeControl(variant) {
-  return ['chapaev','narde','pool8'].includes(variant) ? null : { initial: variant === 'russian12' ? 600000 : 300000, increment: 5000 };
+  return ['chapaev','narde','pool8','domino'].includes(variant) ? null : { initial: variant === 'russian12' ? 600000 : 300000, increment: 5000 };
 }
 export function createClock(variant, startedAt = null) {
   const control = timeControl(variant);

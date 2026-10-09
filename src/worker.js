@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { actDomino, readyDominoRound, dominoView } from '../public/domino.js';
 import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
 import { applyShot, nextChapaevRound } from '../public/chapaev.js';
 import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
@@ -142,17 +143,16 @@ export class GameRoom extends DurableObject {
     if (typeof token !== 'string' || !token) return null;
     return ['white', 'black'].find(side => this.room?.players[side] === token) || null;
   }
-  snapshot() {
+  snapshot(role = null) {
     return {
-      game: this.room.game, ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
+      game: dominoView(this.room.game, role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer,
       names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
     };
   }
   broadcast() {
-    const data = JSON.stringify({ type: 'state', ...this.snapshot() });
-    for (const ws of this.ctx.getWebSockets()) { try { ws.send(data); } catch { /* closing socket */ } }
+    for (const ws of this.ctx.getWebSockets()) { try { ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) })); } catch { /* closing socket */ } }
   }
   async fetch(request) {
     return this.ctx.blockConcurrencyWhile(async () => {
@@ -189,7 +189,7 @@ export class GameRoom extends DurableObject {
         this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', cue: identity?.cueSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
         await this.save();
-        return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
+        return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot('white') }, 201);
       }
       if (!this.room) return fail('Комната не найдена или срок её хранения истёк.', 404);
       if (url.pathname.endsWith('/join') && request.method === 'POST') {
@@ -216,7 +216,7 @@ export class GameRoom extends DurableObject {
           if (code) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, code).run();
         }
         await this.save(newPlayer); this.broadcast();
-        return json({ token, role, ...this.snapshot() });
+        return json({ token, role, ...this.snapshot(role) });
       }
       if (url.pathname.endsWith('/socket') && request.method === 'GET') {
         if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return fail('Требуется WebSocket.', 426);
@@ -263,11 +263,16 @@ export class GameRoom extends DurableObject {
         }
         if (actionNow - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
         session.lastMessage = actionNow; ws.serializeAttachment(session);
-        if (data.type === 'sync') { ws.send(JSON.stringify({ type: 'state', ...this.snapshot() })); return; }
+        if (data.type === 'sync') { ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) })); return; }
         if (!this.room.players.black) throw new Error('Дождитесь второго игрока.');
         if (data.revision !== this.room.game.revision) throw new Error('Позиция уже изменилась. Повторите действие.');
         const previous = structuredClone(this.room.game);
-        if (data.type === 'roll') {
+        if (data.type === 'domino-ready') {
+          this.room.game = readyDominoRound(this.room.game, role); this.room.drawOffer = null;
+        } else if (['domino-play','domino-draw','domino-pass'].includes(data.type)) {
+          if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
+          this.room.game = actDomino(this.room.game, data); this.room.drawOffer = null;
+        } else if (data.type === 'roll') {
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
           this.room.game = rollNarde(this.room.game, randomDice(this.room.game.opening));
           this.room.drawOffer = null;
@@ -307,7 +312,7 @@ export class GameRoom extends DurableObject {
         await this.save(); this.broadcast();
       } catch (error) {
         ws.send(JSON.stringify({ type: 'error', context: messageType === 'chat' ? 'chat' : 'game', message: error instanceof SyntaxError ? 'Некорректное сообщение.' : error.message }));
-        if (this.room && messageType !== 'chat') ws.send(JSON.stringify({ type: 'state', ...this.snapshot() }));
+        if (this.room && messageType !== 'chat') ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) }));
       }
     });
   }

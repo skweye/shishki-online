@@ -6,6 +6,7 @@ import { createClock } from '../public/time-control.js';
 
 import { isFinishTransition } from '../public/rocket.js';
 import { matchCoins } from '../public/shop-catalog.js';
+import { DOMINOES, newDomino, actDomino, nextDominoRound } from '../public/domino.js';
 
 register('./helpers/cloudflare-loader.js', import.meta.url);
 globalThis.WebSocketRequestResponsePair = class {};
@@ -191,6 +192,21 @@ test('Chapaev rounds and matches without a second player do not enter account hi
   assert.equal(room.room.pendingResults, undefined);
   room.room.game.reason = 'resign'; room.room.players.black = null;
   await room.save(); assert.equal(room.room.resultRecorded, undefined);
+});
+
+test('domino persists round scores without recording a match, then records the 100-point result once', async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  const writes=[],env={AUTH_DB:{prepare:()=>({bind:(...values)=>values}),async batch(rows){writes.push(...rows);}}};
+  const initial=fixture();initial.accounts={white:'user-a',black:'user-b'};
+  const tile=(a,b)=>DOMINOES.findIndex(p=>p[0]===a&&p[1]===b);
+  const nearEnd=()=>({...newDomino(),turn:'white',hands:{white:[tile(3,5)],black:[tile(6,6)]},chain:[{id:tile(2,3),a:2,b:3,side:'black'}]});
+  initial.game=actDomino(nearEnd(),{type:'domino-play',id:tile(3,5),end:'right'});
+  const {room,values}=await roomWith(initial,env);await room.save();assert.equal(writes.length,0);assert.equal(values.get('room').game.score.white,12);
+  room.room.game=nextDominoRound(room.room.game);await room.save();assert.equal(writes.length,0);
+  const final=nearEnd();final.score.white=90;room.room.game=actDomino(final,{type:'domino-play',id:tile(3,5),end:'right'});
+  await room.save();assert.equal(writes.length,2);assert.equal(writes[0][1],'domino');assert.equal(writes[0][2],'win');assert.equal(writes[1][2],'loss');
+  await room.save(false);assert.equal(writes.length,2);
+  const restored=await roomWith(values.get('room'),env);assert.equal(restored.room.room.game.score.white,102);assert.equal(restored.room.room.game.winner,'white');
 });
 
 test('rejoins and sync do not postpone deletion; confirmed moves do', async t => {

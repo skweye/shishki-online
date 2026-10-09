@@ -6,7 +6,8 @@ const modes = [
   ['chapaev', 'Шашки Чапаева', 'Победа во всём матче', '↗'],
   ['chess', 'Шахматы', 'Доска 8 × 8', '♞'],
   ['narde', 'Длинные нарды', '24 пункта · По 15 фишек', '⚄'],
-  ['pool8', 'Пул-8', '15 шаров · 6 луз · Без часов', '⑧']
+  ['pool8', 'Пул-8', '15 шаров · 6 луз · Без часов', '⑧'],
+  ['domino', 'Домино', 'По 7 костей · Базар · До 100 очков', '◈']
 ];
 let user = null, draftAvatar = null, avatarVersion = 0, deleting = false;
 async function request(path, data) {

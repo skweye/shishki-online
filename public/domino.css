@@ -1,0 +1,21 @@
+.domino-frame { padding:18px; }
+.domino-score { display:flex;justify-content:space-between;align-items:center;gap:14px;font-size:13px;margin:4px 0 20px; }
+.domino-score>span { color:var(--muted);font-size:11px;text-align:center; }
+.domino-score strong>span { font-size:22px;margin-left:6px;color:var(--theme-accent); }
+.domino-table { min-height:230px;background:radial-gradient(ellipse,var(--theme-raised),var(--theme-panel));border:1px solid var(--theme-border);border-radius:18px;padding:24px 12px;display:grid;align-items:center; }
+.domino-empty { text-align:center;color:var(--muted);font-size:13px;max-width:300px;margin:auto;line-height:1.7; }.domino-empty>span { font-size:48px;color:var(--theme-accent); }
+.domino-chain { display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap; }
+.domino-tile { display:inline-flex;width:40px;height:78px;flex:none;padding:5px;border:1px solid color-mix(in srgb,var(--theme-accent) 55%,var(--theme-border));border-radius:7px;background:linear-gradient(145deg,var(--theme-secondary),var(--theme-accent));color:var(--theme-on-accent);flex-direction:column;box-shadow:0 3px 0 var(--theme-strong-border),0 5px 8px #0004;vertical-align:middle; }
+button.domino-tile { cursor:pointer;transition:transform .15s; }button.domino-tile:not(:disabled):hover { transform:translateY(-4px); }
+button.domino-tile:disabled { opacity:.55;cursor:default; }.domino-tile.selected { outline:3px solid var(--theme-accent);outline-offset:4px;transform:translateY(-4px); }
+.domino-half { width:100%;height:50%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:2px;padding:3px; }.domino-half+.domino-half { border-top:1px solid currentColor; }
+.domino-half i { display:block;aspect-ratio:1;border-radius:50%; }.domino-half .pip { background:currentColor; }
+.domino-tile.laid { width:66px;height:34px;flex-direction:row;padding:3px;border-radius:5px; }.laid .domino-half { width:50%;height:100%;padding:2px;gap:1px; }.laid .domino-half+.domino-half { border-top:0;border-left:1px solid currentColor; }
+.domino-tile.edge { outline:2px solid var(--theme-accent);outline-offset:2px; }.domino-link { color:var(--muted); }
+.domino-ends { display:flex;justify-content:space-between;gap:14px;margin:18px 0; }.domino-ends button { flex:1;font-size:12px; }
+.domino-hand-panel { border-top:1px solid var(--theme-border);padding-top:20px;min-height:180px; }.domino-hand-title { display:flex;justify-content:space-between;gap:10px;font-size:12px;color:var(--muted); }
+.domino-hand { display:flex;gap:12px;flex-wrap:wrap;justify-content:center;padding:18px 4px; }.domino-hand-actions { display:flex;flex-wrap:wrap;gap:12px;justify-content:center; }.domino-hand-actions button { width:auto;font-size:12px; }
+.domino-handoff,.domino-round { text-align:center; }.domino-handoff p,.domino-round p { color:var(--muted); }.domino-handoff .primary-button { max-width:280px;margin:auto; }.domino-revealed { display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px; }
+.arcade-grid { grid-template-columns:1fr; }.domino-card { display:flex;gap:8px;transform:rotate(-15deg); }.domino-card .domino-tile { width:27px;height:53px;padding:3px; }
+ .ambient-mode[data-scene="domino"] { --mode-color:var(--theme-accent); }.ambient-domino { position:absolute;display:grid;place-items:center;width:140px;height:270px;border-radius:22px;border:5px solid var(--theme-accent);color:var(--theme-accent);background:var(--theme-raised);font:70px Georgia;opacity:.23;filter:blur(2px);left:-50px;top:25%;animation:ambient-chess-drift 24s ease-in-out infinite alternate; }.ambient-domino::after { content:'';position:absolute;left:12%;right:12%;top:50%;height:2px;background:currentColor; }.ambient-domino.second { left:auto;right:-40px;top:62%;animation-delay:-12s; }.ambient-domino.third { left:30%;top:82%;width:90px;height:170px;opacity:.1;animation-delay:-7s; }
+@media(max-width:600px){.domino-frame{padding:12px 8px;}.domino-score{gap:6px;font-size:11px;}.domino-score strong>span{font-size:18px;}.domino-table{padding:18px 8px;}.domino-ends{gap:8px;}.domino-ends button{padding:10px 6px;}.domino-tile.laid{width:54px;height:29px;}.domino-hand{gap:10px;}.domino-revealed{grid-template-columns:1fr;}}

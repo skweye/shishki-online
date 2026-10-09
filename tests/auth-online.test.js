@@ -209,7 +209,7 @@ test('account results survive rematches and deletion revokes every session and r
   assert.deepEqual((await getAccount(a.cookie)).recent, []);
   const secondSession = await post('/api/auth/login', { email: a.email, password });
   let lastRoom, lastSocket;
-  for (const variant of ['russian', 'russian12', 'chess', 'chapaev']) {
+  for (const variant of ['russian', 'russian12', 'chess', 'chapaev', 'domino']) {
     const room = await post('/api/rooms', { variant }, a.cookie);
     assert.equal(room.response.status, 201, room.data.error);
     const joined = await post(`/api/rooms/${room.data.code}/join`, {}, b.cookie);
@@ -241,8 +241,8 @@ test('account results survive rematches and deletion revokes every session and r
   await command(lastSocket, { type: 'draw', revision: 2 });
   assert.equal((await command(socketB, { type: 'draw', revision: 2 })).game.winner, 'draw');
   const beforeDelete = await getAccount(a.cookie);
-  assert.equal(beforeDelete.recent.length, 5);
-  assert.equal(beforeDelete.modes.find(row => row.variant === 'chapaev').draws, 1);
+  assert.equal(beforeDelete.recent.length, 6);
+  assert.equal(beforeDelete.modes.find(row => row.variant === 'domino').draws, 1);
   const confirmation = { email: a.email, password, confirmation: 'DELETE' };
   assert.equal((await post('/api/auth/delete-account', confirmation)).response.status, 401);
   assert.equal((await post('/api/auth/delete-account', confirmation, a.cookie, 'https://evil.example')).response.status, 403);
@@ -258,7 +258,7 @@ test('account results survive rematches and deletion revokes every session and r
   assert.equal((await session(a.cookie)).user, null);
   assert.equal((await session(secondSession.cookie)).user, null);
   assert.equal((await post('/api/auth/login', { email: a.email, password })).response.status, 401);
-  assert.equal((await getAccount(b.cookie)).recent.length, 5);
+  assert.equal((await getAccount(b.cookie)).recent.length, 6);
   const roomAfter = await post(`/api/rooms/${lastRoom.data.code}/join`, {}, b.cookie);
   assert.equal(roomAfter.data.names.white, 'Удалённый игрок');
   assert.equal((await post(`/api/rooms/${lastRoom.data.code}/join`, { token: lastRoom.data.token })).response.status, 409);
