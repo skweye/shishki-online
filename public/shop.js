@@ -24,7 +24,7 @@ function render() {
     $(slot + '-choice').textContent = CATALOG.find(item => item.type === 'effect' && item.value === value)?.name || 'Без эффекта';
   }
   $('coin-balance').textContent = state ? state.balance.toLocaleString('ru-RU') : '—';
-  $('wallet-caption').textContent = state ? 'Кошелёк вашего аккаунта' : '100 монет в подарок при первом входе';
+  $('wallet-caption').textContent = state?.fullAccess ? 'Полный доступ · все предметы доступны всегда' : state ? 'Кошелёк вашего аккаунта' : '100 монет в подарок при первом входе';
   $('collection-count').textContent = state ? `${state.owned.length} из ${CATALOG.length} в коллекции` : '';
   const items = CATALOG.filter(item => filter === 'all' || filter === item.type || filter === 'owned' && isOwned(item));
   $('shop-catalog').replaceChildren(...items.map(item => {

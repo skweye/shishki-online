@@ -7,15 +7,18 @@ const fail = (message, status = 400) => { throw Object.assign(new Error(message)
 export async function shopState(env, userId) {
   await ensureWallet(env, userId);
   const [wallet, items] = await env.AUTH_DB.batch([
-    env.AUTH_DB.prepare('SELECT balance FROM account_wallets WHERE user_id = ?').bind(userId),
+    env.AUTH_DB.prepare('SELECT w.balance, u.shop_access FROM account_wallets w JOIN users u ON u.id = w.user_id WHERE w.user_id = ?').bind(userId),
     env.AUTH_DB.prepare('SELECT item_id FROM account_items WHERE user_id = ?').bind(userId)
   ]);
-  return { balance: wallet.results[0]?.balance ?? 0, owned: [...CATALOG.filter(item => !item.price).map(item => item.id), ...items.results.map(row => row.item_id)] };
+  const fullAccess = wallet.results[0]?.shop_access === 1;
+  return { balance: wallet.results[0]?.balance ?? 0, fullAccess, owned: fullAccess ? CATALOG.map(item => item.id) : [...CATALOG.filter(item => !item.price).map(item => item.id), ...items.results.map(row => row.item_id)] };
 }
 export async function buyItem(env, userId, itemId) {
   const item = itemById(itemId);
   if (!item) fail('Такого предмета нет в магазине.');
   if (!item.price) return;
+  const user = await env.AUTH_DB.prepare('SELECT shop_access FROM users WHERE id = ?').bind(userId).first();
+  if (user?.shop_access === 1) return;
   await ensureWallet(env, userId);
   await env.AUTH_DB.prepare(`INSERT OR IGNORE INTO account_items(user_id, item_id, paid_price, purchased_at)
     SELECT user_id, ?, ?, ? FROM account_wallets WHERE user_id = ? AND balance >= ?`)
@@ -30,7 +33,7 @@ export async function equipItem(env, userId, itemId, slot = 'resign') {
   // The column is selected from a fixed enum; ownership is checked by the same UPDATE.
   const column = item.type === 'skin' ? 'piece_skin' : slot === 'victory' ? 'victory_effect' : 'finish_effect';
   const result = await env.AUTH_DB.prepare(`UPDATE users SET ${column} = ? WHERE id = ?
-    AND (? = 0 OR EXISTS (SELECT 1 FROM account_items WHERE user_id = ? AND item_id = ?))`)
+    AND (shop_access = 1 OR ? = 0 OR EXISTS (SELECT 1 FROM account_items WHERE user_id = ? AND item_id = ?))`)
     .bind(item.value, userId, item.price, userId, item.id).run();
   if (!result.meta.changes) fail('Сначала приобретите этот предмет.', 403);
 }
