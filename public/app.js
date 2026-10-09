@@ -16,6 +16,7 @@ import { createNardeBoard } from './narde-board.js';
 import { isNardeRoll } from './narde-dice.js';
 import { applyPoolShot, placePoolCue, remainingPool } from './pool.js';
 import { createPoolBoard } from './pool-board.js';
+import { BALL_COLORS, poolRack } from './pool-visuals.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
@@ -85,12 +86,17 @@ function pieceHTML(piece, captured = false) {
   return `<span class="piece ${sideOf(piece)} skin-${skin} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${pieceArt(skin)}${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
 }
 function skinFor(side) { return validSkin(mode === 'local' ? currentUser?.pieceSkin : room?.cosmetics?.[side]?.skin); }
+function poolPlayerRack(side) {
+  const rack=poolRack(game,side);
+  if(!rack.length)return '';
+  return '<div class="pool-rack" role="group" aria-label="Шары игрока">'+rack.map(({id,potted})=>'<span class="pool-rack-ball '+(id>8?'striped ':'')+(potted?'potted':'')+'" style="--ball-color:'+BALL_COLORS[id>8?id-8:id]+'" role="img" aria-label="'+id+': '+(potted?'Забит':'На столе')+'"><b>'+id+'</b></span>').join('')+'</div>';
+}
 function playerHTML(side) {
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
   const count = isPool() ? remainingPool(game,side) : isNarde() ? 15-game.off[side] : isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
-  return `<div class="player-avatar">${isPool() ? '<span class="pool-player-ball '+side+'">'+(game.groups[side]==='solid'?'1':game.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (game.groups[side] === 'solid' ? 'Сплошные' : game.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  return `<div class="player-avatar">${isPool() ? '<span class="pool-player-ball '+side+'">'+(game.groups[side]==='solid'?'1':game.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (game.groups[side] === 'solid' ? 'Сплошные' : game.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolPlayerRack(side):''}</div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
@@ -143,7 +149,7 @@ function status() {
   if (isChess() && game.check) return mode === 'online' && game.turn !== room.role ? ['Шах', 'Король соперника под шахом. Дождитесь его хода.', '♚'] : ['Шах вашему королю', 'Защитите короля: уйдите, закройтесь или возьмите атакующую фигуру.', '♚'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
-  if (isPool()) return [mode === 'online' ? 'Ваш удар' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Выберите шар и лузу. Прицельтесь и нажмите «Ударить».', '⑧'];
+  if (isPool()) return [mode === 'online' ? 'Ваш удар' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Прицельтесь, выберите силу и нажмите «Ударить».', '⑧'];
   if (isNarde()) return [game.opening ? 'Кто начнёт партию?' : mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', game.dice.length ? 'Используйте кости: выберите фишку и подсвеченный пункт.' : 'Нажмите кнопку броска в центре доски.', '⚄'];
   if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
   if (isChess()) return [mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Перетащите фигуру или выберите её и клетку кликом.', '♞'];
@@ -194,8 +200,8 @@ function render() {
   }
   if(isPool()){
     $('move-help').textContent='Нажмите на стол для прицеливания или оттяните биток. Затем нажмите «Ударить». 0° — вправо по столу.';
-    $('board-tip').innerHTML='<span aria-hidden="true">⑧</span><p><strong>Оставьте восьмёрку напоследок</strong><br>Сначала забейте свою группу шаров. Для каждого удара заказывайте шар и лузу.</p>';
-    $('local-note').querySelector('p').textContent='Разбейте пирамиду. Группы определяются первым заказанным шаром после разбоя.';
+    $('board-tip').innerHTML='<span aria-hidden="true">⑧</span><p><strong>Оставьте восьмёрку напоследок</strong><br>Сначала забейте свою группу шаров, затем восьмёрку. Заказ не нужен.</p>';
+    $('local-note').querySelector('p').textContent='Разбейте пирамиду. Группы определяются первым шаром, забитым без фола после разбоя.';
   }
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
@@ -273,7 +279,7 @@ const nardeBoard = createNardeBoard({move:playMove,roll(){
   else {acceptGame(rollNarde(game,randomDice(game.opening)));selected=null;localSave();render();}
 }});
 const poolBoard = createPoolBoard({
-  impact:()=>sounds.play('impact'),
+  sound:(kind,strength)=>sounds.pool(kind,strength),
   shoot(command){
     if(!canPlay())return;
     if(mode==='online')send({type:'pool-shot',...command});
@@ -327,7 +333,7 @@ function acceptGame(next, audible = true) {
     return;
   }
   if (shot) {
-    animating = true; sounds.play('move');
+    animating = true; if(!isPool())sounds.play('move');
     (isPool() ? poolBoard : chapaevBoard).animate(previous, next, () => {
       if (finishing) { renderBoard(); showFinish(); }
       else { animating = false; sounds.transition(previous, next, room?.role, true); }

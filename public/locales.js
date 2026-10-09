@@ -1,5 +1,8 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Шары игрока|Player balls|Кулі гравця
+Забит|Pocketed|Забито
+На столе|On the table|На столі
 Точный прицел. Мягкий удар. Восьмёрка решает всё.|Precise aim. Smooth stroke. The eight decides it all.|Точний приціл. М’який удар. Вісімка вирішує все.
 За одним столом|At the same table|За одним столом
 Пул-8|8-ball pool|Пул-8
@@ -7,24 +10,24 @@ const rows = `
 Игры вне доски|Beyond the board|Ігри поза дошкою
 Другой ритм игры. Тот же хороший соперник.|A different rhythm. The same great company.|Інший ритм гри. Той самий гарний суперник.
 Американский бильярд · 15 шаров · 6 луз|American pool · 15 balls · 6 pockets|Американський більярд · 15 куль · 6 луз
-Прицел, сила удара и заказ лузы|Aim, shot power and called pockets|Приціл, сила удару та замовлення лузи
+Прицел, сила удара и точное попадание|Aim, shot power and precision|Приціл, сила удару й точне влучання
 15 шаров · 6 луз · Без часов|15 balls · 6 pockets · Untimed|15 куль · 6 луз · Без годинника
 Сплошные|Solids|Суцільні
 Полосатые|Stripes|Смугасті
 Группа не выбрана|Open table|Групу не обрано
 Шары в движении|Balls in motion|Кулі в русі
-Выберите шар и лузу. Прицельтесь и нажмите «Ударить».|Choose a ball and pocket. Aim, then press “Shoot”.|Оберіть кулю та лузу. Прицільтесь і натисніть «Ударити».
+Прицельтесь, выберите силу и нажмите «Ударить».|Aim, choose the power and press “Shoot”.|Прицільтесь, оберіть силу та натисніть «Ударити».
 Нажмите на стол для прицеливания или оттяните биток. Затем нажмите «Ударить». 0° — вправо по столу.|Click the table to aim or pull back the cue ball. Then press “Shoot”. 0° points right along the table.|Натисніть на стіл для прицілювання або відтягніть биток. Потім натисніть «Ударити». 0° — праворуч по столу.
 Оставьте восьмёрку напоследок|Save the eight for last|Залиште вісімку наостанок
-Сначала забейте свою группу шаров. Для каждого удара заказывайте шар и лузу.|Clear your group first. Call a ball and pocket for each shot.|Спочатку забийте свою групу куль. Для кожного удару замовляйте кулю та лузу.
-Разбейте пирамиду. Группы определяются первым заказанным шаром после разбоя.|Break the rack. The first called ball after the break decides the groups.|Розбийте піраміду. Групи визначаються першою замовленою кулею після розбиття.
+Сначала забейте свою группу шаров, затем восьмёрку. Заказ не нужен.|Clear your group, then pocket the eight. No call required.|Спочатку забийте свою групу куль, потім вісімку. Замовлення не потрібне.
+Разбейте пирамиду. Группы определяются первым шаром, забитым без фола после разбоя.|Break the rack. The first ball legally pocketed after the break assigns groups.|Розбийте піраміду. Групи визначаються першою кулею, забитою без фолу після розбиття.
 Американский пул-8. Клубная версия без часов, прыжков и подкрутки.|American 8-ball pool. A casual version without clocks, jump shots or spin.|Американський пул-8. Клубна версія без годинника, стрибків і підкрутки.
-Забейте свою группу: сплошные 1–7 или полосатые 9–15. Затем забейте восьмёрку в заказанную лузу.|Clear your group: solids 1–7 or stripes 9–15. Then pocket the eight in the called pocket.|Забийте свою групу: суцільні 1–7 або смугасті 9–15. Потім забийте вісімку в замовлену лузу.
-До каждого удара, кроме разбоя, выберите шар и лузу. Группа определяется первым правильно заказанным шаром после разбоя. Успешный заказ сохраняет ход.|Call a ball and pocket before each shot except the break. The first successful call after the break assigns groups. A successful call keeps your turn.|До кожного удару, крім розбиття, оберіть кулю та лузу. Група визначається першою правильно замовленою кулею після розбиття. Успішне замовлення зберігає хід.
+Забейте свою группу: сплошные 1–7 или полосатые 9–15. Затем забейте восьмёрку в любую лузу.|Clear your group: solids 1–7 or stripes 9–15. Then pocket the eight in any pocket.|Забийте свою групу: суцільні 1–7 або смугасті 9–15. Потім забийте вісімку в будь-яку лузу.
+Заказывать шар и лузу не нужно. Группа определяется первым шаром, забитым без фола после разбоя. Свой забитый шар сохраняет ход.|No ball or pocket calls. The first ball legally pocketed after the break assigns groups. Pocketing your own ball keeps your turn.|Замовляти кулю та лузу не потрібно. Група визначається першою кулею, забитою без фолу після розбиття. Своя забита куля зберігає хід.
 Биток должен сначала коснуться своего шара. Затем нужен забитый шар или касание борта любым шаром. Чужой шар первым, промах и биток в лузе — фолы.|The cue ball must hit your group first. A ball must then be pocketed or reach a rail. Wrong first contact, no contact and pocketing the cue ball are fouls.|Биток має спочатку торкнутися своєї кулі. Потім потрібна забита куля або торкання борту будь-якою кулею. Чужа куля першою, промах і биток у лузі — фоли.
 После фола соперник ставит биток на свободное место. После фола на разбое — только в доме, X меньше 5; первое касание должно быть за линией дома.|After a foul, the opponent places the cue ball in a free spot. After a break foul, place it behind the head string, X below 5; first contact must be beyond the string.|Після фолу суперник ставить биток на вільне місце. Після фолу на розбитті — лише в домі, X менше 5; перше торкання має бути за лінією дому.
 При разбое забейте шар или доведите минимум четыре прицельных шара до бортов. Иначе пирамида восстанавливается, разбивает соперник. Восьмёрка на разбое возвращается на стол.|On the break, pocket a ball or send at least four object balls to rails. Otherwise, the rack resets and the opponent breaks. An eight pocketed on the break is spotted.|Під час розбиття забийте кулю або доведіть щонайменше чотири прицільні кулі до бортів. Інакше піраміда відновлюється, розбиває суперник. Вісімка на розбитті повертається на стіл.
-Ранняя восьмёрка, восьмёрка с фолом или в другой лузе — поражение. Последний свой шар и восьмёрку нужно забивать разными ударами.|An early eight, an eight on a foul or in the wrong pocket loses the game. Your final group ball and the eight require separate shots.|Рання вісімка, вісімка з фолом або в іншій лузі — поразка. Останню свою кулю та вісімку потрібно забивати різними ударами.
+Ранняя восьмёрка или восьмёрка с фолом — поражение. Последний свой шар и восьмёрку нужно забивать разными ударами.|An early eight or an eight on a foul loses the game. Your final group ball and the eight require separate shots.|Рання вісімка або вісімка з фолом — поразка. Останню свою кулю та вісімку потрібно забивати різними ударами.
 Бильярдный стол. Нажмите для прицеливания; управление с клавиатуры ниже.|Pool table. Click to aim; keyboard controls below.|Більярдний стіл. Натисніть для прицілювання; керування з клавіатури нижче.
 Заказать шар|Call ball|Замовити кулю
 Заказать лузу|Call pocket|Замовити лузу
@@ -37,17 +40,17 @@ const rows = `
 Первое касание должно быть за линией дома.|First contact must be beyond the head string.|Перше торкання має бути за лінією дому.
 После касания нужен борт или забитый шар.|A rail or pocket is required after contact.|Після торкання потрібен борт або забита куля.
 Слабый разбой: пирамида восстановлена.|Illegal break: the rack has been reset.|Слабке розбиття: піраміду відновлено.
-Разбой. Заказ шара и лузы не нужен.|Break shot. No call required.|Розбиття. Замовлення кулі та лузи не потрібне.
+Разбейте пирамиду.|Break the rack.|Розбийте піраміду.
 Биток с руки в доме: X меньше 5.|Cue ball in hand behind the head string: X below 5.|Биток з руки в домі: X менше 5.
 Биток с руки в любой свободной точке.|Cue ball in hand anywhere free.|Биток з руки в будь-якій вільній точці.
-Закажите шар и лузу, затем прицельтесь.|Call a ball and pocket, then aim.|Замовте кулю та лузу, потім прицільтесь.
+Прицельтесь и выберите силу удара. Заказы не нужны.|Aim and choose the shot power. No calls required.|Прицільтесь і оберіть силу удару. Замовлення не потрібні.
 Поставьте биток на свободное место в разрешённой зоне.|Place the cue ball in a free spot within the allowed area.|Поставте биток на вільне місце в дозволеній зоні.
 Удар сейчас недоступен.|You cannot shoot now.|Удар зараз недоступний.
 Сила удара должна быть от 5 до 100%.|Shot power must be between 5 and 100%.|Сила удару має бути від 5 до 100%.
 Сначала поставьте биток на стол.|Place the cue ball on the table first.|Спочатку поставте биток на стіл.
 Некорректный удар.|Invalid shot.|Некоректний удар.
 Выберите свой шар и закажите лузу.|Choose your ball and call a pocket.|Оберіть свою кулю та замовте лузу.
-Восьмёрка в заказанной лузе. Партия завершена!|Eight in the called pocket. Game over!|Вісімка в замовленій лузі. Партію завершено!
+Восьмёрка забита. Партия завершена!|Eight pocketed. Game over!|Вісімку забито. Партію завершено!
 Восьмёрка забита с нарушением. Победа присуждена сопернику ударившего.|Illegal eight. The shooter's opponent wins.|Вісімку забито з порушенням. Перемогу присуджено супернику того, хто бив.
 Длинные нарды|Long narde|Довгі нарди
 По 15 фишек · Без сбивания · Без часов|15 checkers each · No hits · Untimed|По 15 фішок · Без збивання · Без годинника
@@ -509,6 +512,7 @@ PNG, JPEG или WebP, до 5 МБ. Фото обрезается до квад�
 export const translations = Object.fromEntries(rows.trim().split('\n').map(row => { const [ru, en, uk] = row.split('|'); return [ru, { en, uk }]; }));
 const side = (value, locale) => locale === 'en' ? value === 'Белые' ? 'White' : 'Black' : value === 'Белые' ? 'Білі' : 'Чорні';
 export const patterns = [
+  [/^(\d+): (Забит|На столе)$/, (m,l) => m[1]+': '+(l==='en'?(m[2]==='Забит'?'Pocketed':'On the table'):(m[2]==='Забит'?'Забито':'На столі'))],
   [/^(\d+) × (\d+) · (\d+) мин \+ 5 сек$/, (m,l) => `${m[1]} × ${m[2]} · ${m[3]} ${l === 'en' ? 'min + 5 sec' : 'хв + 5 с'}`],
   [/^Шашка (\d+)$/, (m,l) => `${l === 'en' ? 'Piece' : 'Шашка'} ${m[1]}`],
   [/^(Два игрока, одно устройство|Комната [A-F0-9]{12}|Пригласите друга за доску) · Раунд (\d+) · (\d+):(\d+)$/, (m,l) => {

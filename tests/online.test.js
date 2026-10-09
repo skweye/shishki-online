@@ -24,11 +24,16 @@ test('pool server validates shots and placement, synchronizes, restores, chats a
     const hit=await a.wait(m=>m.type==='state'&&m.game.revision===2);
     assert.deepEqual(hit.game,applyPoolShot(placed.game,command));assert.equal(hit.clock,null);
     assert.deepEqual((await b.wait(m=>m.type==='state'&&m.game.revision===2)).game,hit.game);
-    const {data:restore}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.deepEqual(restore.game,hit.game);
+    const shooter=hit.game.turn==='white'?a:b;
+    await shooter.send({type:'pool-shot',dx:.05,dy:0,revision:2});
+    const uncalled=await a.wait(m=>m.type==='state'&&m.game.revision===3);
+    assert.deepEqual(uncalled.game,applyPoolShot(hit.game,{dx:.05,dy:0}));
+    assert.deepEqual((await b.wait(m=>m.type==='state'&&m.game.revision===3)).game,uncalled.game);
+    const {data:restore}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.deepEqual(restore.game,uncalled.game);
     await a.send({type:'chat',text:'Pool test'});assert.equal((await b.wait(m=>m.type==='chat')).message.text,'Pool test');
-    await b.send({type:'resign',revision:2});await a.wait(m=>m.type==='state'&&m.game.winner==='white');
-    await a.send({type:'rematch',revision:3});await b.send({type:'rematch',revision:3});
-    const fresh=await a.wait(m=>m.type==='state'&&m.game.revision===4);assert.equal(fresh.game.variant,'pool8');assert.equal(fresh.game.balls.length,16);assert.equal(fresh.game.winner,null);assert.equal(fresh.clock,null);
+    await b.send({type:'resign',revision:3});await a.wait(m=>m.type==='state'&&m.game.winner==='white');
+    await a.send({type:'rematch',revision:4});await b.send({type:'rematch',revision:4});
+    const fresh=await a.wait(m=>m.type==='state'&&m.game.revision===5);assert.equal(fresh.game.variant,'pool8');assert.equal(fresh.game.balls.length,16);assert.equal(fresh.game.winner,null);assert.equal(fresh.clock,null);
   }finally{a.ws.close();b.ws.close();}
 });
 

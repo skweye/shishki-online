@@ -14,7 +14,7 @@ export function transitionSounds(previous, next, role = null) {
   if (previous.winner && !next.winner) return ['start'];
   const sounds = [];
   if (next.variant === 'chapaev' && next.lastShot?.revision === next.revision) sounds.push(next.lastShot.ownLost + next.lastShot.otherLost ? 'capture' : 'move');
-  if (next.variant === 'pool8' && next.lastShot?.revision === next.revision) sounds.push(next.lastShot.potted.length ? 'capture' : 'move');
+  // Pool contacts are timed to the physics animation, not generic checker taps.
   if (next.variant === 'narde' && next.lastAction?.revision === next.revision) sounds.push(next.lastAction.kind === 'roll' ? 'start' : 'move');
   const move = next.variant === 'narde' ? null : legalMoves(previous).find(item => previous.board[item.from] && !next.board[item.from] && Math.sign(next.board[item.to]) === Math.sign(previous.board[item.from]));
   if (move) {
@@ -99,6 +99,24 @@ export function createSounds() {
       notes?.forEach((note, i) => tone(note * pack.notes, time + i * .15, .32, (kind === 'defeat' ? .065 : .085) * Math.min(1, pack.body)));
     }
   }
+  const poolLast={};
+  function pool(kind,strength=.5){
+    if(!preferences.enabled||!preferences.volume||document.hidden||context?.state!=='running')return;
+    const stamp=context.currentTime;
+    if(stamp-(poolLast[kind]??-1)<(kind==='ball'?.028:.055))return;
+    poolLast[kind]=stamp;
+    const intensity=Math.max(.08,Math.min(1,strength)),time=stamp+.004,variation=.94+Math.random()*.12;
+    const preset={cue:[820,.045,.12],ball:[1750,.032,.16],rail:[230,.075,.10],pocket:[125,.16,.12]}[kind];if(!preset)return;
+    const [pitch,duration,volume]=preset,gain=volume*(.25+.75*Math.sqrt(intensity));
+    for(const ratio of [1,1.72]){
+      const osc=context.createOscillator(),amp=context.createGain();osc.type='sine';osc.frequency.setValueAtTime(pitch*ratio*variation,time);osc.frequency.exponentialRampToValueAtTime(pitch*ratio*.64,time+duration);
+      amp.gain.setValueAtTime(0,time);amp.gain.linearRampToValueAtTime(gain/(ratio*ratio),time+.001);amp.gain.exponentialRampToValueAtTime(.0001,time+duration);
+      osc.connect(amp);amp.connect(master);osc.start(time);osc.stop(time+duration+.01);osc.onended=()=>{osc.disconnect();amp.disconnect();};
+    }
+    const source=context.createBufferSource(),filter=context.createBiquadFilter(),amp=context.createGain();source.buffer=noise;filter.type='bandpass';filter.frequency.value=kind==='ball'?3200:kind==='cue'?1900:500;filter.Q.value=.6;
+    amp.gain.setValueAtTime(gain*.75,time);amp.gain.exponentialRampToValueAtTime(.0001,time+duration*.7);
+    source.connect(filter);filter.connect(amp);amp.connect(master);source.start(time);source.stop(time+duration);source.onended=()=>{source.disconnect();filter.disconnect();amp.disconnect();};
+  }
   const toggle = document.getElementById('sound-enabled'), slider = document.getElementById('sound-volume'), output = document.getElementById('sound-volume-value');
   const packSelect = document.getElementById('sound-pack');
   packSelect.value = preferences.pack;
@@ -112,5 +130,5 @@ export function createSounds() {
   slider.onchange = () => play('move');
   document.getElementById('sound-preview').onclick = async () => { await unlock(); play('move'); play('capture', .4); play('promotion', .9); };
   render();
-  return { play, transition(previous, next, role, skipMove = false) { transitionSounds(previous, next, role).filter(sound => !skipMove || sound !== 'move').forEach((sound, i) => play(sound, i * .28)); } };
+  return { play, pool, transition(previous, next, role, skipMove = false) { transitionSounds(previous, next, role).filter(sound => !skipMove || sound !== 'move').forEach((sound, i) => play(sound, i * .28)); } };
 }

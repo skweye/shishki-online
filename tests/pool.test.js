@@ -26,18 +26,22 @@ test('physics transfers momentum and pockets an object ball in a corner',()=>{
 });
 test('invalid and cross-mode shots cannot mutate a game',()=>{
   const s=newPool();for(const [dx,dy] of [[0,0],[NaN,0],[Infinity,0],[2,0],['1',0]])assert.throws(()=>applyPoolShot(s,{dx,dy}));
-  assert.throws(()=>applyPoolShot(newGame(),command));assert.throws(()=>applyPoolShot({...s,winner:'white'},command));assert.throws(()=>applyPoolShot(table(),{...command,ball:8}));
-  assert.throws(()=>applyPoolShot(table(),{...command,pocket:6}));assert.equal(s.revision,0);
+  assert.throws(()=>applyPoolShot(newGame(),command));assert.throws(()=>applyPoolShot({...s,winner:'white'},command));
+  assert.deepEqual(applyPoolShot(table(),{dx:.85,dy:0}),applyPoolShot(table(),{...command,ball:8,pocket:99}));assert.equal(s.revision,0);
 });
 test('cue ball placement requires ball in hand, a free legal point and kitchen restriction',()=>{
   let s=newPool();for(const [x,y] of [[10,5],[0,0],[NaN,5],[4,11]])assert.throws(()=>placePoolCue(s,x,y));
   s=placePoolCue(s,3,4);assert.equal(s.revision,1);assert.deepEqual(s.balls.find(b=>b.id===0),{id:0,x:3,y:4});
   s.ballInHand='any';assert.throws(()=>placePoolCue(s,14.5,5));assert.ok(placePoolCue(s,10,5));s.ballInHand=null;assert.throws(()=>placePoolCue(s,10,5));
 });
-test('only a successful called ball assigns groups and retains the turn',()=>{
+test('first legally potted ball assigns groups without calls; own ball retains turn and opponent ball does not',()=>{
   const s=table(),r=result(s,{potted:[{id:1,pocket:0}],balls:s.balls.filter(b=>b.id!==1)});
   const next=resolvePool(s,r,command);assert.deepEqual(next.groups,{white:'solid',black:'stripe'});assert.equal(next.turn,'white');assert.ok(!poolTargets(next).includes(1));
-  const missed=resolvePool(s,r,{...command,pocket:1});assert.equal(missed.turn,'black');assert.equal(missed.groups.white,null);
+  const uncalled=resolvePool(s,r,{dx:.5,dy:0});assert.equal(uncalled.turn,'white');assert.equal(uncalled.groups.white,'solid');
+  const assigned={...s,groups:{white:'solid',black:'stripe'}};
+  assert.equal(resolvePool(assigned,{...r,potted:[{id:9,pocket:3}]},command).turn,'black');
+  assert.equal(resolvePool(assigned,{...r,potted:[{id:9,pocket:3},{id:1,pocket:5}]},command).turn,'white');
+  assert.equal(resolvePool(s,{...r,potted:[{id:9,pocket:3},{id:1,pocket:5}]},command).groups.white,'stripe');
   const scratch=resolvePool(s,{...r,potted:[...r.potted,{id:0,pocket:1}]},command);assert.equal(scratch.turn,'black');assert.equal(scratch.groups.white,null);assert.equal(scratch.ballInHand,'any');
 });
 test('wrong ball, no contact and no rail award ball in hand; legal miss changes turn',()=>{
@@ -53,10 +57,11 @@ test('illegal break resets rack for opponent; an eight on break is spotted',()=>
   const eight=resolvePool(s,result(s,{potted:[{id:8,pocket:0}],balls:s.balls.filter(b=>b.id!==8)}),command);
   assert.equal(eight.winner,null);assert.equal(eight.balls.filter(b=>b.id===8).length,1);assert.equal(eight.groups.white,null);
 });
-test('eight wins only after clearing group, called pocket and no foul',()=>{
+test('eight wins in any pocket after clearing group without fouls or declarations',()=>{
   const s=table();s.groups={white:'solid',black:'stripe'};s.balls=s.balls.filter(b=>b.id===0||b.id>=8);
   assert.deepEqual(poolTargets(s),[8]);const r=result(s,{firstContact:8,potted:[{id:8,pocket:2}],balls:s.balls.filter(b=>b.id!==8)}),call={...command,ball:8,pocket:2};
-  assert.equal(resolvePool(s,r,call).winner,'white');assert.equal(resolvePool(s,r,{...call,pocket:1}).winner,'black');
+  assert.equal(resolvePool(s,r,call).winner,'white');assert.equal(resolvePool(s,r,{dx:.5,dy:0}).winner,'white');
+  for(let pocket=0;pocket<6;pocket++)assert.equal(resolvePool(s,{...r,potted:[{id:8,pocket}]},command).winner,'white');
   assert.equal(resolvePool(s,{...r,potted:[...r.potted,{id:0,pocket:2}]},call).winner,'black');
   s.balls.push({id:1,x:7,y:5});assert.equal(resolvePool(s,r,call).winner,'black');
 });
