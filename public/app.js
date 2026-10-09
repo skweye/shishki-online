@@ -13,6 +13,8 @@ import { createClock, expiredSide, advanceClock, timeoutGame, timeControl } from
 import { renderClock, createRoomChat } from './room-ui.js';
 import { rollNarde, randomDice } from './narde.js';
 import { createNardeBoard } from './narde-board.js';
+import { applyPoolShot, placePoolCue, remainingPool } from './pool.js';
+import { createPoolBoard } from './pool-board.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
@@ -26,6 +28,7 @@ let shownResult = null;
 let animating = false;
 let clockSync = { now: Date.now(), received: performance.now() };
 const isChess = () => variantOf(game) === 'chess';
+const isPool = () => variantOf(game) === 'pool8';
 const isNarde = () => variantOf(game) === 'narde';
 const chessNames = ['', 'пешка', 'конь', 'слон', 'ладья', 'ферзь', 'король'];
 let promotionMove = null;
@@ -42,6 +45,7 @@ for (const variant of Object.keys(VARIANTS)) {
     const saved = JSON.parse(storage.get(localKey(variant)));
     if (saved && variantOf(saved) === variant && saved.board?.length === (VARIANTS[variant].points || VARIANTS[variant].size ** 2) && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
       if (variant === 'chapaev' && (!Array.isArray(saved.pieces) || saved.pieces.length > 16 || saved.pieces.some(p => !Number.isInteger(p.id) || !['white', 'black'].includes(p.side) || !Number.isFinite(p.x) || !Number.isFinite(p.y)))) throw new Error('Invalid saved pieces');
+      if (variant === 'pool8' && (!Array.isArray(saved.balls) || saved.balls.length > 16 || new Set(saved.balls.map(b=>b.id)).size !== saved.balls.length || saved.balls.some(b=>!Number.isInteger(b.id)||b.id<0||b.id>15||!Number.isFinite(b.x)||!Number.isFinite(b.y)) || !saved.groups)) throw new Error('Invalid saved balls');
       legalMoves(saved); localGames[variant] = saved;
     }
   } catch { /* Keep a fresh position if this variant's save is damaged. */ }
@@ -84,13 +88,21 @@ function playerHTML(side) {
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
-  const count = isNarde() ? 15-game.off[side] : isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
-  return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  const count = isPool() ? remainingPool(game,side) : isNarde() ? 15-game.off[side] : isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
+  return `<div class="player-avatar">${isPool() ? '<span class="pool-player-ball '+side+'">'+(game.groups[side]==='solid'?'1':game.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (game.groups[side] === 'solid' ? 'Сплошные' : game.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
-  $('board').hidden = isChapaev() || isNarde(); $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
+  $('board').hidden = isChapaev() || isNarde() || isPool();
+  $('pool-board').hidden = !isPool();
+  document.querySelector('.board-frame').classList.toggle('pool-frame',isPool());
+  document.querySelector('.game-layout').classList.toggle('pool-layout',isPool());
+  $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
+  if (isPool()) {
+    poolBoard.render(game,flipped,canPlay());
+    $('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;
+  }
   if (isNarde()) {
     nardeBoard.render(game,flipped,canPlay(),{white:skinFor('white'),black:skinFor('black')});
     $('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;
@@ -122,13 +134,14 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
-  if (animating) return game.winner && game.reason !== 'round' ? ['Красивый финал', 'Показываем анимацию победителя.', '✦'] : ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
+  if (animating) return game.winner && game.reason !== 'round' ? ['Красивый финал', 'Показываем анимацию победителя.', '✦'] : [isPool() ? 'Шары в движении' : 'Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
   if (isChess() && game.check) return mode === 'online' && game.turn !== room.role ? ['Шах', 'Король соперника под шахом. Дождитесь его хода.', '♚'] : ['Шах вашему королю', 'Защитите короля: уйдите, закройтесь или возьмите атакующую фигуру.', '♚'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
+  if (isPool()) return [mode === 'online' ? 'Ваш удар' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Выберите шар и лузу. Прицельтесь и нажмите «Ударить».', '⑧'];
   if (isNarde()) return [game.opening ? 'Кто начнёт партию?' : mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', game.dice.length ? 'Используйте кости: выберите фишку и подсвеченный пункт.' : 'Нажмите кнопку броска под доской.', '⚄'];
   if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
   if (isChess()) return [mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Перетащите фигуру или выберите её и клетку кликом.', '♞'];
@@ -137,15 +150,15 @@ function status() {
 function renderHistory() {
   const count = game.history.length;
   const shotsLabel = count % 10 === 1 && count % 100 !== 11 ? 'удар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'удара' : 'ударов';
-  $('move-count').textContent = count + ' ' + (isChapaev() ? shotsLabel : 'полуходов');
+  $('move-count').textContent = count + ' ' + (isChapaev() || isPool() ? shotsLabel : 'полуходов');
   if (!game.history.length) {
     $('history').innerHTML = '<div class="empty-history"><span aria-hidden="true">↗</span><p>У каждой партии есть начало.<br>Сделайте первый ход.</p></div>'; return;
   }
   const rows = [];
-  if (isChapaev() || isNarde()) {
+  if (isChapaev() || isNarde() || isPool()) {
     game.history.forEach((move, i) => {
       const row = document.createElement('div'); row.className = 'history-row';
-      for (const text of [isNarde() ? String(i+1) : `Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
+      for (const text of [isNarde() || isPool() ? String(i+1) : `Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
         const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
       }
       rows.push(row);
@@ -165,8 +178,10 @@ function render() {
   updateBackdrop();
   renderBoard(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
+  $('game-description').textContent = isPool() ? 'Точный прицел. Мягкий удар. Восьмёрка решает всё.' : 'Знакомая доска. Новый соперник. Всё решает стратегия.';
+  document.querySelector('.rule-chip .mini-board').textContent=isPool()?'⑧':isNarde()?'⚄':isChess()?'♞':'▦';
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
-  $('variant-description').textContent = isNarde() ? '24 пункта · По 15 фишек · Без часов' : isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
+  $('variant-description').textContent = isPool() ? '15 шаров · 6 луз · Без часов' : isNarde() ? '24 пункта · По 15 фишек · Без часов' : isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
   $('move-help').textContent = isChess() ? 'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.' : isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
   $('board-tip').innerHTML = isChess() ? '<span aria-hidden="true">♚</span><p><strong>Берегите короля</strong><br>Рокировка — ход королём на две клетки. Цель игры — поставить мат.</p>' : isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
   $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
@@ -175,10 +190,15 @@ function render() {
     $('board-tip').innerHTML='<span aria-hidden="true">⚄</span><p><strong>Дорога домой</strong><br>Проведите все 15 фишек в дом и выведите их раньше соперника.</p>';
     $('local-note').querySelector('p').textContent='Первый ход определят кости: большее число начинает.';
   }
+  if(isPool()){
+    $('move-help').textContent='Нажмите на стол для прицеливания или оттяните биток. Затем нажмите «Ударить». 0° — вправо по столу.';
+    $('board-tip').innerHTML='<span aria-hidden="true">⑧</span><p><strong>Оставьте восьмёрку напоследок</strong><br>Сначала забейте свою группу шаров. Для каждого удара заказывайте шар и лузу.</p>';
+    $('local-note').querySelector('p').textContent='Разбейте пирамиду. Группы определяются первым заказанным шаром после разбоя.';
+  }
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
-  $('game-panel-title').textContent = mode === 'local' ? 'За одной доской' : 'С другом онлайн';
+  $('game-panel-title').textContent = mode === 'local' ? isPool() ? 'За одним столом' : 'За одной доской' : 'С другом онлайн';
   $('mode-badge').textContent = mode === 'local' ? 'ЛОКАЛЬНО' : 'ОНЛАЙН';
   $('online-controls').hidden = mode === 'local'; $('local-note').hidden = mode !== 'local';
   $('online-lobby').hidden = !!room; $('room-controls').hidden = !room;
@@ -250,6 +270,18 @@ const nardeBoard = createNardeBoard({move:playMove,roll(){
   if(mode==='online')send({type:'roll'});
   else {acceptGame(rollNarde(game,randomDice(game.opening)));selected=null;localSave();render();}
 }});
+const poolBoard = createPoolBoard({
+  impact:()=>sounds.play('impact'),
+  shoot(command){
+    if(!canPlay())return;
+    if(mode==='online')send({type:'pool-shot',...command});
+    else try{acceptGame(applyPoolShot(game,command));localSave();render();}catch(error){toast(error.message);}
+  },
+  place(x,y){
+    if(!canPlay())return false;
+    try{const next=placePoolCue(game,x,y);if(mode==='online')send({type:'pool-place',x,y});else{acceptGame(next,false);localSave();render();}return true;}catch(error){toast(error.message);return false;}
+  }
+});
 const chapaevBoard = createChapaevBoard({
   impact: () => sounds.play('impact'),
   shoot(id, dx, dy) {
@@ -265,9 +297,9 @@ function acceptGame(next, audible = true) {
   const previous = game; game = next;
   if (mode === 'local' && next.winner && next.reason !== 'round') next.finishEffect = next.reason === 'resign' ? currentUser?.finishEffect || 'none' : currentUser?.victoryEffect || 'none';
   const finishing = isFinishTransition(previous, next, audible);
-  const shot = audible && next.variant === 'chapaev' && previous.variant === 'chapaev' && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
+  const shot = audible && ['chapaev','pool8'].includes(next.variant) && previous.variant === next.variant && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
   const showFinish = () => {
-    chapaevBoard.cancel(); animating = true;
+    chapaevBoard.cancel(); poolBoard.cancel(); animating = true;
     renderBoard();
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     confirmAction = null;
@@ -287,13 +319,13 @@ function acceptGame(next, audible = true) {
   }
   if (shot) {
     animating = true; sounds.play('move');
-    chapaevBoard.animate(previous, next, () => {
+    (isPool() ? poolBoard : chapaevBoard).animate(previous, next, () => {
       if (finishing) { renderBoard(); showFinish(); }
       else { animating = false; sounds.transition(previous, next, room?.role, true); }
       render();
     });
   } else {
-    if (previous.revision !== next.revision || previous.variant !== next.variant) { chapaevBoard.cancel(); animating = false; }
+    if (previous.revision !== next.revision || previous.variant !== next.variant) { chapaevBoard.cancel(); poolBoard.cancel(); animating = false; }
     if (audible) sounds.transition(previous, next, room?.role);
   }
 }
@@ -325,7 +357,7 @@ async function api(path, data = {}) {
 }
 function disconnect() {
   rocketEffect.cancel();
-  chapaevBoard.cancel(); animating = false;
+  chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
   clearTimeout(reconnectTimer); clearInterval(heartbeat);
   const previous = socket; socket = null;
   if (previous) previous.close();
@@ -415,7 +447,7 @@ function leave() {
 function showScreen(screen) {
   nardeBoard.cancel();
   rocketEffect.cancel();
-  chapaevBoard.cancel(); animating = false;
+  chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
   boardDrag.cancel();
   $('home-screen').hidden = screen !== 'home';
   $('game-screen').hidden = screen !== 'game';
@@ -434,6 +466,7 @@ function goHome() {
 }
 function updateBackdrop() {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
+  document.querySelectorAll('[data-scene]').forEach(scene=>scene.classList.toggle('is-active',scene.dataset.scene===variant));
   if (document.body.dataset.backdrop !== variant) document.body.dataset.backdrop = variant;
 }
 const pauseAmbient = () => document.body.classList.toggle('ambient-paused', document.hidden);
@@ -472,9 +505,10 @@ $('start-form').onsubmit = async event => {
 $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
-  $('narde-rules').hidden = variant !== 'narde'; $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = ['chapaev', 'chess', 'narde'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
+  $('pool-rules').hidden = variant !== 'pool8'; $('narde-rules').hidden = variant !== 'narde'; $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = ['chapaev', 'chess', 'narde','pool8'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
   $('rules-variant').textContent = variant === 'chess' ? 'Классические шахматы. Белые начинают, взятие не обязательно.' : variant === 'chapaev' ? 'Чапаев: партия из раундов на доске 8×8. Выигрывайте раунды и оттесняйте соперника к краю.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
   if(variant==='narde')$('rules-variant').textContent='Длинные нарды: 24 пункта, по 15 фишек. Без сбивания, часов и куба удвоения.';
+  if(variant==='pool8')$('rules-variant').textContent='Американский пул-8. Клубная версия без часов, прыжков и подкрутки.';
   $('rules-dialog').showModal();
 };
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
@@ -504,7 +538,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { chapaevBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
   else if (game.history.length || game.path.length || isNarde() && game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');

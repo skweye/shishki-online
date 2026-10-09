@@ -4,6 +4,33 @@ import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { applyShot } from '../public/chapaev.js';
 import { legalMoves } from '../public/game.js';
+import { applyPoolShot } from '../public/pool.js';
+
+test('pool server validates shots and placement, synchronizes, restores, chats and rematches',async()=>{
+  const {data:room,status}=await post('/api/rooms',{variant:'pool8'});assert.equal(status,201);assert.equal(room.clock,null);
+  const {data:joined}=await post(`/api/rooms/${room.code}/join`);
+  const a=client(room.code,room.token),b=client(room.code,joined.token);
+  try{
+    await a.wait(m=>m.type==='state'&&m.ready);await b.wait(m=>m.type==='state'&&m.ready);
+    await b.send({type:'pool-shot',dx:.85,dy:0,revision:0});await b.wait(m=>m.type==='error'&&m.message.includes('соперника'));
+    await a.send({type:'pool-place',x:10,y:5,revision:0});await a.wait(m=>m.type==='error');
+    await a.send({type:'pool-place',x:4,y:5,revision:0});
+    const placed=await b.wait(m=>m.type==='state'&&m.game.revision===1);
+    assert.equal(placed.game.balls.find(ball=>ball.id===0).x,4);
+    await a.send({type:'pool-shot',dx:100,dy:0,revision:1});await a.wait(m=>m.type==='error');
+    await a.send({type:'pool-shot',dx:.85,dy:0,revision:0});await a.wait(m=>m.type==='error'&&m.message.includes('изменилась'));
+    const command={type:'pool-shot',dx:.85,dy:0,revision:1};
+    await a.send({...command,balls:[],winner:'white'});
+    const hit=await a.wait(m=>m.type==='state'&&m.game.revision===2);
+    assert.deepEqual(hit.game,applyPoolShot(placed.game,command));assert.equal(hit.clock,null);
+    assert.deepEqual((await b.wait(m=>m.type==='state'&&m.game.revision===2)).game,hit.game);
+    const {data:restore}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.deepEqual(restore.game,hit.game);
+    await a.send({type:'chat',text:'Pool test'});assert.equal((await b.wait(m=>m.type==='chat')).message.text,'Pool test');
+    await b.send({type:'resign',revision:2});await a.wait(m=>m.type==='state'&&m.game.winner==='white');
+    await a.send({type:'rematch',revision:3});await b.send({type:'rematch',revision:3});
+    const fresh=await a.wait(m=>m.type==='state'&&m.game.revision===4);assert.equal(fresh.game.variant,'pool8');assert.equal(fresh.game.balls.length,16);assert.equal(fresh.game.winner,null);assert.equal(fresh.clock,null);
+  }finally{a.ws.close();b.ws.close();}
+});
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
 async function post(path, body = {}) {

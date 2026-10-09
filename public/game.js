@@ -1,5 +1,6 @@
 // Shared, deterministic Russian draughts rules. Positive pieces are white;
 // negative are black. Absolute value 2 denotes a flying king.
+import { newPool } from './pool.js';
 import { newChapaev } from './chapaev.js';
 import { newNarde, nardeMoves, moveNarde } from './narde.js';
 import { newChess, chessMoves, moveChess } from './chess-game.js';
@@ -11,7 +12,8 @@ export const VARIANTS = Object.freeze({
   russian12: { name: 'Русские шашки 12×12', size: 12, rows: 5 },
   chapaev: { name: 'Шашки Чапаева', size: 8, rows: 1 },
   chess: { name: 'Шахматы', size: 8, rows: 2 },
-  narde: { name: 'Длинные нарды', size: 24, points: 24 }
+  narde: { name: 'Длинные нарды', size: 24, points: 24 },
+  pool8: { name: 'Пул-8', size: 4, points: 16, category: 'arcade' }
 });
 export const validVariant = variant => typeof variant === 'string' && Object.hasOwn(VARIANTS, variant);
 export const variantOf = game => game.variant || 'russian';
@@ -26,6 +28,7 @@ export function newGame(variant = 'russian') {
   if (variant === 'chapaev') return newChapaev();
   if (variant === 'chess') return newChess();
   if (variant === 'narde') return newNarde();
+  if (variant === 'pool8') return newPool();
   const { size, rows } = VARIANTS[variant];
   const board = Array.from({ length: size * size }, (_, i) => {
     const row = Math.floor(i / size), col = i % size;
@@ -65,7 +68,7 @@ function capturesFrom(board, from, captured, size) {
 export function legalMoves(game) {
   if (variantOf(game) === 'narde') return nardeMoves(game);
   if (variantOf(game) === 'chess') return chessMoves(game);
-  if (variantOf(game) === 'chapaev') return [];
+  if (['chapaev','pool8'].includes(variantOf(game))) return [];
   if (game.winner) return [];
   const size = boardSize(game);
   if (game.forced !== null) return capturesFrom(game.board, game.forced, game.captured, size);

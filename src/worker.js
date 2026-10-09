@@ -5,6 +5,7 @@ import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 import { writeResults } from './account-stats.js';
 import { createClock, expiredSide, advanceClock, timeoutGame, clockDeadline } from '../public/time-control.js';
 import { chatMessage } from './chat.js';
+import { applyPoolShot, placePoolCue } from '../public/pool.js';
 import { rollNarde, randomDice } from '../public/narde.js';
 import { validEffect } from '../public/shop-catalog.js';
 export { PasswordService } from './password-service.js';
@@ -269,6 +270,10 @@ export class GameRoom extends DurableObject {
         if (data.type === 'roll') {
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
           this.room.game = rollNarde(this.room.game, randomDice(this.room.game.opening));
+          this.room.drawOffer = null;
+        } else if (data.type === 'pool-shot' || data.type === 'pool-place') {
+          if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
+          this.room.game = data.type === 'pool-shot' ? applyPoolShot(this.room.game, data) : placePoolCue(this.room.game, data.x, data.y);
           this.room.drawOffer = null;
         } else if (data.type === 'move' || data.type === 'shot') {
           if (this.room.game.winner) throw new Error('Партия уже завершена.');

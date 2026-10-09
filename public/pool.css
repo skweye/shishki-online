@@ -1,0 +1,26 @@
+.pool-frame { padding:10px; }
+#pool-canvas { display:block;width:100%;height:auto;touch-action:none;border-radius:20px; }
+.pool-console { padding:12px 14px 16px; }
+.pool-console p { font-size:12px;line-height:1.6;color:var(--muted);min-height:20px;margin:0 0 15px; }
+.pool-fields { display:grid;grid-template-columns:.8fr .8fr 1.5fr 1.5fr;gap:16px; }
+.pool-fields label,.pool-placement-fields label { display:flex;flex-direction:column;gap:8px;font-size:11px;min-width:0;color:var(--muted); }
+.pool-fields select,.pool-placement-fields input { width:100%;min-width:0;background:var(--theme-bg);color:var(--theme-text);border:1px solid var(--line);padding:9px;border-radius:7px; }
+.pool-fields output { color:var(--theme-text); }
+.pool-fields input[type=range] { width:100%;margin:auto 0;accent-color:var(--theme-accent); }
+.pool-actions { display:flex;gap:12px;margin-top:18px;justify-content:flex-end; }
+.pool-actions button { width:auto;min-width:130px; }
+.pool-placement-fields { display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;align-items:end; }
+#pool-placement { padding-top:16px; }
+.setup-panel .arcade-options { grid-column:1/-1;border-top:1px solid var(--line);padding-top:28px;margin-top:8px; }
+.arcade-description { color:var(--muted);font-size:13px;margin:8px 0 18px; }
+.arcade-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px; }
+.arcade-option { position:relative;min-height:135px;overflow:hidden;background:linear-gradient(115deg,color-mix(in srgb,var(--theme-accent) 9%,var(--theme-panel)),var(--theme-panel)); }
+.arcade-option .variant-symbol { width:92px;height:92px;flex-shrink:0;display:grid;place-items:center; }
+.pool-card-ball { display:grid;place-items:center;width:70px;height:70px;border-radius:50%;background:radial-gradient(circle at 30% 22%,#717878,#1a2224 55%,#060a0d);box-shadow:7px 10px 12px #0005;transform:rotate(-18deg); }
+.pool-card-ball b { display:grid;place-items:center;border-radius:50%;width:31px;height:31px;background:#f1e8d6;color:#182025;font:700 24px Georgia; }
+.arcade-option small { line-height:1.8; }
+@media(min-width:1050px){ .game-layout.pool-layout { grid-template-columns:minmax(0,1fr) 300px;gap:28px; } body:has(.pool-layout) main { max-width:1360px; } }
+@media(max-width:600px){ .pool-frame { padding:3px; } .pool-console { padding:12px 8px; } .pool-fields { grid-template-columns:1fr 1fr;gap:14px; } .pool-actions { flex-wrap:wrap; } .pool-actions button { flex:1; } .pool-placement-fields { grid-template-columns:1fr 1fr; } .pool-placement-fields button { grid-column:1/-1; } .arcade-option .variant-symbol { width:65px; } .pool-card-ball { width:55px;height:55px; } }
+
+.pool-player-ball { display:grid;place-items:center;width:29px;height:29px;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,#d7ccbb);color:#292521;font:bold 17px Georgia;box-shadow:2px 3px 5px #0006; }
+.pool-player-ball.black { background:radial-gradient(circle at 30% 25%,#727977,#172321 75%);color:#f6ebda; }
