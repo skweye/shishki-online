@@ -11,6 +11,8 @@ export function createPoolBoard({shoot,place,sound}) {
   const orientations=new Map();
   const portrait=()=>matchMedia('(max-width:600px)').matches;
   const point=(x,y)=>({x:60+(flipped?20-x:x)*54,y:60+(flipped?10-y:y)*54});
+  // Seat the middle pockets 12 pixels deeper in the rail, keeping their full opening.
+  const pocketCenter=p=>({x:p.x,y:p.y+(p.x===10?(p.y===0?-12:12)/54:0)});
   function ball(b,scale=1,opacity=1) {
     const p=point(b.x,b.y),r=TABLE.radius*54*scale;
     ctx.save();ctx.globalAlpha=opacity;
@@ -18,7 +20,7 @@ export function createPoolBoard({shoot,place,sound}) {
     ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();paintBall(ctx,b,p,r,orientations.get(b.id)||[0,0,0,1],flipped);ctx.restore();
   }
   function pocket(p) {
-    const q=point(p.x,p.y),r=p.x===10?23:32;
+    const center=pocketCenter(p),q=point(center.x,center.y),r=p.x===10?29:32;
     ctx.save();
     // A cut-out in the rail: a dark well, with a thin edge only on the outside.
     const g=ctx.createRadialGradient(q.x,q.y+4,2,q.x,q.y,r);g.addColorStop(0,'#010203');g.addColorStop(.75,'#020608');g.addColorStop(1,'#10201f');
@@ -107,7 +109,7 @@ export function createPoolBoard({shoot,place,sound}) {
       const previous=new Map(last.map(b=>[b.id,b]));
       for(const b of shown){const old=previous.get(b.id);if(old)orientations.set(b.id,rollOrientation(orientations.get(b.id)||[0,0,0,1],b.x-old.x,b.y-old.y));}last=shown;
       while(soundIndex<sim.events.length&&sim.events[soundIndex].time<=elapsed){const event=sim.events[soundIndex++];sound(event.kind,event.strength);}
-      sinking=sim.events.filter(e=>e.kind==='pocket'&&elapsed>=e.time&&elapsed<e.time+.2).map(e=>{const progress=(elapsed-e.time)/.2,p=POCKETS[e.pocket];return{id:e.id,x:e.x+(p.x-e.x)*progress,y:e.y+(p.y-e.y)*progress,progress};});
+      sinking=sim.events.filter(e=>e.kind==='pocket'&&elapsed>=e.time&&elapsed<e.time+.2).map(e=>{const progress=(elapsed-e.time)/.2,p=pocketCenter(POCKETS[e.pocket]);return{id:e.id,x:e.x+(p.x-e.x)*progress,y:e.y+(p.y-e.y)*progress,progress};});
       draw();raf=requestAnimationFrame(tick);
     };raf=requestAnimationFrame(tick);
   }
