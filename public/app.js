@@ -247,11 +247,12 @@ function acceptGame(next, audible = true) {
   const shot = audible && next.variant === 'chapaev' && previous.variant === 'chapaev' && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
   const showFinish = () => {
     chapaevBoard.cancel(); animating = true;
+    renderBoard();
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     confirmAction = null;
     rocketEffect.launch(next.winner === (flipped ? 'white' : 'black'), () => {
       animating = false; sounds.transition(previous, next, room?.role); render();
-    }, next.finishEffect);
+    }, next.finishEffect, { winner: next.winner, canvasBoard: isChapaev() ? chapaevBoard : null });
   };
   if (finishing && !shot) {
     showFinish();

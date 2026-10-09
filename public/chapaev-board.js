@@ -1,11 +1,13 @@
 import { RADIUS, simulateShot, chapaevRows, chapaevLineup } from './chapaev.js';
 import { SKIN_COLORS } from './shop-catalog.js';
+import { pieceReaction } from './finish-interactions.js';
 
 export function createChapaevBoard({ shoot, impact }) {
   const $ = id => document.getElementById(id), canvas = $('chapaev-canvas'), ctx = canvas.getContext('2d');
   const selector = $('shot-piece'), angle = $('shot-angle'), power = $('shot-power');
   let state, flipped = false, playable = false, selected = null, drag = null, animation = null, raf = 0, shown = [];
   let skins = {};
+  let finishInteraction = null;
   const transform = p => flipped ? { x: 8 - p.x, y: 8 - p.y } : p;
   const point = event => { const r = canvas.getBoundingClientRect(); return transform({ x: (event.clientX - r.left) * 8 / r.width, y: (event.clientY - r.top) * 8 / r.height }); };
   function impulse() {
@@ -26,6 +28,14 @@ export function createChapaevBoard({ shoot, impact }) {
     for (let y = 0; y < 8; y++) for (let x = 0; x < 8; x++) { ctx.fillStyle = (x + y) % 2 ? dark : light; ctx.fillRect(x, y, 1, 1); }
     for (const piece of shown) {
       const p = transform(piece), white = piece.side === 'white';
+      ctx.save();
+      if (finishInteraction) {
+        const { effect, elapsed, options } = finishInteraction;
+        const reaction = pieceReaction(effect, { x: p.x / 8, y: p.y / 8, side: piece.side }, elapsed, options);
+        ctx.translate(p.x + reaction.x * 8, p.y + reaction.y * 8); ctx.rotate(reaction.rotation * Math.PI / 180); ctx.scale(reaction.scale, reaction.scale); ctx.translate(-p.x, -p.y);
+        ctx.globalAlpha = reaction.opacity; ctx.filter = `brightness(${reaction.brightness}) hue-rotate(${reaction.hue}deg)`;
+        ctx.shadowColor = reaction.color; ctx.shadowBlur = reaction.glow * dpr;
+      }
       const colors = SKIN_COLORS[skins[piece.side]]?.[piece.side];
       ctx.beginPath(); ctx.ellipse(p.x, p.y + .05, RADIUS, RADIUS, 0, 0, Math.PI * 2); ctx.fillStyle = '#0005'; ctx.fill();
       const gradient = ctx.createRadialGradient(p.x - .12, p.y - .15, .02, p.x, p.y, RADIUS);
@@ -37,6 +47,7 @@ export function createChapaevBoard({ shoot, impact }) {
       if (piece.id === selected && playable && !animation) {
         ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS + .07, 0, Math.PI * 2); ctx.strokeStyle = accent; ctx.lineWidth = .04; ctx.stroke();
       }
+      ctx.restore();
     }
     const piece = shown.find(p => p.id === selected);
     if (piece && playable && !animation) {
@@ -82,6 +93,7 @@ export function createChapaevBoard({ shoot, impact }) {
   function cancel() { cancelAnimationFrame(raf); animation = null; cancelDrag(); }
   return {
     cancel,
+    setFinishInteraction(value) { finishInteraction = value; draw(); },
     animateRound(previous, next, done) {
       cancel();
       if (matchMedia('(prefers-reduced-motion: reduce)').matches || document.hidden) { shown = next.pieces; done(); return; }

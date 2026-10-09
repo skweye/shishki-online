@@ -1,4 +1,5 @@
 import { validEffect } from './shop-catalog.js';
+import { createPieceInteractions, FINISH_DURATION } from './finish-interactions.js';
 
 export function isFinishTransition(previous, next, live = true) {
   return live && next.reason !== 'round' && validEffect(next.finishEffect) !== 'none' && ['white', 'black'].includes(next.winner) && !previous.winner && next.revision > previous.revision;
@@ -6,11 +7,13 @@ export function isFinishTransition(previous, next, live = true) {
 
 export function createRocketEffect(frame, sounds) {
   let overlay, timer, impactTimer;
+  const interactions = createPieceInteractions(frame);
   function cancel() {
     clearTimeout(timer); clearTimeout(impactTimer);
+    interactions.cancel();
     overlay?.remove(); overlay = null; frame.classList.remove('rocket-impact');
   }
-  function launch(fromTop, finished, effect = 'rocket') {
+  function launch(fromTop, finished, effect = 'rocket', options = {}) {
     cancel();
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     overlay = document.createElement('div'); overlay.className = 'rocket-effect finish-' + validEffect(effect);
@@ -31,9 +34,10 @@ export function createRocketEffect(frame, sounds) {
       overlay.innerHTML = visuals[effect] || '';
     }
     frame.append(overlay);
+    interactions.launch(effect, { ...options, fromTop, reduced });
     sounds.play(effect === 'rocket' || effect === 'comet' ? 'rocket' : 'promotion');
     if (['rocket', 'lightning', 'comet'].includes(effect)) impactTimer = setTimeout(() => { if (!reduced) frame.classList.add('rocket-impact'); sounds.play('impact'); }, reduced ? 100 : 1250);
-    timer = setTimeout(() => { cancel(); finished(); }, reduced ? 350 : 2600);
+    timer = setTimeout(() => { cancel(); finished(); }, reduced ? 350 : FINISH_DURATION);
   }
   return { launch, cancel };
 }
