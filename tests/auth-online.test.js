@@ -101,6 +101,11 @@ test('shop charges once, rejects forged purchases, synchronizes skins and awards
   assert.equal((await post('/api/auth/shop/equip', { item: 'skin-jade' }, a.cookie)).data.user.pieceSkin, 'jade');
   assert.equal((await post('/api/auth/shop/buy', { item: 'effect-rocket' }, b.cookie)).data.balance, 0);
   assert.equal((await post('/api/auth/shop/equip', { item: 'effect-rocket' }, b.cookie)).data.user.finishEffect, 'rocket');
+  const victory = await post('/api/auth/shop/equip', { item: 'effect-rocket', slot: 'victory' }, b.cookie);
+  assert.equal(victory.data.user.victoryEffect, 'rocket'); assert.equal(victory.data.user.finishEffect, 'rocket');
+  assert.equal(victory.data.balance, 0);
+  assert.equal((await post('/api/auth/shop/equip', { item: 'effect-portal', slot: 'victory' }, b.cookie)).response.status, 403);
+  assert.equal((await post('/api/auth/shop/equip', { item: 'effect-rocket', slot: 'invalid' }, b.cookie)).response.status, 400);
   const room = await post('/api/rooms', {}, a.cookie);
   const joined = await post(`/api/rooms/${room.data.code}/join`, {}, b.cookie);
   assert.equal(joined.data.cosmetics.white.skin, 'jade');
@@ -130,6 +135,24 @@ test('shop charges once, rejects forged purchases, synchronizes skins and awards
   assert.equal((await shop(b.cookie)).balance, 30);
   const accountB = await (await fetch(base + '/api/auth/account', { headers: { Cookie: b.cookie } })).json();
   assert.equal(accountB.recent[0].coins, 30);
+  // A real checkmate shows the victory selection to both clients, independently of resignation.
+  await post('/api/auth/shop/equip', { item: 'effect-none', slot: 'resign' }, b.cookie);
+  const chess = await post('/api/rooms', { variant: 'chess' }, a.cookie);
+  const chessJoin = await post(`/api/rooms/${chess.data.code}/join`, {}, b.cookie);
+  const chessSockets = [];
+  for (const [token, cookie] of [[chess.data.token, a.cookie], [chessJoin.data.token, b.cookie]]) {
+    const ws = new WebSocket(base.replace(/^http/, 'ws') + `/api/rooms/${chess.data.code}/socket`, ['checkers', token], { headers: { Cookie: cookie, Origin: base } });
+    t.after(() => ws.terminate()); const ready = once(ws, 'message'); await once(ws, 'open'); await ready; chessSockets.push(ws);
+  }
+  for (const [revision, [from, to]] of [[53,45],[12,28],[54,38],[3,39]].entries()) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const replies = chessSockets.map(ws => once(ws, 'message'));
+    chessSockets[revision % 2].send(JSON.stringify({ type: 'move', from, to, revision, finishEffect: 'portal' }));
+    for (const response of await Promise.all(replies)) {
+      const result = JSON.parse(response[0]); assert.equal(result.type, 'state');
+      if (revision === 3) { assert.equal(result.game.reason, 'checkmate'); assert.equal(result.game.finishEffect, 'rocket'); }
+    }
+  }
   // Two simultaneous different purchases must not overdraw the wallet.
   const c = await register('Коллекционер');
   const raced = await Promise.all(['skin-jade', 'effect-confetti'].map(item => post('/api/auth/shop/buy', { item }, c.cookie)));

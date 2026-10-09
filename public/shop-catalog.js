@@ -8,7 +8,13 @@ export const CATALOG = Object.freeze([
   { id: 'effect-confetti', type: 'effect', value: 'confetti', name: 'Конфетти', description: 'Цветной салют над игровой доской.', price: 60, symbol: '✦' },
   { id: 'effect-rocket', type: 'effect', value: 'rocket', name: 'Ракета', description: 'Взлёт, огненный след и мягкая вспышка.', price: 100, symbol: '🚀' },
   { id: 'effect-lightning', type: 'effect', value: 'lightning', name: 'Молния', description: 'Электрическая дуга и золотое сияние.', price: 120, symbol: 'ϟ' },
-  { id: 'effect-comet', type: 'effect', value: 'comet', name: 'Комета', description: 'Звёздный полёт через всю доску.', price: 140, symbol: '☄' }
+  { id: 'effect-comet', type: 'effect', value: 'comet', name: 'Комета', description: 'Звёздный полёт через всю доску.', price: 140, symbol: '☄' },
+  { id: 'effect-laurel', type: 'effect', value: 'laurel', name: 'Триумф', description: 'Золотая корона в лавровом венке.', price: 80, symbol: '♛' },
+  { id: 'effect-fireworks', type: 'effect', value: 'fireworks', name: 'Фейерверк', description: 'Три цветных салюта в честь победы.', price: 130, symbol: '✺' },
+  { id: 'effect-portal', type: 'effect', value: 'portal', name: 'Портал', description: 'Вращающиеся кольца из звёздного света.', price: 160, symbol: '◎' },
+  { id: 'effect-blizzard', type: 'effect', value: 'blizzard', name: 'Метель', description: 'Ледяной вихрь и тихий снегопад.', price: 110, symbol: '❄' },
+  { id: 'effect-petals', type: 'effect', value: 'petals', name: 'Сакура', description: 'Розовые лепестки плывут над доской.', price: 90, symbol: '✿' },
+  { id: 'effect-eclipse', type: 'effect', value: 'eclipse', name: 'Затмение', description: 'Тёмный диск и сияющая солнечная корона.', price: 180, symbol: '◉' }
 ]);
 export const itemById = id => typeof id === 'string' ? CATALOG.find(item => item.id === id) : undefined;
 export const validSkin = value => CATALOG.some(item => item.type === 'skin' && item.value === value) ? value : 'classic';

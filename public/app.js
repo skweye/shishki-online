@@ -113,7 +113,7 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
-  if (animating) return game.reason === 'resign' ? ['Красивый финал', 'Соперник сдался. Показываем анимацию победителя.', '✦'] : ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
+  if (animating) return game.winner && game.reason !== 'round' ? ['Красивый финал', 'Показываем анимацию победителя.', '✦'] : ['Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
   if (mode === 'online' && !room.ready) return ['Место для друга', 'Отправьте приглашение, чтобы начать партию.', '↗'];
@@ -217,7 +217,7 @@ function playMove(from, to, promotion) {
   }
   if (!canPlay() || !legalMoves(game).some(move => move.from === from && move.to === to)) return;
   if (mode === 'online') send({ type: 'move', from, to, ...(promotion ? { promotion } : {}) });
-  else { const previous = game; game = applyMove(game, from, to, promotion); game.clock = advanceClock(previous.clock, previous, game, Date.now()); sounds.transition(previous, game); selected = game.forced; localSave(); render(); }
+  else { const next = applyMove(game, from, to, promotion); next.clock = advanceClock(game.clock, game, next, Date.now()); acceptGame(next); selected = game.forced; localSave(); render(); }
 }
 document.querySelectorAll('[data-promotion]').forEach(button => { button.onclick = () => {
   const move = promotionMove; $('promotion-dialog').close();
@@ -242,13 +242,19 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
-  if (isFinishTransition(previous, next, audible)) {
+  if (mode === 'local' && next.winner && next.reason !== 'round') next.finishEffect = next.reason === 'resign' ? currentUser?.finishEffect || 'none' : currentUser?.victoryEffect || 'none';
+  const finishing = isFinishTransition(previous, next, audible);
+  const shot = audible && next.variant === 'chapaev' && previous.variant === 'chapaev' && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
+  const showFinish = () => {
     chapaevBoard.cancel(); animating = true;
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     confirmAction = null;
     rocketEffect.launch(next.winner === (flipped ? 'white' : 'black'), () => {
       animating = false; sounds.transition(previous, next, room?.role); render();
     }, next.finishEffect);
+  };
+  if (finishing && !shot) {
+    showFinish();
     return;
   }
   if (previous.revision !== next.revision || previous.variant !== next.variant) rocketEffect.cancel();
@@ -257,10 +263,13 @@ function acceptGame(next, audible = true) {
     chapaevBoard.animateRound(previous, next, () => { animating = false; render(); });
     return;
   }
-  const shot = audible && next.variant === 'chapaev' && previous.variant === 'chapaev' && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
   if (shot) {
     animating = true; sounds.play('move');
-    chapaevBoard.animate(previous, next, () => { animating = false; sounds.transition(previous, next, room?.role, true); render(); });
+    chapaevBoard.animate(previous, next, () => {
+      if (finishing) { renderBoard(); showFinish(); }
+      else { animating = false; sounds.transition(previous, next, room?.role, true); }
+      render();
+    });
   } else {
     if (previous.revision !== next.revision || previous.variant !== next.variant) { chapaevBoard.cancel(); animating = false; }
     if (audible) sounds.transition(previous, next, room?.role);

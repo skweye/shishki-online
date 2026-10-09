@@ -1,7 +1,7 @@
 import { CATALOG } from './shop-catalog.js';
 import { createRocketEffect } from './rocket.js';
 const $ = id => document.getElementById(id);
-let state = null, filter = 'all', busy = false, pendingItem = null, previewItem = null;
+let state = null, filter = 'all', effectSlot = 'victory', busy = false, pendingItem = null, previewItem = null;
 const preview = createRocketEffect($('preview-board'), { play() {} });
 function el(tag, text = '', className) { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; return node; }
 async function request(path = '', data) {
@@ -16,8 +16,12 @@ async function request(path = '', data) {
 }
 function notice(text, error = false) { $('shop-status').textContent = text; $('shop-status').dataset.error = String(error); }
 function isOwned(item) { return !!state?.owned.includes(item.id); }
-function isEquipped(item) { return !!state && (item.type === 'skin' ? state.user.pieceSkin : state.user.finishEffect) === item.value; }
+function isEquipped(item) { return !!state && (item.type === 'skin' ? state.user.pieceSkin : effectSlot === 'victory' ? state.user.victoryEffect : state.user.finishEffect) === item.value; }
 function render() {
+  for (const slot of ['victory', 'resign']) {
+    const value = slot === 'victory' ? state?.user.victoryEffect : state?.user.finishEffect;
+    $(slot + '-choice').textContent = CATALOG.find(item => item.type === 'effect' && item.value === value)?.name || 'Без эффекта';
+  }
   $('coin-balance').textContent = state ? state.balance.toLocaleString('ru-RU') : '—';
   $('wallet-caption').textContent = state ? 'Кошелёк вашего аккаунта' : '100 монет в подарок при первом входе';
   $('collection-count').textContent = state ? `${state.owned.length} из ${CATALOG.length} в коллекции` : '';
@@ -63,7 +67,8 @@ async function load() {
 }
 async function equip(item) {
   if (busy) return; busy = true; render(); notice('Выбираем оформление…');
-  try { state = await request('/equip', { item: item.id }); notice(`${item.name} — выбрано. Скин появится при следующем входе в комнату; анимация — при сдаче соперника.`); }
+  const slot = effectSlot;
+  try { state = await request('/equip', { item: item.id, slot }); notice(item.type === 'skin' ? `${item.name} — выбрано. Скин появится при следующем входе в комнату.` : `${item.name} — ${slot === 'victory' ? 'при победе' : 'при сдаче соперника'}.`); }
   catch (error) { notice(error.message, true); }
   finally { busy = false; render(); }
 }
@@ -83,7 +88,7 @@ $('purchase-close').onclick = $('purchase-cancel').onclick = closePurchase;
 $('purchase-dialog').addEventListener('cancel', event => { if (busy) event.preventDefault(); });
 function openPreview(item) {
   preview.cancel(); previewItem = item; $('preview-title').textContent = item.name;
-  $('preview-description').textContent = item.type === 'effect' ? 'Пример анимации. В игре её увидят оба игрока, когда ваш соперник сдастся.' : 'Ваши шашки сохраняют цвет стороны и получают выбранный материал. Правила игры остаются прежними.';
+  $('preview-description').textContent = item.type === 'effect' ? `Пример анимации. В игре её увидят оба игрока ${effectSlot === 'victory' ? 'после вашей победы' : 'при сдаче вашего соперника'}.` : 'Ваши шашки сохраняют цвет стороны и получают выбранный материал. Правила игры остаются прежними.';
   for (const side of ['white', 'black']) for (const suffix of ['', '-second']) $('preview-' + side + suffix).className = `piece ${side} skin-${item.type === 'skin' ? item.value : state?.user.pieceSkin || 'classic'}`;
   $('preview-replay').hidden = item.type !== 'effect' || item.value === 'none';
   $('preview-dialog').showModal(); replay();
@@ -101,5 +106,11 @@ document.querySelectorAll('[data-filter]').forEach(button => {
   };
 });
 window.addEventListener('pageshow', event => { if (event.persisted) load(); });
+document.querySelectorAll('[data-slot]').forEach(button => { button.onclick = () => {
+  effectSlot = button.dataset.slot;
+  document.querySelectorAll('[data-slot]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+  $('slot-description').textContent = effectSlot === 'victory' ? 'Выбираете анимацию обычной победы: мат, взятие последней шашки или победа по времени.' : 'Выбираете анимацию, которая появится, когда ваш соперник сдастся.';
+  render();
+}; });
 window.addEventListener('focus', () => { if (!busy && !$('purchase-dialog').open) load(); });
 render(); await load();

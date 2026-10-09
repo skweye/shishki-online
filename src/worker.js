@@ -5,6 +5,7 @@ import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 import { writeResults } from './account-stats.js';
 import { createClock, expiredSide, advanceClock, timeoutGame, clockDeadline } from '../public/time-control.js';
 import { chatMessage } from './chat.js';
+import { validEffect } from '../public/shop-catalog.js';
 export { PasswordService } from './password-service.js';
 
 const json = (body, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
@@ -39,7 +40,7 @@ export default {
       const headers = new Headers(request.headers);
       // Identity is supplied only by this Worker, never by a browser header.
       headers.delete('X-Auth-User');
-      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, finishEffect: identity.finishEffect })));
+      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, finishEffect: identity.finishEffect, victoryEffect: identity.victoryEffect })));
       request = new Request(request, { headers });
       if (request.method === 'POST') {
         let data;
@@ -105,6 +106,17 @@ export class GameRoom extends DurableObject {
     if (activity) this.room.updatedAt = Date.now();
     this.room.matchId ||= crypto.randomUUID();
     const game = this.room.game;
+    if (['white', 'black'].includes(game.winner) && game.reason !== 'round' && game.finishEffect === undefined) {
+      const winnerId = this.room.accounts?.[game.winner];
+      game.finishEffect = 'none';
+      if (winnerId) {
+        // A cosmetic lookup must never prevent a legal win or timeout from completing.
+        try {
+          const winner = await this.env.AUTH_DB.prepare('SELECT victory_effect FROM users WHERE id = ?').bind(winnerId).first();
+          game.finishEffect = validEffect(winner?.victory_effect);
+        } catch { game.finishEffect = validEffect(this.room.cosmetics?.[game.winner]?.victory); }
+      }
+    }
     if (game.winner && game.reason !== 'round' && !this.room.resultRecorded && this.room.players.black) {
       this.room.pendingResults ||= [];
       for (const side of ['white', 'black']) if (this.room.accounts?.[side]) this.room.pendingResults.push({
@@ -172,7 +184,7 @@ export class GameRoom extends DurableObject {
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         this.room.clock = createClock(variant); this.room.chat = [];
         this.room.code = url.searchParams.get('code');
-        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', effect: identity?.finishEffect || 'none' } };
+        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot() }, 201);
@@ -197,7 +209,7 @@ export class GameRoom extends DurableObject {
         if (identity) {
           this.room.accounts[role] = identity.id; this.room.names[role] = identity.name;
           this.room.cosmetics ||= {};
-          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', effect: identity.finishEffect || 'none' };
+          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', effect: identity.finishEffect || 'none', victory: identity.victoryEffect || 'none' };
           const code = this.room.code || url.pathname.match(/\/rooms\/([A-F0-9]{12})\//)?.[1];
           if (code) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, code).run();
         }

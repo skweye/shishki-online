@@ -113,13 +113,32 @@ test('resignation uses the winner selection and never accepts a client-supplied 
   }
 });
 
-test('finish animations only run for a new resignation, not restored or duplicate results', () => {
+test('finish animations cover wins and resignations but exclude draws, rounds and restored results', () => {
   const before = { revision: 4, winner: null }, after = { revision: 5, winner: 'white', reason: 'resign', finishEffect: 'rocket' };
   assert.equal(isFinishTransition(before, after), true);
   assert.equal(isFinishTransition(before, after, false), false);
   assert.equal(isFinishTransition(after, after), false);
-  assert.equal(isFinishTransition(before, { ...after, reason: 'checkmate' }), false);
+  for (const reason of ['checkmate', 'timeout', 'pieces', 'territory', 'blocked']) assert.equal(isFinishTransition(before, { ...after, reason }), true);
+  assert.equal(isFinishTransition(before, { ...after, reason: 'round' }), false);
+  assert.equal(isFinishTransition(before, { ...after, winner: 'draw' }), false);
   assert.equal(isFinishTransition(before, { ...after, finishEffect: 'unknown' }), false);
+});
+
+test('ordinary wins use the winner victory slot once and retain results when cosmetics lookup fails', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: START });
+  for (const reason of ['checkmate', 'timeout', 'pieces', 'territory']) {
+    const initial = fixture(); initial.accounts = { white: 'winner-id' };
+    let reads = 0;
+    const env = { AUTH_DB: { prepare: () => ({ bind: () => ({ first: async () => { reads++; return { victory_effect: 'fireworks' }; } }) }), batch: async () => [] } };
+    const { room } = await roomWith(initial, env);
+    room.room.game.winner = 'white'; room.room.game.reason = reason; room.room.game.revision++;
+    await room.save(); assert.equal(room.room.game.finishEffect, 'fireworks');
+    await room.save(false); assert.equal(reads, 1);
+  }
+  const initial = fixture(); initial.accounts = { black: 'winner-id' }; initial.cosmetics = { black: { victory: 'portal' } };
+  const { room } = await roomWith(initial, { AUTH_DB: { prepare: () => { throw new Error('offline'); }, batch: async () => [] } });
+  room.room.game.winner = 'black'; room.room.game.reason = 'timeout';
+  await room.save(); assert.equal(room.room.game.finishEffect, 'portal'); assert.equal(room.room.game.winner, 'black');
 });
 
 test('match rewards require four moves and never trust unknown outcomes', () => {

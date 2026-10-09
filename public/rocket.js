@@ -1,7 +1,7 @@
 import { validEffect } from './shop-catalog.js';
 
 export function isFinishTransition(previous, next, live = true) {
-  return live && next.reason === 'resign' && validEffect(next.finishEffect) !== 'none' && !!next.winner && !previous.winner && next.revision > previous.revision;
+  return live && next.reason !== 'round' && validEffect(next.finishEffect) !== 'none' && ['white', 'black'].includes(next.winner) && !previous.winner && next.revision > previous.revision;
 }
 
 export function createRocketEffect(frame, sounds) {
@@ -18,16 +18,22 @@ export function createRocketEffect(frame, sounds) {
     overlay.innerHTML = '<div class="rocket-flight"><div class="rocket-trail"></div><svg class="rocket-ship" viewBox="0 0 80 160"><path class="rocket-flame" d="M28 114Q18 136 40 157Q62 136 52 114Z" fill="#ffc46e"/><path d="M20 66 5 102 22 98M60 66 75 102 58 98" fill="#d88762"/><path d="M40 5Q12 30 22 111H58Q68 30 40 5Z" fill="#f4e8d4"/><path d="M40 5Q26 17 23 33H57Q54 17 40 5Z" fill="#cf7755"/><circle cx="40" cy="56" r="12" fill="#566f75" stroke="#c7b9a2" stroke-width="5"/><path d="M33 90H47V119H33Z" fill="#b96b4f"/></svg><div class="rocket-blast"></div><div class="rocket-ring"></div><div class="rocket-sparks">✦</div></div>';
     if (effect !== 'rocket') {
       const visuals = {
-        comet: '<div class="comet-tail"></div><div class="comet-core">✦</div><div class="cosmic-ring"></div>',
+        comet: '<div class="comet-flight"><div class="comet-body"><div class="comet-tail"></div><div class="comet-core">✦</div></div></div>',
         lightning: '<svg class="lightning-bolt" viewBox="0 0 100 180"><path d="M60 5 20 100 48 97 35 175 86 75 56 82Z" fill="#fff3b5" stroke="#e7b75e" stroke-width="3"/></svg><div class="lightning-glow"></div>',
-        confetti: '<div class="confetti-crown">♛</div><div class="confetti-particles">' + '<i></i>'.repeat(12) + '</div>'
+        confetti: '<div class="confetti-crown">♛</div><div class="confetti-particles">' + '<i></i>'.repeat(12) + '</div>',
+        laurel: '<div class="laurel-wreath"><span>❧</span><b>♛</b><span>❧</span></div><div class="laurel-halo"></div>',
+        fireworks: '<div class="firework burst-one"></div><div class="firework burst-two"></div><div class="firework burst-three"></div>',
+        portal: '<div class="portal-ring ring-one"></div><div class="portal-ring ring-two"></div><div class="portal-ring ring-three"></div><div class="portal-star">✦</div>',
+        blizzard: '<div class="winter-halo"></div><div class="drifting-particles">' + '<i>❄</i>'.repeat(16) + '</div>',
+        petals: '<div class="sakura-glow"></div><div class="drifting-particles">' + '<i></i>'.repeat(16) + '</div>',
+        eclipse: '<div class="eclipse-corona"></div><div class="eclipse-disc"></div><div class="eclipse-star">✦</div>'
       };
       overlay.innerHTML = visuals[effect] || '';
     }
     frame.append(overlay);
     sounds.play(effect === 'rocket' || effect === 'comet' ? 'rocket' : 'promotion');
-    impactTimer = setTimeout(() => { frame.classList.add('rocket-impact'); sounds.play('impact'); }, reduced ? 100 : 1250);
-    timer = setTimeout(() => { cancel(); finished(); }, reduced ? 350 : 2200);
+    if (['rocket', 'lightning', 'comet'].includes(effect)) impactTimer = setTimeout(() => { if (!reduced) frame.classList.add('rocket-impact'); sounds.play('impact'); }, reduced ? 100 : 1250);
+    timer = setTimeout(() => { cancel(); finished(); }, reduced ? 350 : 2600);
   }
   return { launch, cancel };
 }

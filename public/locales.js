@@ -25,7 +25,7 @@ const rows = `
 8×8 и шахматы: 5 минут + 5 секунд за ход. 12×12: 10 минут + 5 секунд. Взятия в цепочке — один ход. Чапаев — без часов. При отключении время продолжает идти. Комната удаляется после часа без игровых действий.|8×8 draughts and chess: 5 minutes + 5 seconds per turn. 12×12: 10 minutes + 5 seconds. A capture sequence is one turn. Chapayev has no clock. Time keeps running when disconnected. Rooms expire after an hour without game actions.|8×8 та шахи: 5 хвилин + 5 секунд за хід. 12×12: 10 хвилин + 5 секунд. Серія взяттів — один хід. Чапаєв — без годинника. При відключенні час продовжує йти. Кімната видаляється після години без ігрових дій.
 Магазин и коллекция|Shop and collection|Магазин і колекція
 Красивый финал|A beautiful finish|Гарний фінал
-Соперник сдался. Показываем анимацию победителя.|Your opponent resigned. Playing the winner's animation.|Суперник здався. Показуємо анімацію переможця.
+Показываем анимацию победителя.|Playing the winner's animation.|Показуємо анімацію переможця.
 Шашки — хорошая партия начинается здесь|Draughts — a good game starts here|Шашки — гарна партія починається тут
 Простая игра. Красивые решения.|Simple game. Beautiful moves.|Проста гра. Красиві рішення.
 Как играть|How to play|Як грати

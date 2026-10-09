@@ -23,11 +23,12 @@ export async function buyItem(env, userId, itemId) {
   const owned = await env.AUTH_DB.prepare('SELECT 1 FROM account_items WHERE user_id = ? AND item_id = ?').bind(userId, item.id).first();
   if (!owned) fail('Недостаточно монет. Завершайте онлайн-партии, чтобы накопить ещё.', 409);
 }
-export async function equipItem(env, userId, itemId) {
+export async function equipItem(env, userId, itemId, slot = 'resign') {
   const item = itemById(itemId);
   if (!item) fail('Такого предмета нет в коллекции.');
+  if (!['resign', 'victory'].includes(slot)) fail('Неизвестный вид анимации.');
   // The column is selected from a fixed enum; ownership is checked by the same UPDATE.
-  const column = item.type === 'skin' ? 'piece_skin' : 'finish_effect';
+  const column = item.type === 'skin' ? 'piece_skin' : slot === 'victory' ? 'victory_effect' : 'finish_effect';
   const result = await env.AUTH_DB.prepare(`UPDATE users SET ${column} = ? WHERE id = ?
     AND (? = 0 OR EXISTS (SELECT 1 FROM account_items WHERE user_id = ? AND item_id = ?))`)
     .bind(item.value, userId, item.price, userId, item.id).run();
