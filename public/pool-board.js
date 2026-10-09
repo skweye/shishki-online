@@ -18,7 +18,7 @@ export function createPoolBoard({shoot,place,sound}) {
     ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();paintBall(ctx,b,p,r,orientations.get(b.id)||[0,0,0,1],flipped);ctx.restore();
   }
   function pocket(p) {
-    const q=point(p.x,p.y),r=p.x===10?29:32;
+    const q=point(p.x,p.y),r=p.x===10?23:32;
     ctx.save();
     // A cut-out in the rail: a dark well, with a thin edge only on the outside.
     const g=ctx.createRadialGradient(q.x,q.y+4,2,q.x,q.y,r);g.addColorStop(0,'#010203');g.addColorStop(.75,'#020608');g.addColorStop(1,'#10201f');
