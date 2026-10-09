@@ -68,7 +68,10 @@ const rows = `
 Выберите фишку и подсвеченный пункт. Можно перетаскивать.|Select a checker and a highlighted point, or drag it.|Виберіть фішку та підсвічений пункт. Можна перетягувати.
 Кто начнёт партию?|Who starts the game?|Хто почне партію?
 Используйте кости: выберите фишку и подсвеченный пункт.|Use your dice: select a checker and a highlighted point.|Використайте кості: виберіть фішку та підсвічений пункт.
-Нажмите кнопку броска под доской.|Use the roll button below the board.|Натисніть кнопку кидка під дошкою.
+Нажмите кнопку броска в центре доски.|Use the roll button in the center of the board.|Натисніть кнопку кидка в центрі дошки.
+Кости в движении…|Rolling dice…|Кості в русі…
+Дождитесь результата броска.|Wait for the dice to settle.|Дочекайтеся результату кидка.
+Осталось ходов|Moves remaining|Залишилося ходів
 Нажмите на фишку и пункт назначения или перетащите её.|Click a checker and its destination, or drag it.|Натисніть на фішку та пункт призначення або перетягніть її.
 Дорога домой|The way home|Дорога додому
 Проведите все 15 фишек в дом и выведите их раньше соперника.|Bring all 15 checkers home and bear them off before your opponent.|Проведіть усі 15 фішок у дім і виведіть їх раніше за суперника.

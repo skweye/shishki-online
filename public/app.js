@@ -13,6 +13,7 @@ import { createClock, expiredSide, advanceClock, timeoutGame, timeControl } from
 import { renderClock, createRoomChat } from './room-ui.js';
 import { rollNarde, randomDice } from './narde.js';
 import { createNardeBoard } from './narde-board.js';
+import { isNardeRoll } from './narde-dice.js';
 import { applyPoolShot, placePoolCue, remainingPool } from './pool.js';
 import { createPoolBoard } from './pool-board.js';
 
@@ -134,6 +135,7 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
+  if (animating && isNarde() && !game.winner) return ['Кости в движении…', 'Дождитесь результата броска.', '⚄'];
   if (animating) return game.winner && game.reason !== 'round' ? ['Красивый финал', 'Показываем анимацию победителя.', '✦'] : [isPool() ? 'Шары в движении' : 'Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
   if (mode === 'online' && !connected) return ['Соединение прервано', 'Восстанавливаем связь и вашу позицию…', '↻'];
@@ -142,7 +144,7 @@ function status() {
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
   if (isPool()) return [mode === 'online' ? 'Ваш удар' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Выберите шар и лузу. Прицельтесь и нажмите «Ударить».', '⑧'];
-  if (isNarde()) return [game.opening ? 'Кто начнёт партию?' : mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', game.dice.length ? 'Используйте кости: выберите фишку и подсвеченный пункт.' : 'Нажмите кнопку броска под доской.', '⚄'];
+  if (isNarde()) return [game.opening ? 'Кто начнёт партию?' : mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', game.dice.length ? 'Используйте кости: выберите фишку и подсвеченный пункт.' : 'Нажмите кнопку броска в центре доски.', '⚄'];
   if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
   if (isChess()) return [mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Перетащите фигуру или выберите её и клетку кликом.', '♞'];
   return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Перетащите шашку или выберите её и клетку кликом.', '↗'];
@@ -295,6 +297,13 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
+  if (isNardeRoll(previous,next,audible)) {
+    animating=true;
+    nardeBoard.animateRoll(next,()=>{animating=false;render();});
+    if(audible)sounds.transition(previous,next,room?.role);
+    return;
+  }
+  if(previous.revision!==next.revision||previous.variant!==next.variant){nardeBoard.cancel();if(previous.variant==='narde')animating=false;}
   if (mode === 'local' && next.winner && next.reason !== 'round') next.finishEffect = next.reason === 'resign' ? currentUser?.finishEffect || 'none' : currentUser?.victoryEffect || 'none';
   const finishing = isFinishTransition(previous, next, audible);
   const shot = audible && ['chapaev','pool8'].includes(next.variant) && previous.variant === next.variant && next.revision === previous.revision + 1 && next.lastShot?.revision === next.revision;
@@ -538,7 +547,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
   else if (game.history.length || game.path.length || isNarde() && game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
