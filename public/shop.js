@@ -1,4 +1,5 @@
 import { CATALOG } from './shop-catalog.js';
+import { pieceArt } from './skin-art.js';
 import { createRocketEffect } from './rocket.js';
 const $ = id => document.getElementById(id);
 let state = null, filter = 'all', effectSlot = 'victory', busy = false, pendingItem = null, previewItem = null;
@@ -30,7 +31,7 @@ function render() {
     const owned = isOwned(item), equipped = isEquipped(item);
     const card = el('article', '', 'shop-item'); card.dataset.equipped = String(equipped);
     const art = el('div', '', 'shop-art'); art.setAttribute('aria-hidden', 'true');
-    if (item.type === 'skin') for (const side of ['white', 'black']) art.append(el('span', '', `piece ${side} skin-${item.value}`));
+    if (item.type === 'skin') for (const side of ['white', 'black']) { const piece = el('span', '', `piece ${side} skin-${item.value}`); piece.innerHTML = pieceArt(item.value); art.append(piece); }
     else { art.dataset.effect = item.value; art.append(el('span', item.symbol, 'shop-art-symbol')); }
     if (owned) art.append(el('span', equipped ? 'Выбрано' : 'В коллекции', 'item-status'));
     const body = el('div', '', 'shop-item-body'), heading = el('div', '', 'item-heading');
@@ -88,8 +89,11 @@ $('purchase-close').onclick = $('purchase-cancel').onclick = closePurchase;
 $('purchase-dialog').addEventListener('cancel', event => { if (busy) event.preventDefault(); });
 function openPreview(item) {
   preview.cancel(); previewItem = item; $('preview-title').textContent = item.name;
-  $('preview-description').textContent = item.type === 'effect' ? `Пример анимации. В игре её увидят оба игрока ${effectSlot === 'victory' ? 'после вашей победы' : 'при сдаче вашего соперника'}.` : 'Ваши шашки сохраняют цвет стороны и получают выбранный материал. Правила игры остаются прежними.';
-  for (const side of ['white', 'black']) for (const suffix of ['', '-second']) $('preview-' + side + suffix).className = `piece ${side} skin-${item.type === 'skin' ? item.value : state?.user.pieceSkin || 'classic'}`;
+  $('preview-description').textContent = item.type === 'effect' ? `Пример анимации. В игре её увидят оба игрока ${effectSlot === 'victory' ? 'после вашей победы' : 'при сдаче вашего соперника'}.` : 'Ваши фишки сохраняют цвет стороны и получают выбранное оформление. Рисунок виден на доске, а дамки отмечены короной.';
+  for (const side of ['white', 'black']) for (const suffix of ['', '-second']) {
+    const skin = item.type === 'skin' ? item.value : state?.user.pieceSkin || 'classic', piece = $('preview-' + side + suffix);
+    piece.className = `piece ${side} skin-${skin}`; piece.innerHTML = pieceArt(skin);
+  }
   $('preview-replay').hidden = item.type !== 'effect' || item.value === 'none';
   $('preview-dialog').showModal(); replay();
 }

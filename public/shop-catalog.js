@@ -1,5 +1,7 @@
 export const CATALOG = Object.freeze([
   { id: 'skin-classic', type: 'skin', value: 'classic', name: 'Классика', description: 'Тёплое дерево и знакомый рельеф.', price: 0, symbol: '◉' },
+  { id: 'skin-fox', type: 'skin', value: 'fox', name: 'Лунный лис', description: 'Гравировка лисы, полумесяц и искры на фарфоре.', price: 100, symbol: '☾' },
+  { id: 'skin-compass', type: 'skin', value: 'compass', name: 'Роза ветров', description: 'Восемь лучей компаса на слоновой кости и обсидиане.', price: 120, symbol: '✥' },
   { id: 'skin-jade', type: 'skin', value: 'jade', name: 'Нефрит', description: 'Молочный камень и глубокий зелёный.', price: 60, symbol: '◈' },
   { id: 'skin-ice', type: 'skin', value: 'ice', name: 'Ледник', description: 'Ледяной голубой и ночной синий.', price: 90, symbol: '❄' },
   { id: 'skin-amber', type: 'skin', value: 'amber', name: 'Янтарь', description: 'Медовое золото и тёмная бронза.', price: 120, symbol: '✧' },
@@ -23,6 +25,8 @@ export function matchCoins(result, moves) {
   return Number.isInteger(moves) && moves >= 4 ? ({ win: 30, draw: 15, loss: 10 }[result] || 0) : 0;
 }
 export const SKIN_COLORS = Object.freeze({
+  fox: { white: ['#fff4de', '#e4cdb5', '#7b4b37'], black: ['#555165', '#24212f', '#ecd59b'] },
+  compass: { white: ['#f7f1d9', '#cec7ae', '#385a6a'], black: ['#3f5360', '#152b39', '#ecd59b'] },
   jade: { white: ['#f5ffe4', '#accb8e', '#71935d'], black: ['#66ab90', '#154737', '#94d4b4'] },
   ice: { white: ['#f4fdff', '#a1d6e9', '#5792bb'], black: ['#538cba', '#193850', '#91d8f3'] },
   amber: { white: ['#fff0b4', '#dba346', '#946426'], black: ['#b67e35', '#4e2f16', '#e7b85f'] },

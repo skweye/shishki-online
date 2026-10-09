@@ -14,7 +14,8 @@ export function transitionSounds(previous, next, role = null) {
   if (previous.winner && !next.winner) return ['start'];
   const sounds = [];
   if (next.variant === 'chapaev' && next.lastShot?.revision === next.revision) sounds.push(next.lastShot.ownLost + next.lastShot.otherLost ? 'capture' : 'move');
-  const move = legalMoves(previous).find(item => previous.board[item.from] && !next.board[item.from] && Math.sign(next.board[item.to]) === Math.sign(previous.board[item.from]));
+  if (next.variant === 'narde' && next.lastAction?.revision === next.revision) sounds.push(next.lastAction.kind === 'roll' ? 'start' : 'move');
+  const move = next.variant === 'narde' ? null : legalMoves(previous).find(item => previous.board[item.from] && !next.board[item.from] && Math.sign(next.board[item.to]) === Math.sign(previous.board[item.from]));
   if (move) {
     sounds.push(move.capture === null ? 'move' : 'capture');
     if (next.variant === 'chess' ? next.history.at(-1)?.promotion : Math.abs(previous.board[move.from]) === 1 && Math.abs(next.board[move.to]) === 2) sounds.push('promotion');

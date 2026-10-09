@@ -5,6 +5,7 @@ import { handleAuth, authenticatedUser, sessionActive } from './auth.js';
 import { writeResults } from './account-stats.js';
 import { createClock, expiredSide, advanceClock, timeoutGame, clockDeadline } from '../public/time-control.js';
 import { chatMessage } from './chat.js';
+import { rollNarde, randomDice } from '../public/narde.js';
 import { validEffect } from '../public/shop-catalog.js';
 export { PasswordService } from './password-service.js';
 
@@ -265,7 +266,11 @@ export class GameRoom extends DurableObject {
         if (!this.room.players.black) throw new Error('Дождитесь второго игрока.');
         if (data.revision !== this.room.game.revision) throw new Error('Позиция уже изменилась. Повторите действие.');
         const previous = structuredClone(this.room.game);
-        if (data.type === 'move' || data.type === 'shot') {
+        if (data.type === 'roll') {
+          if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
+          this.room.game = rollNarde(this.room.game, randomDice(this.room.game.opening));
+          this.room.drawOffer = null;
+        } else if (data.type === 'move' || data.type === 'shot') {
           if (this.room.game.winner) throw new Error('Партия уже завершена.');
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');
           this.room.game = data.type === 'shot' ? applyShot(this.room.game, data.id, data.dx, data.dy) : applyMove(this.room.game, data.from, data.to, data.promotion);

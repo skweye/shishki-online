@@ -1,5 +1,6 @@
 import { RADIUS, simulateShot, chapaevRows, chapaevLineup } from './chapaev.js';
 import { SKIN_COLORS } from './shop-catalog.js';
+import { drawEngraving } from './skin-art.js';
 import { pieceReaction } from './finish-interactions.js';
 
 export function createChapaevBoard({ shoot, impact }) {
@@ -43,7 +44,8 @@ export function createChapaevBoard({ shoot, impact }) {
       ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS, 0, Math.PI * 2); ctx.fillStyle = gradient; ctx.fill();
       ctx.strokeStyle = white ? '#f8edda' : '#928170'; ctx.lineWidth = .018; ctx.stroke();
       ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS * .7, 0, Math.PI * 2); ctx.strokeStyle = colors?.[2] || (white ? '#ac967b' : '#9a887a'); ctx.stroke();
-      ctx.fillStyle = white ? '#675747' : '#eee1cf'; ctx.font = '500 .19px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(piece.id % 8 + 1), p.x, p.y);
+      const engraved = drawEngraving(ctx, skins[piece.side], p.x, p.y, RADIUS, piece.side);
+      ctx.fillStyle = white ? '#675747' : '#eee1cf'; ctx.font = engraved ? '600 .105px system-ui' : '500 .19px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(piece.id % 8 + 1), p.x, p.y + (engraved ? RADIUS * .9 : 0));
       if (piece.id === selected && playable && !animation) {
         ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS + .07, 0, Math.PI * 2); ctx.strokeStyle = accent; ctx.lineWidth = .04; ctx.stroke();
       }

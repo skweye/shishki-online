@@ -69,7 +69,7 @@ export function createPieceInteractions(frame) {
     cancel(); canvasBoard = options.canvasBoard;
     const rect = frame.getBoundingClientRect(), width = frame.clientWidth, height = frame.clientHeight;
     layer = document.createElement('div'); layer.className = 'finish-pieces'; layer.setAttribute('aria-hidden', 'true');
-    const pieces = [...frame.querySelectorAll('#board .piece, .preview-checkers .piece')].filter(node => node.getBoundingClientRect().width && !node.classList.contains('captured')).map(node => {
+    const pieces = [...frame.querySelectorAll('#board .piece, #narde-board .piece, .preview-checkers .piece')].filter(node => node.getBoundingClientRect().width && !node.classList.contains('captured')).map(node => {
       const bounds = node.getBoundingClientRect(), style = getComputedStyle(node), clone = node.cloneNode(true), proxy = document.createElement('div');
       clone.removeAttribute('id'); clone.querySelectorAll('[id]').forEach(child => child.removeAttribute('id'));
       proxy.className = 'finish-piece-proxy';

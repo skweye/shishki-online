@@ -6,10 +6,13 @@ import { createSounds } from './sounds.js';
 import { authReady, currentUser } from './auth.js';
 import { createRocketEffect, isFinishTransition } from './rocket.js';
 import { validSkin } from './shop-catalog.js';
+import { pieceArt } from './skin-art.js';
 import { applyShot, nextChapaevRound } from './chapaev.js';
 import { createChapaevBoard } from './chapaev-board.js';
 import { createClock, expiredSide, advanceClock, timeoutGame, timeControl } from './time-control.js';
 import { renderClock, createRoomChat } from './room-ui.js';
+import { rollNarde, randomDice } from './narde.js';
+import { createNardeBoard } from './narde-board.js';
 
 const $ = id => document.getElementById(id);
 const names = { white: 'Белые', black: 'Чёрные' };
@@ -23,6 +26,7 @@ let shownResult = null;
 let animating = false;
 let clockSync = { now: Date.now(), received: performance.now() };
 const isChess = () => variantOf(game) === 'chess';
+const isNarde = () => variantOf(game) === 'narde';
 const chessNames = ['', 'пешка', 'конь', 'слон', 'ладья', 'ферзь', 'король'];
 let promotionMove = null;
 const isChapaev = () => variantOf(game) === 'chapaev';
@@ -36,7 +40,7 @@ for (const variant of Object.keys(VARIANTS)) {
   localGames[variant] = newGame(variant);
   try {
     const saved = JSON.parse(storage.get(localKey(variant)));
-    if (saved && variantOf(saved) === variant && saved.board?.length === VARIANTS[variant].size ** 2 && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
+    if (saved && variantOf(saved) === variant && saved.board?.length === (VARIANTS[variant].points || VARIANTS[variant].size ** 2) && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
       if (variant === 'chapaev' && (!Array.isArray(saved.pieces) || saved.pieces.length > 16 || saved.pieces.some(p => !Number.isInteger(p.id) || !['white', 'black'].includes(p.side) || !Number.isFinite(p.x) || !Number.isFinite(p.y)))) throw new Error('Invalid saved pieces');
       legalMoves(saved); localGames[variant] = saved;
     }
@@ -73,19 +77,24 @@ function updateClock() {
 function pieceHTML(piece, captured = false) {
   if (isChess()) return '<span class="piece chess-piece '+sideOf(piece)+'" aria-hidden="true">'+['', '♟', '♞', '♝', '♜', '♛', '♚'][Math.abs(piece)]+'</span>';
   const skin = skinFor(sideOf(piece));
-  return `<span class="piece ${sideOf(piece)} skin-${skin} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
+  return `<span class="piece ${sideOf(piece)} skin-${skin} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${pieceArt(skin)}${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
 }
 function skinFor(side) { return validSkin(mode === 'local' ? currentUser?.pieceSkin : room?.cosmetics?.[side]?.skin); }
 function playerHTML(side) {
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
-  const count = isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
+  const count = isNarde() ? 15-game.off[side] : isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
   return `<div class="player-avatar">${pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div></div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
-  $('board').hidden = isChapaev(); $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
+  $('board').hidden = isChapaev() || isNarde(); $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
+  $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
+  if (isNarde()) {
+    nardeBoard.render(game,flipped,canPlay(),{white:skinFor('white'),black:skinFor('black')});
+    $('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;
+  }
   if (isChapaev()) {
     chapaevBoard.render(game, flipped, canPlay(), { white: skinFor('white'), black: skinFor('black') });
     $('top-player').innerHTML = playerHTML(flipped ? 'white' : 'black');
@@ -120,6 +129,7 @@ function status() {
   if (isChess() && game.check) return mode === 'online' && game.turn !== room.role ? ['Шах', 'Король соперника под шахом. Дождитесь его хода.', '♚'] : ['Шах вашему королю', 'Защитите короля: уйдите, закройтесь или возьмите атакующую фигуру.', '♚'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
+  if (isNarde()) return [game.opening ? 'Кто начнёт партию?' : mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', game.dice.length ? 'Используйте кости: выберите фишку и подсвеченный пункт.' : 'Нажмите кнопку броска под доской.', '⚄'];
   if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
   if (isChess()) return [mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Перетащите фигуру или выберите её и клетку кликом.', '♞'];
   return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Перетащите шашку или выберите её и клетку кликом.', '↗'];
@@ -132,10 +142,10 @@ function renderHistory() {
     $('history').innerHTML = '<div class="empty-history"><span aria-hidden="true">↗</span><p>У каждой партии есть начало.<br>Сделайте первый ход.</p></div>'; return;
   }
   const rows = [];
-  if (isChapaev()) {
+  if (isChapaev() || isNarde()) {
     game.history.forEach((move, i) => {
       const row = document.createElement('div'); row.className = 'history-row';
-      for (const text of [`Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
+      for (const text of [isNarde() ? String(i+1) : `Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
         const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
       }
       rows.push(row);
@@ -156,10 +166,15 @@ function render() {
   renderBoard(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
-  $('variant-description').textContent = isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
+  $('variant-description').textContent = isNarde() ? '24 пункта · По 15 фишек · Без часов' : isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
   $('move-help').textContent = isChess() ? 'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.' : isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
   $('board-tip').innerHTML = isChess() ? '<span aria-hidden="true">♚</span><p><strong>Берегите короля</strong><br>Рокировка — ход королём на две клетки. Цель игры — поставить мат.</p>' : isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
   $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
+  if (isNarde()) {
+    $('move-help').textContent='Нажмите на фишку и пункт назначения или перетащите её.';
+    $('board-tip').innerHTML='<span aria-hidden="true">⚄</span><p><strong>Дорога домой</strong><br>Проведите все 15 фишек в дом и выведите их раньше соперника.</p>';
+    $('local-note').querySelector('p').textContent='Первый ход определят кости: большее число начинает.';
+  }
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
@@ -201,6 +216,7 @@ function renderResult() {
   $('result-rematch').disabled = $('rematch-button').disabled;
   $('result-hint').textContent = mode === 'local' ? 'Новая партия на этой же доске. Белые начинают.' : !connected ? 'Восстанавливаем соединение с комнатой…' : room.rematch?.includes(room.role) ? 'Предложение отправлено. Новая партия начнётся, когда соперник согласится.' : room.rematch?.length ? 'Соперник предлагает сыграть ещё раз. Примите реванш, чтобы начать.' : 'Реванш начнётся, когда оба игрока согласятся.';
   if (game.reason === 'round') $('result-hint').textContent = (mode === 'online' ? 'Следующий раунд начнётся, когда оба игрока будут готовы. ' : '') + `Очередь сохраняется: следующий удар у ${game.turn === 'white' ? 'белых' : 'чёрных'}.`;
+  if (isNarde() && mode === 'local') $('result-hint').textContent='Новая партия на этой же доске. Первый ход определят кости.';
   const key = `${room?.code || 'local'}:${game.revision}:${game.winner}`;
   if (shownResult !== key) {
     shownResult = key;
@@ -229,6 +245,11 @@ const boardDrag = attachBoardDrag($('board'), {
   select: from => { selected = from; renderBoard(true); },
   move: playMove
 });
+const nardeBoard = createNardeBoard({move:playMove,roll(){
+  if(!canPlay())return;
+  if(mode==='online')send({type:'roll'});
+  else {acceptGame(rollNarde(game,randomDice(game.opening)));selected=null;localSave();render();}
+}});
 const chapaevBoard = createChapaevBoard({
   impact: () => sounds.play('impact'),
   shoot(id, dx, dy) {
@@ -392,6 +413,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
+  nardeBoard.cancel();
   rocketEffect.cancel();
   chapaevBoard.cancel(); animating = false;
   boardDrag.cancel();
@@ -421,7 +443,7 @@ function updateStart() {
   updateBackdrop();
   const local = $('start-form').elements['play-mode'].value === 'local';
   const saved = localGames[$('start-form').elements.variant.value];
-  const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length);
+  const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || saved.variant === 'narde' && saved.revision > 0);
   $('start-button').innerHTML = `${local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
   $('start-hint').textContent = local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
 }
@@ -450,8 +472,9 @@ $('start-form').onsubmit = async event => {
 $('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
-  $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = ['chapaev', 'chess'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
+  $('narde-rules').hidden = variant !== 'narde'; $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = ['chapaev', 'chess', 'narde'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
   $('rules-variant').textContent = variant === 'chess' ? 'Классические шахматы. Белые начинают, взятие не обязательно.' : variant === 'chapaev' ? 'Чапаев: партия из раундов на доске 8×8. Выигрывайте раунды и оттесняйте соперника к краю.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
+  if(variant==='narde')$('rules-variant').textContent='Длинные нарды: 24 пункта, по 15 фишек. Без сбивания, часов и куба удвоения.';
   $('rules-dialog').showModal();
 };
 $('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
@@ -484,7 +507,7 @@ $('copy-button').onclick = async () => {
 function resetLocal() { chapaevBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
-  else if (game.history.length || game.path.length) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
+  else if (game.history.length || game.path.length || isNarde() && game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
   else resetLocal();
 };
 function finishLocal(winner, reason) {

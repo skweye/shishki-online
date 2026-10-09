@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { applyShot } from '../public/chapaev.js';
+import { legalMoves } from '../public/game.js';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
 async function post(path, body = {}) {
@@ -24,6 +25,40 @@ function client(code, token) {
   }
   return { ws, wait, async send(data) { await delay(110); ws.send(JSON.stringify(data)); } };
 }
+
+test('long narde synchronizes server dice and partial turns, restores, rejects cheating and rematches', async()=>{
+  const {data:room}=await post('/api/rooms',{variant:'narde'});
+  assert.equal(room.game.board.length,24);assert.equal(room.clock,null);
+  const {data:joined}=await post(`/api/rooms/${room.code}/join`);
+  const white=client(room.code,room.token),black=client(room.code,joined.token),players={white,black};
+  try {
+    await white.wait(m=>m.type==='state'&&m.ready);await black.wait(m=>m.type==='state'&&m.ready);
+    await black.send({type:'roll',revision:0});await black.wait(m=>m.type==='error'&&m.message.includes('соперника'));
+    await white.send({type:'roll',revision:0,dice:[99,99]});
+    let state=await white.wait(m=>m.type==='state'&&m.game.revision===1);
+    assert.ok(state.game.dice.every(n=>n>=1&&n<=6));assert.notEqual(state.game.dice[0],state.game.dice[1]);
+    assert.deepEqual((await black.wait(m=>m.type==='state'&&m.game.revision===1)).game,state.game);
+    const active=players[state.game.turn];
+    await active.send({type:'roll',revision:1});await active.wait(m=>m.type==='error');
+    await active.send({type:'move',from:0,to:12,revision:1});await active.wait(m=>m.type==='error');
+    while(state.game.dice.length){
+      const before=state.game,move=legalMoves(before)[0];
+      await players[before.turn].send({type:'move',from:move.from,to:move.to,promotion:move.die,revision:before.revision});
+      state=await white.wait(m=>m.type==='state'&&m.game.revision===before.revision+1);
+      assert.deepEqual((await black.wait(m=>m.type==='state'&&m.game.revision===before.revision+1)).game,state.game);
+      const {data:restored}=await post(`/api/rooms/${room.code}/join`,{token:room.token});
+      assert.deepEqual(restored.game,state.game);assert.equal(restored.clock,null);
+    }
+    assert.equal(state.game.history.length,1);
+    await white.send({type:'chat',text:'Удачной партии в нарды!'});
+    assert.equal((await black.wait(m=>m.type==='chat')).message.text,'Удачной партии в нарды!');
+    await white.send({type:'resign',revision:state.game.revision});
+    state=await white.wait(m=>m.type==='state'&&m.game.winner==='black');
+    await white.send({type:'rematch',revision:state.game.revision});await black.send({type:'rematch',revision:state.game.revision});
+    const fresh=await white.wait(m=>m.type==='state'&&!m.game.winner&&m.game.revision>state.game.revision);
+    assert.equal(fresh.game.variant,'narde');assert.equal(fresh.game.opening,true);assert.equal(fresh.game.board[0],15);assert.equal(fresh.clock,null);
+  } finally {white.ws.close();black.ws.close();}
+});
 
 test('chess rooms synchronize legal moves, reject cheating, detect mate and keep variant on rematch', { timeout: 30000 }, async t => {
   const {data: room}=await post('/api/rooms',{variant:'chess'});
