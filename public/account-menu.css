@@ -1,3 +1,4 @@
+.header-actions { display:flex; align-items:center; flex-shrink:0; }
 .account-anchor { position:relative; }
 .account-menu,.account-submenu { background:var(--theme-panel); color:var(--theme-text); border:1px solid var(--theme-border); border-radius:12px; box-shadow:0 12px 40px #0004; padding:6px; z-index:100; }
 .account-menu { position:absolute; right:0; top:calc(100% + 10px); width:232px; animation:menu-in .14s ease-out; }

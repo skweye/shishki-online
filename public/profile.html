@@ -6,11 +6,11 @@
   <title>Мой профиль — Шашки онлайн</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/themes.css">
-  <link rel="stylesheet" href="/account-menu.css"><link rel="stylesheet" href="/glass.css">
+  <link rel="stylesheet" href="/account-menu.css"><link rel="stylesheet" href="/auth.css"><link rel="stylesheet" href="/glass.css">
   <link rel="stylesheet" href="/profile-page.css">
   <link rel="stylesheet" href="/shop.css">
   <script src="/theme.js"></script><script type="module" src="/profile-page.js"></script>
-</head>
+<script type="module" src="/account-page.js"></script></head>
 <body class="profile-page">
   <div class="ambient-scene" aria-hidden="true"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i></div>
   <header class="site-header">
@@ -69,7 +69,7 @@
             </form>
             <div class="account-details"><span class="subtle">Почта аккаунта</span><strong id="account-email"></strong><p id="account-method"></p><p id="account-verification" class="subtle"></p><a id="connect-google" class="secondary-button" href="/api/auth/google?returnTo=%2Fprofile" hidden>Подключить Google</a></div>
           </section>
-          <section class="profile-surface content-card appearance-card"><details><summary>Оформление <span aria-hidden="true">＋</span></summary><div id="theme-options" role="menu" aria-label="Тема оформления"></div></details></section>
+
           <section class="profile-surface content-card security-card" aria-labelledby="account-actions-title"><h2 id="account-actions-title">Управление аккаунтом</h2><button id="sign-out" class="secondary-button">Выйти из аккаунта</button><p id="logout-error" class="feedback" role="status"></p><div class="danger-zone"><h3>Удаление аккаунта</h3><p>Профиль, аватар, личная статистика, монеты и коллекция будут удалены. Все сеансы входа завершатся. Отменить удаление нельзя.</p><button id="open-delete" class="danger-button">Удалить аккаунт</button></div></section>
         </div>
       </div>

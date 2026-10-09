@@ -1,6 +1,7 @@
 import { translations, patterns } from './locales.js';
 const key = 'shashki-language-v1';
 let selected = 'ru';
+const pageTitle = typeof document === 'undefined' ? '' : document.title;
 try { const saved = localStorage.getItem(key); if (['ru', 'en', 'uk'].includes(saved)) selected = saved; } catch {}
 export const language = () => selected;
 export function t(text, locale = selected) {
@@ -45,7 +46,7 @@ export function translatePage() {
     else for (const attribute of attributes) translateValue(node, attribute, () => node.getAttribute(attribute), value => node.setAttribute(attribute, value));
   }
   document.documentElement.lang = selected;
-  document.title = t('Шашки — хорошая партия начинается здесь');
+  document.title = t(pageTitle);
   observer?.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: attributes });
 }
 export function setLanguage(locale) {

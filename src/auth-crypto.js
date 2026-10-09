@@ -37,6 +37,8 @@ export function safeReturnTo(value) {
   if (value === '/profile') return '/profile';
   if (value === '/shop') return '/shop';
   if (value === '/admin') return '/admin';
+  if (value === '/privacy') return '/privacy';
+  if (value === '/terms') return '/terms';
   if (typeof value !== 'string' || !value.startsWith('/?room=')) return '/';
   try { const code = new URL(value, 'https://local.invalid').searchParams.get('room'); return /^[A-F0-9]{12}$/.test(code) ? '/?room=' + code : '/'; } catch { return '/'; }
 }

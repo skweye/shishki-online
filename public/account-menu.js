@@ -1,3 +1,4 @@
+import './account-shell.js';
 import { language, setLanguage } from './i18n.js';
 const $ = id => document.getElementById(id);
 const menu = $('account-menu'), trigger = $('account-button');

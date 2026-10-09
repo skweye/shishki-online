@@ -1,3 +1,4 @@
+import { syncAccount } from './auth.js';
 const $ = id => document.getElementById(id);
 const modes = [
   ['russian', 'Русские шашки', 'Классическая доска 8 × 8', '▦'],
@@ -30,6 +31,7 @@ function avatar(target, source, name) {
 }
 function feedback(id, message, error = false) { $(id).textContent = message; $(id).dataset.error = String(error); }
 function showUser(value) {
+  syncAccount(value);
   user = value; draftAvatar = value.avatar;
   $('hero-name').textContent = user.name;
   $('admin-link').hidden = !user.isAdmin;
@@ -139,7 +141,7 @@ $('delete-form').onsubmit = async event => {
   try {
     await request('delete-account', data);
     $('delete-form').reset(); $('delete-dialog').close();
-    user = null; draftAvatar = null; $('account-content').hidden = true; $('account-content').replaceChildren();
+    user = null; syncAccount(null); draftAvatar = null; $('account-content').hidden = true; $('account-content').replaceChildren();
     $('page-state').hidden = false; $('sign-in').hidden = true; $('retry').hidden = true;
     $('state-title').textContent = 'Аккаунт удалён';
     $('state-description').textContent = 'Профиль и личная статистика удалены, все сеансы завершены. Вы по-прежнему можете играть как гость — перейдите к игре.';

@@ -21,6 +21,7 @@ function update(user, broadcast = true) {
   $('logout-button').hidden = !user;
   if (broadcast) document.dispatchEvent(new CustomEvent('accountchange', { detail: user }));
 }
+export function syncAccount(user) { update(user, false); }
 async function request(path, data) {
   const response = await fetch('/api/auth/' + path, {
     method: data === undefined ? 'GET' : 'POST', credentials: 'same-origin',
@@ -77,7 +78,7 @@ for (const type of ['login', 'register']) {
       $('auth-login-form').reset(); $('auth-register-form').reset();
       $('auth-dialog').close(); update(result.user);
       const destination = new URL(location.href).searchParams.get('returnTo');
-      if (['profile', 'shop', 'admin'].includes(destination)) { location.assign('/' + destination); return; }
+      if (['profile', 'shop', 'admin', 'privacy', 'terms'].includes(destination)) { location.assign('/' + destination); return; }
       notify(type === 'register' ? 'Аккаунт создан. Приятной игры!' : 'Вы вошли в аккаунт.');
     } catch (error) { $('auth-error').textContent = error.message; }
     finally {
@@ -90,8 +91,8 @@ for (const type of ['login', 'register']) {
 function google() {
   if (!googleEnabled) return;
   const room = new URL(location.href).searchParams.get('room');
-  const destination = new URL(location.href).searchParams.get('returnTo');
-  const returnTo = ['profile', 'shop', 'admin'].includes(destination) ? '/' + destination : /^[A-F0-9]{12}$/.test(room || '') ? '/?room=' + room : '/';
+  const destination = new URL(location.href).searchParams.get('returnTo') || location.pathname.replace(/^\//, '').replace(/\.html$/, '');
+  const returnTo = ['profile', 'shop', 'admin', 'privacy', 'terms'].includes(destination) ? '/' + destination : /^[A-F0-9]{12}$/.test(room || '') ? '/?room=' + room : '/';
   location.assign('/api/auth/google?returnTo=' + encodeURIComponent(returnTo));
 }
 $('google-signin').onclick = google;
@@ -132,7 +133,7 @@ export const authReady = request('session').then(data => {
 });
 const url = new URL(location.href), authError = url.searchParams.get('auth_error');
 if (url.searchParams.get('login') === '1' && !authError) authReady.then(() => {
-  if (currentUser && ['profile', 'shop', 'admin'].includes(url.searchParams.get('returnTo'))) location.assign('/' + url.searchParams.get('returnTo'));
+  if (currentUser && ['profile', 'shop', 'admin', 'privacy', 'terms'].includes(url.searchParams.get('returnTo'))) location.assign('/' + url.searchParams.get('returnTo'));
   else openAuth();
 });
 if (authError) {

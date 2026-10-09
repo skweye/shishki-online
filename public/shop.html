@@ -4,9 +4,9 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#29211e">
   <title>Магазин и коллекция — Шашки</title><link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/themes.css"><link rel="stylesheet" href="/account-menu.css">
-  <link rel="stylesheet" href="/glass.css"><link rel="stylesheet" href="/profile-page.css"><link rel="stylesheet" href="/rocket.css"><link rel="stylesheet" href="/cosmetics.css"><link rel="stylesheet" href="/shop.css">
+  <link rel="stylesheet" href="/auth.css"><link rel="stylesheet" href="/glass.css"><link rel="stylesheet" href="/profile-page.css"><link rel="stylesheet" href="/rocket.css"><link rel="stylesheet" href="/cosmetics.css"><link rel="stylesheet" href="/shop.css">
   <script src="/theme.js"></script><script type="module" src="/shop.js"></script>
-</head>
+<script type="module" src="/account-page.js"></script></head>
 <body class="profile-page shop-page">
   <div class="ambient-scene" aria-hidden="true"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i></div>
   <header class="site-header"><a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a><span class="header-caption">Хорошая игра в вашем стиле.</span><a href="/profile" class="back-link">Мой профиль ↗</a></header>
@@ -18,7 +18,7 @@
     <section class="profile-surface effect-settings" aria-labelledby="effects-title"><div><h2 id="effects-title">Ваш эффектный финал</h2><p>Одна покупка — для обоих случаев. Выберите событие, затем эффект в каталоге.</p></div><div class="effect-slots" role="group" aria-label="Когда показывать анимацию"><button data-slot="victory" aria-pressed="true"><strong>При победе</strong><span id="victory-choice">Без эффекта</span></button><button data-slot="resign" aria-pressed="false"><strong>При сдаче соперника</strong><span id="resign-choice">Без эффекта</span></button></div><p id="slot-description">Выбираете анимацию обычной победы: мат, взятие последней шашки или победа по времени.</p></section>
     <section aria-labelledby="catalog-title"><div class="section-heading"><h2 id="catalog-title">Ваша следующая находка</h2><span class="subtle" id="collection-count"></span></div><div id="shop-catalog" class="shop-grid"></div></section>
     <p class="stats-note">Скины работают в шашках 8 × 8, 12 × 12, Чапаева и длинных нардах. Анимация победителя видна обоим игрокам во всех режимах. При ничьей и между раундами Чапаева финальные эффекты не запускаются. Оформление не меняет правила и исход партии.</p>
-    <details class="shop-appearance"><summary>Оформление страницы</summary><div id="theme-options" role="menu" aria-label="Тема оформления"></div></details>
+
     <footer><a href="/">← К игре</a><a href="/profile">Профиль</a><a href="/privacy">Конфиденциальность</a></footer>
   </main>
   <dialog id="purchase-dialog" aria-labelledby="purchase-title"><div class="dialog-heading"><h2 id="purchase-title">Покупка</h2><button class="icon-button" id="purchase-close" aria-label="Отмена">×</button></div><p id="purchase-description"></p><p class="subtle">Предмет останется в вашей коллекции. После покупки его можно выбрать для игры.</p><p id="purchase-error" class="feedback" role="alert"></p><div class="delete-actions"><button id="purchase-cancel" class="secondary-button">Отмена</button><button id="purchase-confirm" class="primary-button">Купить</button></div></dialog>

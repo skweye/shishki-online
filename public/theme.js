@@ -16,7 +16,8 @@
     if (!theme) return;
     selected = id;
     document.documentElement.dataset.theme = id;
-    document.querySelector('meta[name="theme-color"]').content = theme[3];
+    const color = document.querySelector('meta[name="theme-color"]');
+    if (color) color.content = theme[3];
     document.querySelectorAll('[data-theme-choice]').forEach(button => button.setAttribute('aria-checked', String(button.dataset.themeChoice === id)));
   }
   apply(selected);
