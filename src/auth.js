@@ -2,7 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
 import { shopState, buyItem, equipItem } from './shop.js';
-import { adminOverview, changeShopAccess } from './admin.js';
+import { adminOverview, changeShopAccess, grantAdmin } from './admin.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
 const SESSION_AGE = 30 * 24 * 3600;
@@ -138,13 +138,13 @@ export async function handleAuth(request, env, ctx, readBody) {
       if (!await limit(env, 'admin:' + user.id, 120, 600)) return error('Слишком много запросов. Попробуйте позже.', 429);
       try {
         if (request.method === 'GET' && path === '/api/auth/admin') return json(await adminOverview(env, user.id, url.searchParams.get('q') || '', Number(url.searchParams.get('offset') || 0)));
-        if (request.method !== 'POST' || path !== '/api/auth/admin/shop-access') return error('Запрос не найден.', 404);
+        if (request.method !== 'POST' || !['/api/auth/admin/shop-access', '/api/auth/admin/grant-admin'].includes(path)) return error('Запрос не найден.', 404);
         if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
         if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
         let data;
         try { data = await readBody(request, 2048); } catch { return error('Некорректный запрос.'); }
         if (!data || typeof data !== 'object' || Array.isArray(data)) return error('Некорректный запрос.');
-        return json(await changeShopAccess(env, user.id, data));
+        return json(await (path === '/api/auth/admin/grant-admin' ? grantAdmin(env, user.id, data) : changeShopAccess(env, user.id, data)));
       } catch (cause) { if (cause.status) return error(cause.message, cause.status); throw cause; }
     }
     if (request.method === 'GET' && path === '/api/auth/account') {

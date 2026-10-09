@@ -30,3 +30,17 @@ export async function changeShopAccess(env, actorId, data) {
   if (!result[0].meta.changes) fail('Доступ уже изменён, игрок удалён или это аккаунт администратора. Обновите список.', 409);
   return { updated: true };
 }
+
+export async function grantAdmin(env, actorId, data) {
+  if (typeof data.userId !== 'string' || !data.userId || data.userId.length > 100) fail('Выберите зарегистрированного игрока.');
+  // Every administrator has the same authority, including appointing other admins.
+  const result = await env.AUTH_DB.batch([
+    env.AUTH_DB.prepare(`UPDATE users SET is_admin = 1, shop_access = 1
+      WHERE id = ? AND is_admin = 0 AND EXISTS(SELECT 1 FROM users actor WHERE actor.id = ? AND actor.is_admin = 1)`)
+      .bind(data.userId, actorId),
+    env.AUTH_DB.prepare("INSERT INTO admin_audit(id, actor_id, target_id, action, created_at) SELECT ?, ?, ?, 'grant_admin', ? WHERE changes() > 0")
+      .bind(crypto.randomUUID(), actorId, data.userId, Math.floor(Date.now() / 1000))
+  ]);
+  if (!result[0].meta.changes) fail('Игрок уже администратор, аккаунт удалён или ваши права изменились. Обновите список.', 409);
+  return { updated: true };
+}

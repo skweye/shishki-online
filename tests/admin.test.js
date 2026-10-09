@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
-import { adminOverview, changeShopAccess } from '../src/admin.js';
+import { adminOverview, changeShopAccess, grantAdmin } from '../src/admin.js';
 import { handleAuth } from '../src/auth.js';
 import { digest } from '../src/auth-crypto.js';
 function setup() {
@@ -36,6 +36,47 @@ test('admin endpoints deny anonymous and regular players and validate CSRF and t
     const result=await request('owner');assert.equal(result.status,200);assert.equal((await result.json()).users.length,2);
     assert.equal((await request('owner','POST','/api/auth/admin/shop-access',{userId:'player',enabled:true,expected:false})).status,200);
     assert.equal(db.prepare('SELECT is_admin FROM users WHERE id=?').get('player').is_admin,0);
+  } finally {db.close();}
+});
+
+test('only admins can appoint peers; new admins immediately get identical authority and full shop access', async()=>{
+  const {db,env,request}=setup();try {
+    const path='/api/auth/admin/grant-admin', data={userId:'player'};
+    assert.equal((await request(null,'POST',path,data)).status,401);
+    assert.equal((await request('player','POST',path,data)).status,403);
+    assert.equal((await request('owner','POST',path,data,'https://evil.example')).status,403);
+    assert.equal((await request('owner','POST',path,{userId:1})).status,400);
+    assert.equal((await request('owner','POST',path,{userId:'missing'})).status,409);
+    assert.equal((await request('owner','POST',path,data)).status,200);
+    assert.equal((await request('owner','POST',path,data)).status,409);
+    const player=db.prepare('SELECT is_admin,shop_access FROM users WHERE id=?').get('player');
+    assert.equal(player.is_admin,1);assert.equal(player.shop_access,1);
+    assert.equal((await request('player')).status,200);
+    assert.equal((await (await request('player','GET','/api/auth/session')).json()).user.isAdmin,true);
+    db.prepare('INSERT INTO users(id,name,email,created_at) VALUES(?,?,?,?)').run('third','Third','third@example.invalid',3);
+    assert.equal((await request('player','POST','/api/auth/admin/shop-access',{userId:'third',enabled:true,expected:false})).status,200);
+    assert.equal((await request('player','POST',path,{userId:'third'})).status,200);
+    const audit=db.prepare("SELECT actor_id,target_id FROM admin_audit WHERE action='grant_admin' ORDER BY target_id").all();
+    assert.deepEqual(audit.map(r=>[r.actor_id,r.target_id]),[['owner','player'],['player','third']]);
+    await assert.rejects(changeShopAccess(env,'player',{userId:'owner',enabled:false,expected:true}),{status:409});
+    // The mutation rechecks the actor inside SQL, even if a prior session check succeeded.
+    db.exec("UPDATE users SET is_admin=0 WHERE id='player'");
+    db.prepare('INSERT INTO users(id,name,email,created_at) VALUES(?,?,?,?)').run('fourth','Fourth','fourth@example.invalid',4);
+    await assert.rejects(grantAdmin(env,'player',{userId:'fourth'}),{status:409});
+    assert.equal(db.prepare("SELECT COUNT(*) AS n FROM admin_audit WHERE action='grant_admin'").get().n,2);
+  } finally {db.close();}
+});
+
+test('admin audit migration preserves existing history and account deletion still anonymizes it',()=>{
+  const db=new DatabaseSync(':memory:');try {
+    db.exec('PRAGMA foreign_keys=ON');
+    for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')&&f<'0008').sort()) db.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+    db.exec("INSERT INTO users(id,name,email,created_at) VALUES('old','Old','old@example.invalid',1); INSERT INTO admin_audit VALUES('history','old','old','grant_shop',1)");
+    db.exec(readFileSync(new URL('../migrations/0008_admin_grants.sql',import.meta.url),'utf8'));
+    assert.equal(db.prepare("SELECT action FROM admin_audit WHERE id='history'").get().action,'grant_shop');
+    db.exec("DELETE FROM users WHERE id='old'");
+    const row=db.prepare("SELECT actor_id,target_id FROM admin_audit WHERE id='history'").get();
+    assert.equal(row.actor_id,null);assert.equal(row.target_id,null);
   } finally {db.close();}
 });
 test('grant/revoke is audited once, protects admins, preserves purchases and rejects stale writes',async()=>{
