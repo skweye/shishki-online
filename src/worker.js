@@ -266,7 +266,11 @@ export class GameRoom extends DurableObject {
         session.lastMessage = actionNow; ws.serializeAttachment(session);
         if (data.type === 'sync') { ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) })); return; }
         if (!this.room.players.black) throw new Error('Дождитесь второго игрока.');
-        if (data.revision !== this.room.game.revision) throw new Error('Позиция уже изменилась. Повторите действие.');
+        // Independent fleets may be submitted against the same setup snapshot.
+        // The setup base prevents delayed commands from an earlier match entering a rematch.
+        const game = this.room.game;
+        const parallelFleet = data.type === 'fleet-ready' && game.variant === 'battleship' && game.phase === 'setup' && !game.ready[role] && Number.isInteger(data.revision) && data.revision >= game.revision - Number(game.ready.white) - Number(game.ready.black) && data.revision <= game.revision;
+        if (data.revision !== game.revision && !parallelFleet) throw new Error('Позиция уже изменилась. Повторите действие.');
         const previous = structuredClone(this.room.game);
         if (['fleet-ready','sea-fire'].includes(data.type)) {
           this.room.game = actBattleship(this.room.game, role, data); this.room.drawOffer = null;

@@ -73,7 +73,7 @@ function confirm(title, message, action, label = 'Продолжить') {
 }
 function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
 function serverTime() { return clockSync.now + performance.now() - clockSync.received; }
-function canPlay() { return !animating && !game.winner && !expiredSide(mode === 'local' ? game.clock : room?.clock, game, mode === 'local' ? Date.now() : serverTime()) && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
+function canPlay() { if(isSea()&&game.phase==='setup'&&mode==='online')return !animating&&!game.winner&&!!room?.ready&&connected&&!pending&&!game.ready[room.role]; return !animating && !game.winner && !expiredSide(mode === 'local' ? game.clock : room?.clock, game, mode === 'local' ? Date.now() : serverTime()) && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
 function expireLocal() {
   if (mode !== 'local') return false;
   const now = Date.now(), loser = expiredSide(game.clock, game, now);
@@ -117,7 +117,7 @@ function renderBoard(keepDrag = false) {
   document.querySelector('.game-layout').classList.toggle('pool-layout',isPool());
   $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
-  if(isSea()){seaBoard.render(game,{mode,role:room?.role,enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
+  if(isSea()){seaBoard.render(game,{mode,role:room?.role,roomCode:room?.code,enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isDomino()){
     dominoBoard.render(game,{mode,role:room?.role,enabled:game.roundResult ? !game.winner&&(mode==='local'||connected&&room?.ready&&!pending) : canPlay()});
     $('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;

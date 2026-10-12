@@ -20,12 +20,12 @@ test('battleship validates fleets and shots, preserves secrecy on every response
   }
   try{
     await a.wait(m=>m.type==='state'&&m.ready);await b.wait(m=>m.type==='state'&&m.ready);
-    await b.send({type:'fleet-ready',fleet:fleets.black,revision});await b.wait(m=>m.type==='error');
     await a.send({type:'fleet-ready',fleet:[[0]],revision});await a.wait(m=>m.type==='error');
     await a.send({type:'fleet-ready',fleet:fleets.white,revision});revision++;await receive();
     const resume=await post(`/api/rooms/${room.code}/join`,{token:joined.token});assert.deepEqual(resume.game.fleets.white,[]);
-    await b.send({type:'fleet-ready',fleet:fleets.black,revision:0});await b.wait(m=>m.type==='error');
-    await b.send({type:'fleet-ready',fleet:fleets.black,revision});revision++;let state=await receive();assert.equal(state.phase,'battle');
+    await a.send({type:'fleet-ready',fleet:randomFleet(),revision});await a.wait(m=>m.type==='error');
+    // Both clients may submit the initial setup revision without waiting for each other.
+    await b.send({type:'fleet-ready',fleet:fleets.black,revision:0});revision++;let state=await receive();assert.equal(state.phase,'battle');
     await b.send({type:'sea-fire',cell:0,revision});await b.wait(m=>m.type==='error');
     const cell=fleets.black[0][0];await a.send({type:'sea-fire',cell,revision,winner:'white',fleets:{white:[],black:[]}});revision++;state=await receive();assert.equal(state.winner,null);
     await a.send({type:'sea-fire',cell,revision});await a.wait(m=>m.type==='error');
@@ -36,6 +36,10 @@ test('battleship validates fleets and shots, preserves secrecy on every response
     assert.equal(state.winner,'white');assert.equal(state.reason,'fleet-sunk');
     await a.send({type:'rematch',revision});await b.wait(m=>m.type==='state'&&m.rematch.length===1);
     await b.send({type:'rematch',revision});revision++;state=await receive();assert.equal(state.phase,'setup');assert.deepEqual(state.ready,{white:false,black:false});assert.equal(state.winner,null);
+    await b.send({type:'fleet-ready',fleet:fleets.black,revision:0});await b.wait(m=>m.type==='error');
+    const setupRevision=revision;
+    await b.send({type:'fleet-ready',fleet:fleets.black,revision});revision++;state=await receive();assert.equal(state.ready.black,true);assert.equal(state.ready.white,false);
+    await a.send({type:'fleet-ready',fleet:fleets.white,revision:setupRevision});revision++;state=await receive();assert.equal(state.phase,'battle');assert.equal(state.turn,'white');
     await b.send({type:'resign',revision});revision++;state=await receive();assert.equal(state.winner,'white');
   }finally{a.ws.close();b.ws.close();}
 });

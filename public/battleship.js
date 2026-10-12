@@ -35,7 +35,7 @@ export function randomFleet() {
 }
 export function newBattleship(){return {variant:'battleship',board:Array(100).fill(0),fleets:{white:[],black:[]},shots:{white:[],black:[]},ready:{white:false,black:false},phase:'setup',turn:'white',forced:null,captured:[],path:[],repetitions:{},history:[],revision:0,winner:null,reason:null};}
 export function actBattleship(state,role,action){
-  if(state.variant!=='battleship'||state.winner||!['white','black'].includes(role)||state.turn!==role)throw new Error('Действие сейчас недоступно.');
+  if(state.variant!=='battleship'||state.winner||!['white','black'].includes(role))throw new Error('Действие сейчас недоступно.');
   const next=structuredClone(state),opponent=other(role);
   if(action.type==='fleet-ready'){
     if(state.phase!=='setup'||state.ready[role])throw new Error('Флот уже готов.');
@@ -43,6 +43,7 @@ export function actBattleship(state,role,action){
     next.turn=opponent;
     if(next.ready.white&&next.ready.black){next.phase='battle';next.turn='white';}
   }else if(action.type==='sea-fire'){
+    if(state.turn!==role)throw new Error('Сейчас ход соперника.');
     if(state.phase!=='battle'||!cellOK(action.cell)||state.shots[role].some(shot=>shot.cell===action.cell))throw new Error('Выберите клетку, по которой ещё не стреляли.');
     const ship=state.fleets[opponent].find(ship=>ship.includes(action.cell));
     const sunk=ship&&ship.every(cell=>cell===action.cell||state.shots[role].some(shot=>shot.cell===cell));
