@@ -51,7 +51,7 @@ test('local handoff hides both grids and online targeting never draws hidden shi
   game={...game,turn:'black',revision:game.revision+1};board.render(game,{mode:'local',enabled:true});assert.equal(root.querySelectorAll('.sea-cell').length,0);
   board.render(battleshipView(game,'white'),{mode:'online',role:'white',enabled:false});assert.equal(root.querySelectorAll('[data-sea-own="false"]:not([disabled])').length,0);
   const html=parseHTML(readFileSync(new URL('../public/index.html',import.meta.url),'utf8')).document;
-  assert.equal(html.querySelectorAll('[name="variant"][value="battleship"]').length,1);assert.equal(html.querySelector('[value="battleship"]').closest('.arcade-options'),null);assert.ok(html.querySelector('[data-scene="battleship"]'));
+  assert.equal(html.querySelectorAll('[name="variant"][value="battleship"]').length,1);assert.ok(html.querySelector('[value="battleship"]').closest('.arcade-options'));assert.ok(html.querySelector('[data-scene="battleship"]'));
 });
 
 test('drag deployment rotates around the grabbed segment, rejects invalid drops and survives opponent readiness',async()=>{
@@ -94,6 +94,9 @@ test('live shots create effects without revealing enemy hulls; snapshots do not 
   assert.ok(root.querySelector('.sea-effect-hit'));assert.equal(root.querySelectorAll('[data-sea-map="enemy"] .sea-vessel').length,0);
   for(const cell of ship.slice(1)){game=actBattleship(game,'white',{type:'sea-fire',cell});board.render(battleshipView(game,'white'),opts);}
   assert.ok(root.querySelector('.sea-effect-sunk'));assert.equal(root.querySelectorAll('[data-sea-map="enemy"] .sea-vessel.is-sunk').length,1);
+  const blast=root.querySelector('[data-sea-map="enemy"] .sea-effect-sunk');
+  assert.deepEqual([...blast.querySelectorAll('.sea-burning-cell')].map(node=>node.getAttribute('transform')),ship.map(cell=>`translate(${cell%10*100+50} ${Math.floor(cell/10)*100+50})`));
+  assert.equal(root.querySelectorAll('[data-sea-map="own"] .sea-effect-sunk').length,0);
   board.hide();board.render(battleshipView(game,'white'),opts);assert.equal(root.querySelectorAll('.sea-shot-effect').length,0);
 });
 

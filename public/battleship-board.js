@@ -1,5 +1,5 @@
 import { FLEET, shipCells, canPlaceShip, randomFleet, battleshipView, seaCoordinate } from './battleship.js';
-import { shipArt, shipSvg } from './battleship-art.js';
+import { shipArt, shipSvg, sunkExplosion } from './battleship-art.js';
 import { t } from './i18n.js';
 
 export function createBattleshipBoard(action){
@@ -38,7 +38,10 @@ export function createBattleshipBoard(action){
     html+='</div><svg class="sea-vessels" viewBox="0 0 1000 1000" aria-hidden="true">';
     html+=ships.map((ship,index)=>ship?shipSvg(ship,index,`${ship.every(cell=>sunk.includes(cell))?'is-sunk':''} ${setup&&index===selected?'is-selected':''}`,options.skins?.[owner]):'').join('');
     html+=shots.filter(shot=>shot.result!=='miss').map(shot=>`<g class="sea-damage" transform="translate(${shot.cell%10*100+50} ${Math.floor(shot.cell/10)*100+50})"><circle r="17"/><path d="M-9-9 9 9 M9-9-9 9"/></g>`).join('');
-    if(effect&&effect.side===opposite(owner))html+=`<g class="sea-shot-effect sea-effect-${effect.result}" transform="translate(${effect.cell%10*100+50} ${Math.floor(effect.cell/10)*100+50})"><circle class="sea-wave wave-one" r="20"/><circle class="sea-wave wave-two" r="20"/><circle class="sea-flash" r="24"/><path class="sea-spray" d="M0-32V-65 M24-24 47-47 M32 0H65 M24 24 47 47 M0 32V65 M-24 24-47 47 M-32 0H-65 M-24-24-47-47"/></g>`;
+    if(effect&&effect.side===opposite(owner)){
+      if(effect.result==='sunk')html+=sunkExplosion(shots.find(shot=>shot.cell===effect.cell)?.sunkCells||[effect.cell]);
+      else html+=`<g class="sea-shot-effect sea-effect-${effect.result}" transform="translate(${effect.cell%10*100+50} ${Math.floor(effect.cell/10)*100+50})"><circle class="sea-wave wave-one" r="20"/><circle class="sea-wave wave-two" r="20"/><circle class="sea-flash" r="24"/><path class="sea-spray" d="M0-32V-65 M24-24 47-47 M32 0H65 M24 24 47 47 M0 32V65 M-24 24-47 47 M-32 0H-65 M-24-24-47-47"/></g>`;
+    }
     return html+'<g class="sea-placement-preview"></g></svg></div>';
   }
   function draw(){
@@ -153,7 +156,7 @@ export function createBattleshipBoard(action){
     const reset=nextKey!==key||next.revision<state?.revision||next.phase==='setup'&&state?.winner;
     if(reset){cancelDrag(false);unlocked=null;draft=FLEET.map(()=>null);selected=0;error='';effect=null;clearTimeout(effectTimer);}
     if(!reset&&!document.hidden&&next.revision===state?.revision+1&&next.lastSeaShot?.revision===next.revision){
-      effect=next.lastSeaShot;clearTimeout(effectTimer);effectTimer=setTimeout(()=>{effect=null;draw();},1100);
+      effect=next.lastSeaShot;clearTimeout(effectTimer);effectTimer=setTimeout(()=>{effect=null;draw();},effect.result==='sunk'?1900:1100);
     }
     key=nextKey;state=next;options=opts;
     if(drag&&!editable())cancelDrag(false);

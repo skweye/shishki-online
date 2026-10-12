@@ -64,3 +64,14 @@ function modelArt(w,skin){
 export function fleetPreview(skin){
   return `<svg class="ship-model-preview" viewBox="0 0 440 235" aria-hidden="true"><g transform="translate(20 10)">${shipArt(4,skin)}</g><g transform="translate(20 125)">${shipArt(2,skin)}</g><g transform="translate(310 125)">${shipArt(1,skin)}</g></svg>`;
 }
+
+// All blast radii are in square grid units, independent of board aspect ratio.
+export function sunkExplosion(cells){
+  const points=cells.map(cell=>({x:cell%10*100+50,y:Math.floor(cell/10)*100+50}));
+  const x=points.reduce((sum,p)=>sum+p.x,0)/points.length,y=points.reduce((sum,p)=>sum+p.y,0)/points.length;
+  const fragments=Array.from({length:12},(_,i)=>{
+    const angle=i*Math.PI/6,dx=Math.cos(angle),dy=Math.sin(angle);
+    return `<path class="sea-debris" d="M${(dx*28).toFixed(1)} ${(dy*28).toFixed(1)}L${(dx*205).toFixed(1)} ${(dy*205).toFixed(1)}"/>`;
+  }).join('');
+  return `<g class="sea-shot-effect sea-effect-sunk"><g transform="translate(${x} ${y})"><circle class="sea-blast-halo" r="30"/><circle class="sea-blast-wave" r="25"/><circle class="sea-blast-wave second-wave" r="25"/>${fragments}</g>${points.map(p=>`<g class="sea-burning-cell" transform="translate(${p.x} ${p.y})"><circle class="sea-smoke" cx="-15" cy="-20" r="35"/><circle class="sea-smoke second-smoke" cx="20" cy="-8" r="28"/><circle class="sea-fireball" r="25"/><circle class="sea-fire-core" r="18"/></g>`).join('')}</g>`;
+}

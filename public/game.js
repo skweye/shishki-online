@@ -10,7 +10,7 @@ export const sideOf = piece => piece > 0 ? 'white' : piece < 0 ? 'black' : null;
 export const opposite = side => side === 'white' ? 'black' : 'white';
 const directions = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
 export const VARIANTS = Object.freeze({
-  battleship: { name: 'Морской бой', size: 10, rows: 0 },
+  battleship: { name: 'Морской бой', size: 10, rows: 0, category: 'arcade' },
   russian: { name: 'Русские шашки', size: 8, rows: 3 },
   russian12: { name: 'Русские шашки 12×12', size: 12, rows: 5 },
   chapaev: { name: 'Шашки Чапаева', size: 8, rows: 1 },
