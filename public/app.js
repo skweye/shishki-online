@@ -158,7 +158,7 @@ function status() {
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if(isDomino()&&game.roundResult)return ['Раунд завершён.','Подтвердите готовность к следующему раунду.','◈'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
-  if(isDomino())return [game.roundResult?'Раунд завершён.':mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных',game.roundResult?'Подтвердите готовность к следующему раунду.':'Выберите кость и подходящий конец цепочки.', '◈'];
+  if(isDomino())return [game.roundResult?'Раунд завершён.':mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных',game.roundResult?'Подтвердите готовность к следующему раунду.':'Перетяните кость к подсвеченному месту на поле.', '◈'];
   if (isPool()) return [mode === 'online' ? 'Ваш удар' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Прицельтесь и ударьте: ЛКМ по столу или кнопка «Ударить».', '⑧'];
   if (isNarde()) return [game.opening ? 'Кто начнёт партию?' : mode === 'online' ? 'Ваш ход' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', game.dice.length ? 'Используйте кости: выберите фишку и подсвеченный пункт.' : 'Нажмите кнопку броска в центре доски.', '⚄'];
   if (isChapaev()) return [mode === 'online' ? 'Ваш удар' : 'Удар ' + (game.turn === 'white' ? 'белых' : 'чёрных'), 'Оттяните свою шашку назад и отпустите. Стрелка показывает направление.', '↗'];
@@ -216,7 +216,7 @@ function render() {
   if(isDomino()){
     $('game-description').textContent='Знакомые точки. Новая цепочка. Каждый ход имеет значение.';
     document.querySelector('.rule-chip .mini-board').textContent='◈';
-    $('move-help').textContent='Выберите кость, затем левый или правый конец. Нет хода — берите с базара.';
+    $('move-help').textContent='Перетягивайте кости к концам цепочки: прямо или с поворотом. Нет хода — берите с базара.';
     $('board-tip').innerHTML='<span aria-hidden="true">◈</span><p><strong>Соберите 100 очков</strong><br>Освободите руку раньше соперника. При рыбе выигрывает меньшая сумма точек.</p>';
     $('local-note').querySelector('p').textContent='Перед передачей устройства кости скрываются. Открывайте только свою руку.';
   }

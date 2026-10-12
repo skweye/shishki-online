@@ -6,11 +6,12 @@ import { applyShot } from '../public/chapaev.js';
 import { legalMoves } from '../public/game.js';
 import { applyPoolShot } from '../public/pool.js';
 import { dominoMoves } from '../public/domino.js';
+import { dominoPlacements } from '../public/domino-layout.js';
 
 test('domino keeps hands private through HTTP, sockets, rejected moves and reconnects; synchronizes rounds and rematches', {timeout:60000}, async()=>{
   const {data:room,status}=await post('/api/rooms',{variant:'domino'});assert.equal(status,201);assert.equal(room.clock,null);
   const {data:joined}=await post(`/api/rooms/${room.code}/join`);
-  const a=client(room.code,room.token),b=client(room.code,joined.token),players={white:a,black:b};
+  let a=client(room.code,room.token);const b=client(room.code,joined.token),players={white:a,black:b};
   function privateView(g,role){assert.equal('stock' in g,false);assert.equal(g.hands[role].length,g.handCounts[role]);if(!g.roundResult&&!g.winner)assert.deepEqual(g.hands[role==='white'?'black':'white'],[]);}
   privateView(room.game,'white');privateView(joined.game,'black');
   let views={white:room.game,black:joined.game};
@@ -31,8 +32,16 @@ test('domino keeps hands private through HTTP, sockets, rejected moves and recon
     let steps=0;
     while(!views.white.roundResult&&steps++<100){
       const side=views.white.turn,g=views[side],move=dominoMoves(g)[0];
-      await players[side].send({...move,type:move?'domino-play':g.stockCount?'domino-draw':'domino-pass',revision:g.revision,score:{white:999,black:999},hands:{white:[],black:[]}});
+      const placements=move?dominoPlacements(g.chain,move.end):[],placement=steps===1?placements.find(p=>p.direction==='down'):placements[steps%placements.length];
+      if(steps===1){await players[side].send({...move,type:'domino-play',direction:'diagonal',revision:g.revision});await players[side].wait(m=>m.type==='error'&&m.message.includes('разместить'));}
+      await players[side].send({...move,type:move?'domino-play':g.stockCount?'domino-draw':'domino-pass',direction:placement?.direction,placement:{x:999,y:999},revision:g.revision,score:{white:999,black:999},hands:{white:[],black:[]}});
       await receive(g.revision+1);
+      if(steps===1){
+        assert.deepEqual(views.white.chain[0].placement,{x:0,y:0,dx:0,dy:1});
+        const {data:resume}=await post(`/api/rooms/${room.code}/join`,{token:room.token});assert.deepEqual(resume.game.chain,views.white.chain);
+        a.ws.close();a=client(room.code,room.token);players.white=a;
+        const restored=await a.wait(m=>m.type==='state'&&m.game.revision===views.white.revision);assert.deepEqual(restored.game.chain,views.white.chain);privateView(restored.game,'white');
+      }
     }
     assert.ok(views.white.roundResult);assert.ok(views.white.score.white<999&&views.white.score.black<999);
     if(!views.white.winner){

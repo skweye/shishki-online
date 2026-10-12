@@ -1,3 +1,4 @@
+import {placeDomino} from './domino-layout.js';
 export const DOMINOES = Object.freeze(Array.from({length:7},(_,a)=>Array.from({length:7-a},(_,i)=>Object.freeze([a,a+i]))).flat());
 const other=side=>side==='white'?'black':'white';
 export const dominoPips=hand=>hand.reduce((sum,id)=>sum+DOMINOES[id][0]+DOMINOES[id][1],0);
@@ -44,7 +45,7 @@ export function actDomino(state,action){
     let [a,b]=DOMINOES[action.id];
     if(next.chain.length){if(action.end==='left'&&b!==next.chain[0].a||action.end==='right'&&a!==next.chain.at(-1).b)[a,b]=[b,a];}
     next.hands[side].splice(next.hands[side].indexOf(action.id),1);
-    const tile={id:action.id,a,b,side};if(action.end==='left')next.chain.unshift(tile);else next.chain.push(tile);
+    next.chain=placeDomino(next.chain,{id:action.id,a,b,side},action.end,action.direction);
     notation=`${action.end==='left'?'←':'→'} ${a}·${b}`;
     next.turn=other(side);
     if(!next.hands[side].length)finishRound(next,side,false);else blockedRound(next);

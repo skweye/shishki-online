@@ -1,5 +1,17 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Поставить кость|Place tile|Поставити кісточку
+Горизонтально вправо|Horizontally right|Горизонтально праворуч
+Горизонтально влево|Horizontally left|Горизонтально ліворуч
+Вертикально вниз|Vertically down|Вертикально донизу
+Вертикально вверх|Vertically up|Вертикально вгору
+Игровое поле домино|Domino table|Ігрове поле доміно
+Перетяните первую кость на поле.|Drag the opening tile onto the table.|Перетягніть першу кісточку на поле.
+Перетяните кость к свободному концу цепочки. Подсветка покажет горизонтальное или вертикальное положение.|Drag a tile to an open end of the chain. The preview shows horizontal or vertical placement.|Перетягніть кісточку до вільного кінця ланцюжка. Підсвічування покаже горизонтальне або вертикальне положення.
+Перетяните кость к подсвеченному месту на поле.|Drag a tile to a highlighted spot on the table.|Перетягніть кісточку до підсвіченого місця на полі.
+Перетягивайте кости к концам цепочки: прямо или с поворотом. Нет хода — берите с базара.|Drag tiles to the ends of the chain, straight ahead or around a corner. If you cannot play, draw a tile.|Перетягуйте кісточки до кінців ланцюжка: прямо або з поворотом. Немає ходу — беріть з базару.
+Здесь нельзя разместить кость. Выберите подсвеченное место.|You cannot place a tile here. Choose a highlighted spot.|Тут не можна розмістити кісточку. Виберіть підсвічене місце.
+Перетягивайте кости к подсвеченным местам у концов цепочки. Можно продолжить её горизонтально или вертикально; поворот выбирается местом отпускания. С клавиатуры выберите кость, затем место на поле и нажмите Enter.|Drag tiles to highlighted spots at either end of the chain. Build horizontally or vertically; the drop position selects the turn. With a keyboard, select a tile, then a spot on the table and press Enter.|Перетягуйте кісточки до підсвічених місць біля кінців ланцюжка. Можна продовжити його горизонтально або вертикально; поворот обирається місцем відпускання. З клавіатури виберіть кісточку, потім місце на полі та натисніть Enter.
 Домино|Dominoes|Доміно
 По 7 костей · Базар · До 100 очков|7 tiles each · Boneyard · First to 100|По 7 кісточок · Базар · До 100 очок
 Собирайте цепочку и освобождайте руку|Build the chain and empty your hand|Будуйте ланцюжок і звільняйте руку

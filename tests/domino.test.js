@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {DOMINOES,newDomino,dominoMoves,actDomino,nextDominoRound,readyDominoRound,dominoView,dominoPips} from '../public/domino.js';
+import {dominoLayout,dominoPlacements,dominoBounds,dominoDropTarget} from '../public/domino-layout.js';
 import {createDominoBoard} from '../public/domino-board.js';
 import {newGame,legalMoves} from '../public/game.js';
 import {timeControl} from '../public/time-control.js';
@@ -84,17 +85,72 @@ test('complete deterministic matches preserve all 28 tiles, matching chain ends 
   }
 });
 
-test('local handoff hides the next hand and tile/end controls emit legal actions without browser automation',()=>{
+test('local handoff hides hands and keyboard placement uses on-table targets',()=>{
   const {document}=parseHTML('<html><body><div id="root"></div></body></html>'),old=globalThis.document;globalThis.document=document;
   try{
     const root=document.querySelector('#root'),actions=[],board=createDominoBoard(root,a=>actions.push(a)),context={mode:'local',enabled:true};let s=newDomino(deck);
     board.render(s,context);assert.equal(root.querySelectorAll('[data-tile]').length,0);root.querySelector('#domino-reveal').click();assert.equal(root.querySelectorAll('[data-tile]').length,7);
-    root.querySelector(`[data-tile="${s.opening}"]`).click();assert.equal(root.querySelector('[data-end="right"]').disabled,false);root.querySelector('[data-end="right"]').click();assert.deepEqual(actions,[{type:'domino-play',id:s.opening,end:'right'}]);
+    root.querySelector(`[data-tile="${s.opening}"]`).click();assert.equal(root.querySelector('[data-end]'),null);const target=root.querySelector('[data-drop]');assert.ok(target);target.dispatchEvent(new document.defaultView.Event('click',{bubbles:true}));assert.deepEqual(actions,[{type:'domino-play',id:s.opening,end:'right',direction:'right'}]);
     s=actDomino(s,actions[0]);board.render(s,context);assert.equal(root.querySelectorAll('[data-tile]').length,0);assert.ok(root.querySelector('#domino-reveal'));
     board.render(dominoView(s,s.turn),{mode:'online',role:s.turn,enabled:true});assert.equal(root.querySelectorAll('[data-tile]').length,s.hands[s.turn].length);assert.equal(root.querySelector('#domino-reveal'),null);
   }finally{if(old===undefined)delete globalThis.document;else globalThis.document=old;}
 });
 
 test('domino dynamic controls, engine messages and match reason have English and Ukrainian translations',()=>{
-  for(const file of ['domino-board.js','domino.js']){const source=readFileSync(new URL('../public/'+file,import.meta.url),'utf8');for(const [,value] of source.matchAll(/'([^'\n]*[А-Яа-яЁё][^'\n]*)'/g))for(const language of ['en','uk'])assert.ok(t(value,language)!==value||language==='uk'&&['Раунд','Базар'].includes(value),'Missing '+language+': '+value);}
+  for(const file of ['domino-board.js','domino.js','domino-layout.js']){const source=readFileSync(new URL('../public/'+file,import.meta.url),'utf8');for(const [,value] of source.matchAll(/'([^'\n]*[А-Яа-яЁё][^'\n]*)'/g))for(const language of ['en','uk'])assert.ok(t(value,language)!==value||language==='uk'&&['Раунд','Базар'].includes(value),'Missing '+language+': '+value);}
+});
+
+test('horizontal and vertical bends persist, match pips at either end and reject forged directions',()=>{
+  let s=position([[1,2],[3,5],[6,6]],[[1,4],[4,5],[0,0]]);
+  s=actDomino(s,{type:'domino-play',id:id(1,2),end:'left',direction:'up'});
+  assert.deepEqual(s.chain[0].placement,{x:0,y:-2,dx:0,dy:1});
+  s=actDomino(s,{type:'domino-play',id:id(1,4),end:'left',direction:'left'});
+  assert.equal(s.chain[0].a,4);assert.equal(s.chain[0].b,1);assert.deepEqual(s.chain[0].placement,{x:-2,y:-2,dx:1,dy:0});
+  const before=structuredClone(s);
+  for(const direction of ['diagonal',null,1,{},'left'])assert.throws(()=>actDomino(s,{type:'domino-play',id:id(3,5),end:'right',direction}));
+  s=actDomino(s,{type:'domino-play',id:id(3,5),end:'right',direction:'down',placement:{x:999,y:999}});
+  assert.deepEqual(s.chain.at(-1).placement,{x:1,y:1,dx:0,dy:1});
+  assert.deepEqual(dominoLayout(JSON.parse(JSON.stringify(s)).chain),s.chain);assert.equal(before.chain.length,3);
+});
+
+test('saved chains migrate and long bent chains never overlap or eliminate legal endpoints',()=>{
+  let chain=[];
+  for(let i=0;i<28;i++){
+    const state={...newDomino(deck),hands:{white:[id(0,0),id(0,1)],black:[id(0,2)]},turn:'white',chain,opening:id(0,0)};
+    const end=i%3?'right':'left',options=dominoPlacements(chain,end),choice=options[(i*7)%options.length];
+    chain=actDomino(state,{type:'domino-play',id:id(0,0),end:chain.length?end:'right',direction:choice.direction}).chain;
+    const cells=chain.flatMap(({placement:p})=>[[p.x,p.y],[p.x+p.dx,p.y+p.dy]]);
+    assert.equal(new Set(cells.map(c=>c.join(':'))).size,2*chain.length);
+    for(let j=1;j<chain.length;j++){const a=cells[j*2-1],b=cells[j*2];assert.equal(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]),1);}
+    assert.ok(dominoPlacements(chain,'left').length);assert.ok(dominoPlacements(chain,'right').length);
+  }
+  const legacy=chain.map(({placement,...tile})=>tile),copy=structuredClone(legacy),layout=dominoLayout(legacy);
+  assert.equal(layout.length,28);assert.deepEqual(legacy,copy);assert.ok(layout.some(tile=>tile.placement.dy));
+  const overlaps=layout.map(tile=>({...tile,placement:{x:0,y:0,dx:1,dy:0}}));assert.deepEqual(dominoLayout(overlaps),layout);
+});
+
+test('drop hit testing respects letterboxing, viewport edges and vertical/horizontal target selection',()=>{
+  const choices=dominoPlacements([],'right'),bounds=dominoBounds([],choices),rect={left:20,top:30,width:450,height:350};
+  const screen=p=>{const scale=Math.min(rect.width/bounds.width,rect.height/bounds.height);return [rect.left+(rect.width-bounds.width*scale)/2+(p.x+.5+p.dx/2-bounds.x)*scale,rect.top+(rect.height-bounds.height*scale)/2+(p.y+.5+p.dy/2-bounds.y)*scale];};
+  for(const choice of choices)assert.equal(dominoDropTarget(choices,bounds,rect,...screen(choice.placement)),choice);
+  assert.equal(dominoDropTarget(choices,bounds,rect,0,0),null);assert.equal(dominoDropTarget(choices,bounds,rect,21,31),null);
+});
+
+test('mouse and touch drag place once; invalid drops, cancellation, stale snapshots and other pointers do not move',()=>{
+  const {document,Event}=parseHTML('<html><body><div id="root"></div></body></html>'),old=globalThis.document;globalThis.document=document;
+  try{
+    const root=document.querySelector('#root'),actions=[],board=createDominoBoard(root,a=>actions.push(a)),s=newDomino(deck),context={mode:'online',role:s.turn,enabled:true};
+    let captured=null;root.setPointerCapture=id=>{captured=id;};root.hasPointerCapture=id=>captured===id;root.releasePointerCapture=()=>{captured=null;};
+    const emit=(target,type,props={})=>{const event=new Event(type,{bubbles:true,cancelable:true});Object.assign(event,{pointerId:1,button:0,isPrimary:true,pointerType:'mouse',clientX:120,clientY:500},props);target.dispatchEvent(event);};
+    const start=()=>{board.render(s,context);emit(root.querySelector(`[data-tile="${s.opening}"]`),'pointerdown');const svg=root.querySelector('svg');svg.getBoundingClientRect=()=>({left:0,top:0,width:450,height:350});};
+    // Opening vertical target centre (0.5, 1) in viewBox -4,-3,9,7.
+    start();emit(root,'pointermove',{clientX:225,clientY:200});assert.ok(document.querySelector('.domino-drag-ghost'));assert.equal(root.querySelectorAll('.drop-hover').length,1);
+    emit(root,'pointerup',{clientX:225,clientY:200});assert.equal(actions.length,1);assert.equal(actions[0].direction,'down');assert.equal(document.querySelector('.domino-drag-ghost'),null);assert.equal(captured,null);
+    emit(root,'pointerup',{clientX:225,clientY:200});assert.equal(actions.length,1);
+    start();emit(root,'pointerup',{clientX:-20,clientY:200});assert.equal(actions.length,1);
+    start();emit(root,'pointermove',{pointerType:'touch',clientX:250,clientY:175});emit(root,'pointercancel');emit(root,'pointerup',{clientX:250,clientY:175});assert.equal(actions.length,1);assert.equal(document.querySelector('.domino-drag-ghost'),null);
+    start();emit(root,'pointerup',{pointerId:2,clientX:250,clientY:175});assert.equal(actions.length,1);emit(root,'pointermove',{clientX:250,clientY:175});board.render({...s,revision:1},context);emit(root,'pointerup',{clientX:250,clientY:175});assert.equal(actions.length,1);
+    start();emit(root,'pointermove',{pointerType:'touch',clientX:250,clientY:175});emit(root,'pointerup',{pointerType:'touch',clientX:250,clientY:175});assert.equal(actions.length,2);assert.equal(actions[1].direction,'right');
+    start();board.hide();emit(root,'pointerup',{clientX:250,clientY:175});assert.equal(actions.length,2);
+  }finally{if(old===undefined)delete globalThis.document;else globalThis.document=old;}
 });
