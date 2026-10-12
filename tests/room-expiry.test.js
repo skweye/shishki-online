@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { newGame } from '../public/game.js';
+import { actBattleship, randomFleet } from '../public/battleship.js';
 import { createClock } from '../public/time-control.js';
 
 import { isFinishTransition } from '../public/rocket.js';
@@ -15,6 +16,17 @@ const HOUR = 3_600_000, START = 1_800_000_000_000;
 function fixture(updatedAt = START) {
   return { updatedAt, players: { white: 'white-token', black: 'black-token' }, game: newGame(), clock: null, rematch: [], drawOffer: null };
 }
+test('battleship win records both accounts and coins once, persists fleets privately and restores the result',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  const writes=[],env={AUTH_DB:{prepare:()=>({bind:(...values)=>values}),async batch(rows){writes.push(...rows);}}};
+  const initial=fixture();initial.accounts={white:'user-a',black:'user-b'};initial.game=newGame('battleship');
+  for(const side of ['white','black'])initial.game=actBattleship(initial.game,side,{type:'fleet-ready',fleet:randomFleet()});
+  const {room,values}=await roomWith(initial,env);await room.save();assert.equal(writes.length,0);
+  for(const cell of initial.game.fleets.black.flat())room.room.game=actBattleship(room.room.game,'white',{type:'sea-fire',cell});
+  await room.save();await room.save(false);assert.equal(writes.length,2);
+  assert.equal(writes[0][1],'battleship');assert.equal(writes[0][2],'win');assert.equal(writes[0][5],30);assert.equal(writes[1][2],'loss');assert.equal(writes[1][5],10);
+  const restored=await roomWith(values.get('room'),env);assert.equal(restored.room.room.game.reason,'fleet-sunk');await restored.room.save(false);assert.equal(writes.length,2);
+});
 async function roomWith(saved = fixture(), env = {}) {
   const values = new Map(saved ? [['room', structuredClone(saved)]] : []), sockets = [];
   let alarm = saved ? saved.updatedAt + 7 * 24 * HOUR : null, initialized;

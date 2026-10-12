@@ -1,6 +1,7 @@
 import { syncAccount } from './auth.js';
 const $ = id => document.getElementById(id);
 const modes = [
+  ['battleship', 'Морской бой', '10 кораблей · Поле 10 × 10', '⚓'],
   ['russian', 'Русские шашки', 'Классическая доска 8 × 8', '▦'],
   ['russian12', 'Русские шашки 12 × 12', 'Большая доска', '▦'],
   ['chapaev', 'Шашки Чапаева', 'Победа во всём матче', '↗'],

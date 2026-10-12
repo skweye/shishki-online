@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { actBattleship, battleshipView } from '../public/battleship.js';
 import { actDomino, readyDominoRound, dominoView } from '../public/domino.js';
 import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
 import { applyShot, nextChapaevRound } from '../public/chapaev.js';
@@ -145,7 +146,7 @@ export class GameRoom extends DurableObject {
   }
   snapshot(role = null) {
     return {
-      game: dominoView(this.room.game, role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
+      game: battleshipView(dominoView(this.room.game, role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer,
       names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
@@ -267,7 +268,9 @@ export class GameRoom extends DurableObject {
         if (!this.room.players.black) throw new Error('Дождитесь второго игрока.');
         if (data.revision !== this.room.game.revision) throw new Error('Позиция уже изменилась. Повторите действие.');
         const previous = structuredClone(this.room.game);
-        if (data.type === 'domino-ready') {
+        if (['fleet-ready','sea-fire'].includes(data.type)) {
+          this.room.game = actBattleship(this.room.game, role, data); this.room.drawOffer = null;
+        } else if (data.type === 'domino-ready') {
           this.room.game = readyDominoRound(this.room.game, role); this.room.drawOffer = null;
         } else if (['domino-play','domino-draw','domino-pass'].includes(data.type)) {
           if (this.room.game.turn !== role) throw new Error('Сейчас ход соперника.');

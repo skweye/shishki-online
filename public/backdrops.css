@@ -73,3 +73,12 @@ body.ambient-paused .ambient-mode>i { animation-play-state:paused!important; }
 .ambient-pool-ball.striped b { background:var(--theme-secondary);font-size:38px;width:52px;height:52px; }
 .ambient-cue { position:absolute;left:4%;top:68%;width:50vw;height:9px;border-radius:10px;background:linear-gradient(90deg,transparent,var(--theme-accent));transform:rotate(-28deg);opacity:.17; }
 @media(max-width:720px){ .ambient-narde { right:-460px; }.ambient-die { left:-50px;font-size:150px; }.ambient-pool-ball { left:-95px; }.ambient-pool-ball.striped { right:-85px; }.ambient-pool-table { right:-550px; } }
+.ambient-mode[data-scene="battleship"] { --mode-color:#54aebe; }
+.ambient-sea-grid { position:absolute;inset:8% -10% 5% 30%;border-radius:50%;background:repeating-linear-gradient(0deg,transparent 0 59px,#8bdce21c 59px 60px),repeating-linear-gradient(90deg,transparent 0 59px,#8bdce21c 59px 60px);transform:perspective(900px) rotateX(45deg) rotateZ(-18deg);mask-image:radial-gradient(ellipse,#000,transparent 70%); }
+.ambient-warship { position:absolute;right:9%;top:16%;width:170px;height:420px;border-radius:65% 65% 25% 25%;background:linear-gradient(90deg,#142936,#6b9da3 48%,#244451);box-shadow:0 30px 70px #050f20,0 0 90px #68c7d329;opacity:.38;transform:rotate(30deg);animation:sea-ship-drift 18s ease-in-out infinite alternate; }
+.ambient-warship::before { content:'';position:absolute;inset:22% 27% 25%;border:12px solid #173342;border-radius:45% 45% 18% 18%;background:#65929a;box-shadow:0 18px 0 #203e4b; }
+.ambient-sonar { position:absolute;left:-100px;top:36%;width:450px;height:450px;border:1px solid #78d8d557;border-radius:50%;background:repeating-radial-gradient(circle,transparent 0 62px,#72d9d325 63px 65px,transparent 66px 80px),conic-gradient(from 0deg,transparent 0deg 270deg,#84ddc12e 355deg,transparent);opacity:.4;animation:sea-sonar 24s linear infinite; }
+.ambient-sea-wave { position:absolute;left:-15%;right:-15%;height:220px;bottom:-100px;border-radius:50%;box-shadow:0 -30px 100px #48a6bd28,0 -70px 100px #205e9820;animation:sea-tide 12s ease-in-out infinite alternate; }
+@keyframes sea-ship-drift { to { transform:translate(-24px,30px) rotate(34deg); } }
+@keyframes sea-sonar { to { transform:rotate(360deg); } }
+@keyframes sea-tide { to { transform:translateY(-40px) rotate(4deg); } }

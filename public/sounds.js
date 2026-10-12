@@ -13,6 +13,7 @@ export function transitionSounds(previous, next, role = null) {
   if (next.revision !== previous.revision + 1) return [];
   if (previous.winner && !next.winner) return ['start'];
   const sounds = [];
+  if(next.variant==='battleship'&&next.lastSeaShot?.revision===next.revision)sounds.push(next.lastSeaShot.result==='miss'?'move':'capture');
   if(next.variant==='domino'&&previous.variant==='domino'){if(next.round>previous.round)sounds.push('start');else if(next.history.length>previous.history.length)sounds.push('move');}
   if (next.variant === 'chapaev' && next.lastShot?.revision === next.revision) sounds.push(next.lastShot.ownLost + next.lastShot.otherLost ? 'capture' : 'move');
   // Pool contacts are timed to the physics animation, not generic checker taps.
