@@ -8,7 +8,9 @@ const directionName=direction=>({right:'Горизонтально вправо'
 function svgTile(a,b,p,className,attrs=''){
   const angle=Math.atan2(p.dy,p.dx)*180/Math.PI;
   const dots=(n,offset)=>pips[n].map(i=>`<circle cx="${offset+(i%3-1)*.19}" cy="${(Math.floor(i/3)-1)*.19}" r=".06"/>`).join('');
-  return `<g class="${className}" transform="translate(${p.x+.5} ${p.y+.5}) rotate(${angle})" ${attrs||`role="img" aria-label="${a} · ${b}"`}><rect x="-.46" y="-.46" width="1.92" height=".92" rx=".12"/><path d="M.5 -.34V.34"/><g class="domino-dots" aria-hidden="true">${dots(a,0)}${dots(b,1)}</g></g>`;
+  // Drop targets are outlines, not extra translucent tiles with floating pips.
+  const face=className==='domino-drop'?'':`<path d="M.5 -.34V.34"/><g class="domino-dots" aria-hidden="true">${dots(a,0)}${dots(b,1)}</g>`;
+  return `<g class="${className}" transform="translate(${p.x+.5} ${p.y+.5}) rotate(${angle})" ${attrs||`role="img" aria-label="${a} · ${b}"`}><rect x="-.46" y="-.46" width="1.92" height=".92" rx=".12"/>${face}</g>`;
 }
 export function createDominoBoard(root,act){
   let game,context,selected=null,revealed=null,round=null,lastTurn=null,drag=null,ghost=null,choices=[],bounds,hover=null;
@@ -27,7 +29,7 @@ export function createDominoBoard(root,act){
   function commit(choice){
     if(!choice||!context.enabled||selected===null)return;
     const action={type:'domino-play',id:selected,end:choice.end,direction:choice.direction};
-    cancelDrag();selected=null;act(action);
+    cancelDrag();selected=null;paint();act(action);
   }
   function paint(){
     const {mode,role,enabled}=context;

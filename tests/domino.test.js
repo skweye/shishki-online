@@ -100,6 +100,30 @@ test('domino dynamic controls, engine messages and match reason have English and
   for(const file of ['domino-board.js','domino.js','domino-layout.js']){const source=readFileSync(new URL('../public/'+file,import.meta.url),'utf8');for(const [,value] of source.matchAll(/'([^'\n]*[А-Яа-яЁё][^'\n]*)'/g))for(const language of ['en','uk'])assert.ok(t(value,language)!==value||language==='uk'&&['Раунд','Базар'].includes(value),'Missing '+language+': '+value);}
 });
 
+test('drop previews have no extra pips and disappear before the move is acknowledged',()=>{
+  const {document,Event}=parseHTML('<html><body><div id="root"></div></body></html>'),old=globalThis.document;globalThis.document=document;
+  try{
+    const root=document.querySelector('#root'),actions=[],board=createDominoBoard(root,a=>actions.push(a));
+    let s=newDomino(deck);
+    for(let turn=0;turn<8&&!s.roundResult;turn++){
+      const move=dominoMoves(s)[0];
+      if(!move){s=actDomino(s,{type:s.stock.length?'domino-draw':'domino-pass'});continue;}
+      board.render(dominoView(s,s.turn),{mode:'online',role:s.turn,enabled:true});
+      const expectedPips=s.chain.reduce((sum,tile)=>sum+tile.a+tile.b,0);
+      assert.equal(root.querySelectorAll('.domino-surface circle').length,expectedPips);
+      root.querySelector(`[data-tile="${move.id}"]`).click();
+      assert.ok(root.querySelectorAll('[data-drop]').length);
+      assert.equal(root.querySelectorAll('[data-drop] circle').length,0);
+      assert.equal(root.querySelectorAll('.domino-surface circle').length,expectedPips);
+      root.querySelector('[data-drop]').dispatchEvent(new Event('click',{bubbles:true}));
+      assert.equal(root.querySelectorAll('[data-drop]').length,0);
+      assert.equal(root.querySelectorAll('.domino-surface circle').length,expectedPips);
+      s=actDomino(s,actions.at(-1));
+    }
+    assert.ok(actions.length>1);
+  }finally{if(old===undefined)delete globalThis.document;else globalThis.document=old;}
+});
+
 test('horizontal and vertical bends persist, match pips at either end and reject forged directions',()=>{
   let s=position([[1,2],[3,5],[6,6]],[[1,4],[4,5],[0,0]]);
   s=actDomino(s,{type:'domino-play',id:id(1,2),end:'left',direction:'up'});
