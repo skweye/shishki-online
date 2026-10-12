@@ -4,7 +4,7 @@ import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {DOMINOES,newDomino,dominoMoves,actDomino,nextDominoRound,readyDominoRound,dominoView,dominoPips} from '../public/domino.js';
 import {dominoLayout,dominoPlacements,dominoBounds,dominoDropTarget} from '../public/domino-layout.js';
-import {createDominoBoard} from '../public/domino-board.js';
+import {createDominoBoard,dominoTile} from '../public/domino-board.js';
 import {newGame,legalMoves} from '../public/game.js';
 import {timeControl} from '../public/time-control.js';
 import {t} from '../public/i18n.js';
@@ -12,6 +12,21 @@ import {t} from '../public/i18n.js';
 const deck=DOMINOES.map((_,id)=>id),id=(a,b)=>DOMINOES.findIndex(pair=>pair[0]===Math.min(a,b)&&pair[1]===Math.max(a,b));
 function position(white,black,stock=[]){return {...newDomino(deck),turn:'white',hands:{white:white.map(p=>id(...p)),black:black.map(p=>id(...p))},stock:stock.map(p=>id(...p)),chain:[{id:id(2,3),a:2,b:3,side:'black'}]};}
 const play=(state,tile,end='right')=>actDomino(state,{type:'domino-play',id:id(...tile),end});
+
+test('all hand faces keep complete circular pips within their half of a shared scalable viewBox',()=>{
+  for(const [a,b] of DOMINOES){
+    const {document}=parseHTML(`<div>${dominoTile(a,b)}</div>`),face=document.querySelector('svg');
+    assert.equal(face.getAttribute('viewBox'),'0 0 30 60');
+    assert.equal(face.getAttribute('preserveAspectRatio'),'xMidYMid meet');
+    const dots=[...face.querySelectorAll('circle')];assert.equal(dots.length,a+b);
+    assert.equal(dots.filter(dot=>Number(dot.getAttribute('cy'))<30).length,a);
+    for(const dot of dots){
+      const x=Number(dot.getAttribute('cx')),y=Number(dot.getAttribute('cy')),r=Number(dot.getAttribute('r')),top=y<30?0:30;
+      assert.ok(x-r>0&&x+r<30&&y-r>top&&y+r<top+30);
+    }
+    assert.equal(document.querySelector('.domino-half'),null);
+  }
+});
 
 test('double-six deal, highest-double opening, no clocks and no board moves',()=>{
   const s=newDomino(deck);assert.equal(DOMINOES.length,28);assert.equal(new Set(DOMINOES.map(p=>p.join(':'))).size,28);

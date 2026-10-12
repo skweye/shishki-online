@@ -2,7 +2,12 @@ import {DOMINOES,dominoMoves} from './domino.js';
 import {t} from './i18n.js';
 import {dominoLayout,dominoPlacements,dominoBounds,dominoDropTarget} from './domino-layout.js';
 const pips=[[],[4],[0,8],[0,4,8],[0,2,6,8],[0,2,4,6,8],[0,2,3,5,6,8]];
-export function dominoTile(a,b){return [a,b].map(n=>`<span class="domino-half" aria-hidden="true">${Array.from({length:9},(_,i)=>`<i${pips[n].includes(i)?' class="pip"':''}></i>`).join('')}</span>`).join('');}
+export function dominoTile(a,b){
+  // One coordinate system for the whole face keeps dots circular and inside
+  // the tile at hand, card and drag-preview sizes, independent of CSS grid sizing.
+  const dots=[a,b].map((n,half)=>pips[n].map(i=>`<circle cx="${7+i%3*8}" cy="${7+Math.floor(i/3)*8+half*30}" r="2.4"/>`).join('')).join('');
+  return `<svg class="domino-face" viewBox="0 0 30 60" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path d="M4 30H26"/>${dots}</svg>`;
+}
 const sideName=side=>t(side==='white'?'Белые':'Чёрные');
 const directionName=direction=>({right:'Горизонтально вправо',left:'Горизонтально влево',down:'Вертикально вниз',up:'Вертикально вверх'})[direction];
 function svgTile(a,b,p,className,attrs=''){
