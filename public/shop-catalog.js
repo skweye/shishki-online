@@ -1,4 +1,9 @@
 export const CATALOG = Object.freeze([
+  { id: 'ship-classic', type: 'ship', value: 'classic', name: 'Флот · Эскадра', description: 'Броневые корпуса, башни и палубные орудия.', price: 0, symbol: '⚓' },
+  { id: 'ship-submarine', type: 'ship', value: 'submarine', name: 'Флот · Подлодки', description: 'Обтекаемый корпус, рубка, перископ и хвостовые рули.', price: 80, symbol: '⚓' },
+  { id: 'ship-carrier', type: 'ship', value: 'carrier', name: 'Флот · Авианосцы', description: 'Широкая полётная палуба с самолётами и посадочной полосой.', price: 150, symbol: '⚓' },
+  { id: 'ship-viking', type: 'ship', value: 'viking', name: 'Флот · Драккары', description: 'Деревянные ладьи с парусами, щитами и рядами вёсел.', price: 100, symbol: '⚓' },
+  { id: 'ship-stealth', type: 'ship', value: 'stealth', name: 'Флот · Стелс', description: 'Угловатые корпуса, гранёные рубки и ракетные шахты.', price: 180, symbol: '⚓' },
   { id: 'cue-classic', type: 'cue', value: 'classic', name: 'Кий · Классика', description: 'Клён, тёмная рукоять и латунные кольца.', price: 0, symbol: '╱' },
   { id: 'cue-carbon', type: 'cue', value: 'carbon', name: 'Кий · Карбон', description: 'Графит и холодные голубые акценты.', price: 80, symbol: '╱' },
   { id: 'cue-emerald', type: 'cue', value: 'emerald', name: 'Кий · Изумруд', description: 'Зелёный лак и золотые вставки.', price: 100, symbol: '╱' },
@@ -26,6 +31,7 @@ export const CATALOG = Object.freeze([
 ]);
 export const itemById = id => typeof id === 'string' ? CATALOG.find(item => item.id === id) : undefined;
 export const validSkin = value => CATALOG.some(item => item.type === 'skin' && item.value === value) ? value : 'classic';
+export const validShipSkin = value => CATALOG.some(item => item.type === 'ship' && item.value === value) ? value : 'classic';
 export const validEffect = value => CATALOG.some(item => item.type === 'effect' && item.value === value) ? value : 'none';
 export function matchCoins(result, moves) {
   return Number.isInteger(moves) && moves >= 4 ? ({ win: 30, draw: 15, loss: 10 }[result] || 0) : 0;

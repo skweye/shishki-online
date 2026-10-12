@@ -6,6 +6,9 @@ import {newBattleship,randomFleet,validateFleet,shipCells,canPlaceShip,actBattle
 import {newGame,legalMoves,applyMove} from '../public/game.js';
 import {createClock} from '../public/time-control.js';
 import {createBattleshipBoard} from '../public/battleship-board.js';
+import {shipArt,fleetPreview} from '../public/battleship-art.js';
+import {CATALOG,validShipSkin} from '../public/shop-catalog.js';
+import {translations} from '../public/locales.js';
 const setup=()=>{let game=newBattleship();for(const side of ['white','black'])game=actBattleship(game,side,{type:'fleet-ready',fleet:randomFleet()});return game;};
 
 test('fleets have twenty cells, valid straight ships and no touching; either side can deploy first',()=>{
@@ -92,4 +95,22 @@ test('live shots create effects without revealing enemy hulls; snapshots do not 
   for(const cell of ship.slice(1)){game=actBattleship(game,'white',{type:'sea-fire',cell});board.render(battleshipView(game,'white'),opts);}
   assert.ok(root.querySelector('.sea-effect-sunk'));assert.equal(root.querySelectorAll('[data-sea-map="enemy"] .sea-vessel.is-sunk').length,1);
   board.hide();board.render(battleshipView(game,'white'),opts);assert.equal(root.querySelectorAll('.sea-shot-effect').length,0);
+});
+
+test('fleet models have distinct geometry at every length and cannot reveal an enemy fleet',()=>{
+  const models=CATALOG.filter(item=>item.type==='ship');
+  for(const length of [1,2,3,4]){
+    const geometries=models.map(item=>{
+      const art=shipArt(length,item.value);assert.doesNotMatch(art,/NaN|undefined|Infinity/);
+      return [...parseHTML('<svg>'+art+'</svg>').document.querySelectorAll('path')].map(path=>path.getAttribute('d')).join(';');
+    });assert.equal(new Set(geometries).size,models.length);
+  }
+  for(const item of models){assert.ok(fleetPreview(item.value).includes('viewBox="0 0 440 235"'));for(const language of ['en','uk'])for(const value of [item.name,item.description])assert.ok(translations[value]?.[language]);}
+  assert.equal(validShipSkin('<script>'),'classic');assert.equal(shipArt(3,'invalid'),shipArt(3,'classic'));
+  const {document,window}=parseHTML('<html><body><div id="battleship-board"></div></body></html>');Object.assign(globalThis,{document,window});
+  const board=createBattleshipBoard(()=>{}),root=document.getElementById('battleship-board'),opts={mode:'online',role:'white',enabled:true,skins:{white:'viking',black:'carrier'}};
+  let game=setup();board.render(battleshipView(game,'white'),opts);
+  assert.equal(root.querySelectorAll('[data-sea-map="own"] .sea-model-viking').length,10);assert.equal(root.querySelectorAll('[data-sea-map="enemy"] .sea-model').length,0);
+  for(const cell of game.fleets.black[0])game=actBattleship(game,'white',{type:'sea-fire',cell});board.render(battleshipView(game,'white'),opts);
+  assert.equal(root.querySelectorAll('[data-sea-map="enemy"] .sea-model-carrier').length,1);board.hide();
 });

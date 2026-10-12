@@ -20,7 +20,7 @@ export function createBattleshipBoard(action){
     else error='Здесь корабль не помещается или касается другого.';
   }
   function dock(){
-    return `<div class="sea-dock" aria-label="${t('Расстановка флота')}">${FLEET.map((length,index)=>`<button type="button" class="sea-dock-ship ${selected===index?'is-selected':''} ${draft[index]?'is-placed':''}" data-sea-ship="${index}" aria-pressed="${selected===index}" aria-label="${t('Корабль')} ${index+1}: ${length}" ${options.enabled?'':'disabled'}><svg viewBox="0 0 ${length*100} 100" aria-hidden="true">${shipArt(length)}</svg><span>${length} ${draft[index]?'✓':''}</span></button>`).join('')}</div>`;
+    return `<div class="sea-dock" aria-label="${t('Расстановка флота')}">${FLEET.map((length,index)=>`<button type="button" class="sea-dock-ship ${selected===index?'is-selected':''} ${draft[index]?'is-placed':''}" data-sea-ship="${index}" aria-pressed="${selected===index}" aria-label="${t('Корабль')} ${index+1}: ${length}" ${options.enabled?'':'disabled'}><svg viewBox="0 0 ${length*100} 100" aria-hidden="true">${shipArt(length,options.skins?.[side()])}</svg><span>${length} ${draft[index]?'✓':''}</span></button>`).join('')}</div>`;
   }
   function grid(owner,own,view,enabled,setup){
     const ships=setup?draft:view.fleets[owner],cells=ships.filter(Boolean).flat(),shots=view.shots[opposite(owner)],sunk=shots.flatMap(shot=>shot.sunkCells||[]);
@@ -36,7 +36,7 @@ export function createBattleshipBoard(action){
       }
     }
     html+='</div><svg class="sea-vessels" viewBox="0 0 1000 1000" aria-hidden="true">';
-    html+=ships.map((ship,index)=>ship?shipSvg(ship,index,`${ship.every(cell=>sunk.includes(cell))?'is-sunk':''} ${setup&&index===selected?'is-selected':''}`):'').join('');
+    html+=ships.map((ship,index)=>ship?shipSvg(ship,index,`${ship.every(cell=>sunk.includes(cell))?'is-sunk':''} ${setup&&index===selected?'is-selected':''}`,options.skins?.[owner]):'').join('');
     html+=shots.filter(shot=>shot.result!=='miss').map(shot=>`<g class="sea-damage" transform="translate(${shot.cell%10*100+50} ${Math.floor(shot.cell/10)*100+50})"><circle r="17"/><path d="M-9-9 9 9 M9-9-9 9"/></g>`).join('');
     if(effect&&effect.side===opposite(owner))html+=`<g class="sea-shot-effect sea-effect-${effect.result}" transform="translate(${effect.cell%10*100+50} ${Math.floor(effect.cell/10)*100+50})"><circle class="sea-wave wave-one" r="20"/><circle class="sea-wave wave-two" r="20"/><circle class="sea-flash" r="24"/><path class="sea-spray" d="M0-32V-65 M24-24 47-47 M32 0H65 M24 24 47 47 M0 32V65 M-24 24-47 47 M-32 0H-65 M-24-24-47-47"/></g>`;
     return html+'<g class="sea-placement-preview"></g></svg></div>';
@@ -100,7 +100,7 @@ export function createBattleshipBoard(action){
     root.classList.add('is-dragging');
     root.querySelectorAll('.sea-preview-valid,.sea-preview-invalid').forEach(el=>el.classList.remove('sea-preview-valid','sea-preview-invalid'));
     root.querySelectorAll('.sea-vessel').forEach(el=>el.classList.toggle('is-drag-source',Number(el.dataset.vessel)===drag.index));
-    if(layer)layer.innerHTML=result.ship.length?shipSvg(result.ship,-1,`sea-ghost ${result.valid?'is-valid':'is-invalid'}`):'';
+    if(layer)layer.innerHTML=result.ship.length?shipSvg(result.ship,-1,`sea-ghost ${result.valid?'is-valid':'is-invalid'}`,options.skins?.[side()]):'';
     for(const position of result.ship)root.querySelector(`[data-sea-own="true"][data-sea-cell="${position}"]`)?.classList.add(result.valid?'sea-preview-valid':'sea-preview-invalid');
   }
   function cancelDrag(redraw=true){

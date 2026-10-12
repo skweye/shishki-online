@@ -2,6 +2,33 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { pieceReaction, FINISH_DURATION } from '../public/finish-interactions.js';
 import { CATALOG } from '../public/shop-catalog.js';
+import { finishLayout } from '../public/finish-layout.js';
+import { createRocketEffect } from '../public/rocket.js';
+import { parseHTML } from 'linkedom';
+
+test('finish stage preserves equal axes on wide, tall and square boards and excludes controls',()=>{
+  for(const [width,height] of [[1200,660],[350,900],[640,640],[220,180]]){
+    const layout=finishLayout(width,height,{left:10,top:30,width:width-20,height:height-80});
+    assert.equal(layout.size,Math.min(width-20,height-80));assert.equal(layout.top,30);assert.equal(layout.left,10);
+    assert.ok(layout.size<=layout.width&&layout.size<=layout.height);
+  }
+  assert.deepEqual(finishLayout(300,500,{left:20,top:40,width:1000,height:1000}),{left:20,top:40,width:280,height:460,size:280});
+});
+
+test('every finish effect mounts a square stage on a rectangular board and cleans up when hidden',()=>{
+  const {document,window}=parseHTML('<html><body><div id="frame"></div></body></html>');
+  Object.assign(globalThis,{document,window,matchMedia:()=>({matches:false}),requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{}});
+  const frame=document.getElementById('frame');Object.assign(frame,{clientWidth:1000,clientHeight:400,clientLeft:0,clientTop:0,offsetWidth:1000,offsetHeight:400});
+  frame.getBoundingClientRect=()=>({left:0,top:0,width:1000,height:400});
+  const effect=createRocketEffect(frame,{play(){}});let completed=0;
+  for(const item of CATALOG.filter(item=>item.type==='effect'&&item.value!=='none')){
+    effect.launch(false,()=>completed++,item.value);
+    const stage=frame.querySelector('.finish-stage');assert.ok(stage.children.length);assert.equal(stage.style.width,'400px');assert.equal(stage.style.height,'400px');
+    assert.equal(frame.querySelectorAll('.rocket-effect').length,1);effect.cancel();assert.equal(frame.querySelectorAll('.rocket-effect').length,0);
+  }
+  effect.launch(false,()=>completed++,'portal');Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new window.Event('visibilitychange'));
+  assert.equal(completed,1);assert.equal(frame.querySelectorAll('.rocket-effect,.finish-pieces').length,0);
+});
 
 const options = { winner: 'white', fromTop: false };
 test('all effects leave board positions untouched and return finite, bounded presentation values', () => {

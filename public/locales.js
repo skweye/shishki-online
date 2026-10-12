@@ -1,5 +1,16 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Модели кораблей|Ship models|Моделі кораблів
+Флот · Эскадра|Fleet · Squadron|Флот · Ескадра
+Броневые корпуса, башни и палубные орудия.|Armored hulls, turrets and deck guns.|Броньовані корпуси, башти й палубні гармати.
+Флот · Подлодки|Fleet · Submarines|Флот · Підводні човни
+Обтекаемый корпус, рубка, перископ и хвостовые рули.|Streamlined hulls, conning towers, periscopes and tail fins.|Обтічний корпус, рубка, перископ і хвостові рулі.
+Флот · Авианосцы|Fleet · Carriers|Флот · Авіаносці
+Широкая полётная палуба с самолётами и посадочной полосой.|Wide flight decks with aircraft and landing strips.|Широка польотна палуба з літаками та посадковою смугою.
+Флот · Драккары|Fleet · Longships|Флот · Дракари
+Деревянные ладьи с парусами, щитами и рядами вёсел.|Wooden longships with sails, shields and rows of oars.|Дерев'яні човни з вітрилами, щитами й рядами весел.
+Флот · Стелс|Fleet · Stealth|Флот · Стелс
+Угловатые корпуса, гранёные рубки и ракетные шахты.|Angular hulls, faceted bridges and missile silos.|Кутасті корпуси, грановані рубки й ракетні шахти.
 Морской бой|Battleship|Морський бій
 10 кораблей · Поле 10 × 10|10 ships · 10 × 10 grid|10 кораблів · Поле 10 × 10
 Тихое море. Скрытый флот. Точный выстрел.|Quiet seas. Hidden fleet. Precise fire.|Тихе море. Прихований флот. Точний постріл.

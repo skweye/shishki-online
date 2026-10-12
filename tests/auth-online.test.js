@@ -11,6 +11,22 @@ const post = async (path, data, cookie = '', origin = base) => {
 };
 const session = async cookie => (await fetch(base + '/api/auth/session', { headers: { Cookie: cookie } })).json();
 
+test('ship models persist through shop, session, room entry and reconnect; payloads cannot override them',{timeout:30000},async()=>{
+  const email=`fleet-${crypto.randomUUID()}@example.invalid`,password='Fleet-test-password-2026!!';
+  const account=await post('/api/auth/register',{name:'Fleet captain',email,password,confirmPassword:password,shipSkin:'stealth'});
+  assert.equal(account.response.status,201);assert.equal(account.data.user.shipSkin,'classic');
+  try{
+    assert.equal((await post('/api/auth/shop/equip',{item:'ship-submarine'},account.cookie)).response.status,403);
+    assert.equal((await post('/api/auth/shop/buy',{item:'ship-submarine'},account.cookie)).response.status,200);
+    const chosen=await post('/api/auth/shop/equip',{item:'ship-submarine'},account.cookie);assert.equal(chosen.response.status,200);assert.equal(chosen.data.user.shipSkin,'submarine');assert.equal(chosen.data.balance,20);
+    assert.equal((await session(account.cookie)).user.shipSkin,'submarine');
+    const room=await post('/api/rooms',{variant:'battleship',cosmetics:{white:{ship:'carrier'}}},account.cookie);assert.equal(room.response.status,201);assert.equal(room.data.cosmetics.white.ship,'submarine');
+    const joined=await post(`/api/rooms/${room.data.code}/join`,{shipSkin:'stealth'});assert.equal(joined.response.status,200);assert.equal(joined.data.cosmetics.white.ship,'submarine');assert.notEqual(joined.data.cosmetics.black?.ship,'stealth');
+    const reconnect=await post(`/api/rooms/${room.data.code}/join`,{token:room.data.token},account.cookie);assert.equal(reconnect.response.status,200);assert.equal(reconnect.data.cosmetics.white.ship,'submarine');
+    assert.deepEqual(reconnect.data.game.fleets,{white:[],black:[]});
+  }finally{assert.equal((await post('/api/auth/delete-account',{email,password,confirmation:'DELETE'},account.cookie)).response.status,200);}
+});
+
 test('purchased cue skin persists in account and online room cosmetics through reconnection', {timeout:30000}, async()=>{
   const email=`cue-${crypto.randomUUID()}@example.invalid`,password='Cue-test-password-2026!!';
   const account=await post('/api/auth/register',{name:'Cue player',email,password,confirmPassword:password});
@@ -188,7 +204,7 @@ test('shop charges once, rejects forged purchases, synchronizes skins and awards
   for (const user of [a, b, c]) assert.equal((await post('/api/auth/delete-account', { email: user.email, password, confirmation: 'DELETE' }, user.cookie)).response.status, 200);
   const recreated = await post('/api/auth/register', { name: 'Заново', email: c.email, password, confirmPassword: password });
   assert.equal(recreated.response.status, 201, recreated.data.error);
-  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100); assert.deepEqual(fresh.owned.sort(), ['cue-classic','effect-none','skin-classic']);
+  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100); assert.deepEqual(fresh.owned.sort(), ['cue-classic','effect-none','ship-classic','skin-classic']);
   await post('/api/auth/delete-account', { email: c.email, password, confirmation: 'DELETE' }, recreated.cookie);
 });
 

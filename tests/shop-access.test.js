@@ -12,6 +12,7 @@ function database(verified = true) {
   db.prepare('INSERT INTO users(id,name,email,created_at) VALUES(?,?,?,?)').run('other', 'Other', 'other@example.invalid', 1);
   db.exec(readFileSync(new URL('../migrations/0006_shop_access.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0009_cue_skin.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0010_ship_skin.sql', import.meta.url), 'utf8'));
   const env = { AUTH_DB: {
     prepare(sql) { return { bind(...args) { const statement = db.prepare(sql); return {
       first: async () => statement.get(...args),
@@ -58,5 +59,17 @@ test('cue skins require ownership, charge once and keep checker skins and effect
     assert.equal(user.cue_skin,'carbon');assert.equal(user.piece_skin,'classic');assert.equal(user.finish_effect,'none');assert.equal(user.victory_effect,'none');
     await equipItem(env,'other','cue-classic');
     assert.equal(db.prepare('SELECT cue_skin FROM users WHERE id=?').get('other').cue_skin,'classic');
+  }finally{db.close();}
+});
+
+test('ship models require ownership, debit once and equip independently of all other slots',async()=>{
+  const {db,env}=database();try{
+    await assert.rejects(equipItem(env,'other','ship-submarine'),{status:403});
+    await assert.rejects(equipItem(env,'other','ship-invented'),{status:400});
+    await buyItem(env,'other','ship-submarine');await buyItem(env,'other','ship-submarine');await equipItem(env,'other','ship-submarine');
+    assert.equal((await shopState(env,'other')).balance,20);
+    const user=db.prepare('SELECT ship_skin,cue_skin,piece_skin,finish_effect,victory_effect FROM users WHERE id=?').get('other');
+    assert.deepEqual({...user},{ship_skin:'submarine',cue_skin:'classic',piece_skin:'classic',finish_effect:'none',victory_effect:'none'});
+    await equipItem(env,'other','ship-classic');assert.equal(db.prepare('SELECT ship_skin FROM users WHERE id=?').get('other').ship_skin,'classic');
   }finally{db.close();}
 });

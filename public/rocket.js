@@ -1,21 +1,24 @@
 import { lowPerformance } from './performance.js';
 import { validEffect } from './shop-catalog.js';
 import { createPieceInteractions, FINISH_DURATION } from './finish-interactions.js';
+import { measureFinishLayout } from './finish-layout.js';
 
 export function isFinishTransition(previous, next, live = true) {
   return live && next.reason !== 'round' && validEffect(next.finishEffect) !== 'none' && ['white', 'black'].includes(next.winner) && !previous.winner && next.revision > previous.revision;
 }
 
 export function createRocketEffect(frame, sounds) {
-  let overlay, timer, impactTimer, complete;
+  let overlay, timer, impactTimer, complete, resizeObserver;
   const interactions = createPieceInteractions(frame);
   function cancel() {
     complete = null;
     clearTimeout(timer); clearTimeout(impactTimer);
+    resizeObserver?.disconnect(); resizeObserver=null;
     interactions.cancel();
     overlay?.remove(); overlay = null; frame.classList.remove('rocket-impact');
   }
   document.addEventListener('performancechange', () => { if(lowPerformance()) complete?.(); });
+  document.addEventListener('visibilitychange', () => { if(document.hidden) complete?.(); });
   function launch(fromTop, finished, effect = 'rocket', options = {}) {
     cancel();
     complete = () => { cancel(); finished(); };
@@ -38,8 +41,17 @@ export function createRocketEffect(frame, sounds) {
       };
       overlay.innerHTML = visuals[effect] || '';
     }
+    const viewport=measureFinishLayout(frame),stage=document.createElement('div');stage.className='finish-stage';
+    stage.append(...overlay.childNodes);overlay.append(stage);
+    Object.assign(overlay.style,{inset:'auto',left:viewport.left+'px',top:viewport.top+'px',width:viewport.width+'px',height:viewport.height+'px'});
+    Object.assign(stage.style,{width:viewport.size+'px',height:viewport.size+'px'});
     frame.append(overlay);
-    interactions.launch(effect, { ...options, fromTop, reduced });
+    interactions.launch(effect, { ...options, fromTop, reduced, viewport });
+    // End a short effect cleanly on a resize rather than distorting its live proxies.
+    if(typeof ResizeObserver!=='undefined'){
+      const width=frame.clientWidth,height=frame.clientHeight;
+      resizeObserver=new ResizeObserver(()=>{if(frame.clientWidth!==width||frame.clientHeight!==height)complete?.();});resizeObserver.observe(frame);
+    }
     sounds.play(effect === 'rocket' || effect === 'comet' ? 'rocket' : 'promotion');
     if (['rocket', 'lightning', 'comet'].includes(effect)) impactTimer = setTimeout(() => { if (!reduced) frame.classList.add('rocket-impact'); sounds.play('impact'); }, reduced ? 100 : 1250);
     timer = setTimeout(() => complete?.(), reduced ? 350 : FINISH_DURATION);

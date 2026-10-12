@@ -117,7 +117,7 @@ function renderBoard(keepDrag = false) {
   document.querySelector('.game-layout').classList.toggle('pool-layout',isPool());
   $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
-  if(isSea()){seaBoard.render(game,{mode,role:room?.role,roomCode:room?.code,enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
+  if(isSea()){seaBoard.render(game,{mode,role:room?.role,roomCode:room?.code,skins:mode==='local'?{white:currentUser?.shipSkin,black:currentUser?.shipSkin}:{white:room?.cosmetics?.white?.ship,black:room?.cosmetics?.black?.ship},enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isDomino()){
     dominoBoard.render(game,{mode,role:room?.role,enabled:game.roundResult ? !game.winner&&(mode==='local'||connected&&room?.ready&&!pending) : canPlay()});
     $('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;

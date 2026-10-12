@@ -68,6 +68,7 @@ export function createPieceInteractions(frame) {
   function launch(effect, options) {
     cancel(); canvasBoard = options.canvasBoard;
     const rect = frame.getBoundingClientRect(), width = frame.clientWidth, height = frame.clientHeight;
+    const viewport=options.viewport||{left:0,top:0,width,height};
     layer = document.createElement('div'); layer.className = 'finish-pieces'; layer.setAttribute('aria-hidden', 'true');
     const pieces = [...frame.querySelectorAll('#board .piece, #narde-board .piece, .preview-checkers .piece')].filter(node => node.getBoundingClientRect().width && !node.classList.contains('captured')).map(node => {
       const bounds = node.getBoundingClientRect(), style = getComputedStyle(node), clone = node.cloneNode(true), proxy = document.createElement('div');
@@ -78,7 +79,7 @@ export function createPieceInteractions(frame) {
       for (const property of ['background', 'border', 'borderRadius', 'boxShadow', 'fontSize', 'fontFamily', 'fontWeight', 'color', 'lineHeight']) clone.style[property] = style[property];
       Object.assign(clone.style, { position: 'relative', inset: 'auto', width: '100%', height: '100%', margin: '0', translate: 'none', transform: 'none', visibility: 'visible' });
       proxy.append(clone); layer.append(proxy);
-      return { proxy, x: left + bounds.width / width / 2, y: top + bounds.height / height / 2, side: node.classList.contains('white') ? 'white' : 'black' };
+      return { proxy, x:(left*width+bounds.width/2-viewport.left)/viewport.width, y:(top*height+bounds.height/2-viewport.top)/viewport.height, side: node.classList.contains('white') ? 'white' : 'black' };
     });
     frame.append(layer); frame.classList.add('finish-interacting');
     const started = performance.now();
@@ -86,7 +87,7 @@ export function createPieceInteractions(frame) {
       const elapsed = now - started;
       for (const piece of pieces) {
         const reaction = pieceReaction(effect, piece, elapsed, options);
-        piece.proxy.style.transform = `translate(${reaction.x * frame.clientWidth}px,${reaction.y * frame.clientHeight}px) rotate(${reaction.rotation}deg) scale(${reaction.scale})`;
+        piece.proxy.style.transform = `translate(${reaction.x * viewport.width}px,${reaction.y * viewport.height}px) rotate(${reaction.rotation}deg) scale(${reaction.scale})`;
         piece.proxy.style.opacity = reaction.opacity;
         piece.proxy.style.filter = `brightness(${reaction.brightness}) hue-rotate(${reaction.hue}deg) drop-shadow(0 0 ${reaction.glow}px ${reaction.color})`;
       }
