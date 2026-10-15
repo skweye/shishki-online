@@ -12,11 +12,14 @@
 .move-help { color:var(--theme-muted); font-size:11px; line-height:1.7; text-align:center; margin:14px 0 4px; }
 .match-actions { display:flex; gap:12px; }
 .match-actions .secondary-button { flex:1; font-size:12px; min-height:44px; margin-top:8px; }
-.draw-notice { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:20px; margin:0 0 24px; border:1px solid var(--theme-accent); background:var(--theme-raised); border-radius:12px; color:var(--theme-text); }
+.draw-notice { position:fixed; z-index:30; top:max(100px,env(safe-area-inset-top)); right:max(24px,env(safe-area-inset-right)); width:min(390px,calc(100vw - 32px)); max-height:calc(100dvh - 120px); overflow:auto; display:flex; flex-direction:column; align-items:stretch; gap:16px; padding:20px; margin:0; border:1px solid var(--theme-accent); background:var(--theme-raised); border-radius:18px; color:var(--theme-text); box-shadow:0 16px 48px #0005,0 2px 8px #0003; animation:draw-notice-in .22s ease-out; }
 .draw-notice strong { font-size:14px; font-weight:550; }
 .draw-notice p { color:var(--theme-muted); line-height:1.7; margin:5px 0 0; }
 .draw-decisions { display:flex; gap:10px; }
-.draw-decisions button { width:auto; margin:0; white-space:nowrap; }
+.draw-decisions button { flex:1; width:auto; margin:0; min-height:44px; white-space:nowrap; }
+@keyframes draw-notice-in { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:translateY(0); } }
+@media(max-width:720px) { .draw-notice { top:max(88px,env(safe-area-inset-top)); right:max(16px,env(safe-area-inset-right)); max-height:calc(100dvh - 104px); } }
+@media(prefers-reduced-motion:reduce) { .draw-notice { animation:none; } }
 #rematch-button { margin-top:18px; }
 .result-dialog { text-align:center; padding:36px; overflow-x:hidden; overflow-y:auto; max-height:calc(100dvh - 32px); }
 .result-close { position:absolute; top:15px; right:15px; }

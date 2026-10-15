@@ -1,5 +1,7 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Отменить выбор|Clear selection|Скасувати вибір
+Отклонить|Decline|Відхилити
 Модели кораблей|Ship models|Моделі кораблів
 Флот · Эскадра|Fleet · Squadron|Флот · Ескадра
 Броневые корпуса, башни и палубные орудия.|Armored hulls, turrets and deck guns.|Броньовані корпуси, башти й палубні гармати.

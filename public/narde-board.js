@@ -13,6 +13,9 @@ export function createNardeBoard({move,roll}) {
   const options=()=>playable&&!rolling?nardeMoves(game).filter(m=>chosenDie===null||m.die===chosenDie):[];
   const play=(from,to)=>{const choice=options().find(m=>m.from===from&&m.to===to);if(choice)move(from,to,chosenDie??choice.die);};
   const drag=attachBoardDrag(root,{moves:options,select:from=>{selected=from;draw();},move:play});
+  const clearSelection=()=>{drag.cancel();selected=null;draw();};
+  const deselect=document.createElement('button');deselect.type='button';deselect.className='secondary-button narde-deselect';
+  root.querySelector('.narde-controls').append(deselect);deselect.onclick=clearSelection;
   function draw() {
     if(!game)return;
     const moves=options(),focus=document.activeElement?.dataset?.index;
@@ -55,6 +58,7 @@ export function createNardeBoard({move,roll}) {
     rollButton.hidden=!!game.dice.length||!!game.winner||rolling;
     root.querySelector('.narde-roll-status').textContent=rolling?t('Кости в движении…'):'';
     off.textContent=t('Вывести фишку')+` · ${game.off.white} / ${game.off.black}`;off.disabled=!moves.some(m=>m.from===selected&&m.to===24);off.classList.toggle('legal',!off.disabled);
+    deselect.textContent=t('Отменить выбор');deselect.disabled=selected===null||!playable||rolling;
     const home=game.board.every((v,p)=>Math.sign(v)!==(game.turn==='white'?1:-1)||nardeProgress(p,game.turn)>=18);
     hint.textContent=t(game.opening?'Первый ход определят кости: большее число начинает.':game.winner?'Партия завершена.':!game.dice.length?'Бросьте кости. Если ходов нет, очередь перейдёт сопернику.':home?'Все фишки дома. Выбирайте фишку и выводите её с доски.':'Выберите фишку и подсвеченный пункт. Можно перетаскивать.');
     if(focus!==undefined)root.querySelector(`[data-index="${focus}"]`)?.focus({preventScroll:true});
@@ -89,10 +93,14 @@ export function createNardeBoard({move,roll}) {
   rollButton.onclick=()=>{if(!rolling&&!rollButton.disabled)roll();};
   document.addEventListener('languagechange',()=>{drag.cancel();draw();});
   root.addEventListener('click',event=>{
-    const button=event.target.closest('[data-index]');if(!button||!playable)return;
+    if(!playable||rolling)return;
+    const button=event.target.closest('[data-index]');
+    if(!button){if(selected!==null&&event.target.closest('.narde-table')&&!event.target.closest('button'))clearSelection();return;}
     const point=Number(button.dataset.index),moves=options();
+    if(selected===point){clearSelection();return;}
     if(selected!==null&&moves.some(m=>m.from===selected&&m.to===point)){play(selected,point);return;}
     selected=moves.some(m=>m.from===point)?point:null;draw();
   });
+  root.addEventListener('keydown',event=>{if(event.key==='Escape'&&selected!==null){event.preventDefault();clearSelection();}});
   return {cancel,animateRoll,render(next,flip,active,newSkins){drag.cancel();if(revision!==next.revision){selected=null;chosenDie=null;}revision=next.revision;game=next;flipped=flip;playable=active;skins=newSkins;draw();}};
 }
