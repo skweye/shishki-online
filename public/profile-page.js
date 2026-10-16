@@ -1,5 +1,6 @@
 import { renderProgress } from './progression-ui.js';
 import { syncAccount } from './auth.js';
+import { createCaseShop } from './case-shop.js';
 const $ = id => document.getElementById(id);
 const modes = [
   ['battleship', 'Морской бой', '10 кораблей · Поле 10 × 10', '⚓'],
@@ -11,6 +12,7 @@ const modes = [
   ['pool8', 'Пул-8', '15 шаров · 6 луз · Без часов', '⑧'],
   ['domino', 'Домино', 'По 7 костей · Базар · До 100 очков', '◈']
 ];
+let shopState = null;
 let user = null, draftAvatar = null, avatarVersion = 0, deleting = false;
 async function request(path, data) {
   const response = await fetch('/api/auth/' + path, {
@@ -37,9 +39,6 @@ function showUser(value) {
   syncAccount(value);
   user = value; draftAvatar = value.avatar;
   $('hero-name').textContent = user.name;
-  $('hero-level').textContent = String(user.level || 1);
-  $('hero-level').setAttribute('aria-label', 'Уровень ' + (user.level || 1));
-  $('admin-link').hidden = !user.isAdmin;
   $('member-since').textContent = 'За доской с ' + new Date(user.createdAt * 1000).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   $('nickname').value = user.name;
   $('account-email').textContent = user.email;
@@ -77,8 +76,7 @@ async function load() {
   $('state-title').textContent = 'Загружаем профиль…';
   try {
     const data = await request('account');
-    showUser(data.user); showStats(data);renderProgress($('level-progress'),data.shop);
-    $('profile-coins').textContent = data.shop.balance.toLocaleString('ru-RU');
+    showUser(data.user); showStats(data); updateRewards({...data.shop,user:data.user});
     $('connect-google').hidden = user.googleLinked || !data.googleEnabled;
     $('page-state').hidden = true; $('account-content').hidden = false;
   } catch (error) {
@@ -88,6 +86,26 @@ async function load() {
     $('sign-in').hidden = error.status !== 401; $('retry').hidden = error.status === 401;
   }
 }
+const rewards = createCaseShop({
+  request: (path, data) => request('shop' + path, data),
+  getState: () => shopState,
+  update: updateRewards,
+  preview: item => location.assign('/inventory?item=' + encodeURIComponent(item.id))
+});
+function updateRewards(state) {
+  shopState = state;
+  if(state.user) syncAccount(state.user);
+  renderProgress($('profile-level'), state, () => rewards.openReward());
+  $('profile-coins').textContent = state.balance.toLocaleString('ru-RU');
+  rewards.render();
+}
+document.addEventListener('languagechange', () => {
+  if(shopState) renderProgress($('profile-level'), shopState, () => rewards.openReward());
+});
+$('case-dialog').addEventListener('close', () => {
+  const level = $('hero-level');
+  if(level) (level.disabled ? $('hero-name') : level).focus();
+});
 $('retry').onclick = load;
 $('remove-avatar').onclick = () => {
   avatarVersion++; draftAvatar = null; $('avatar-file').value = ''; $('save-profile').disabled = false;
@@ -121,11 +139,6 @@ $('edit-profile').onsubmit = async event => {
     showUser(data.user); feedback('edit-status', 'Изменения сохранены.');
   } catch (error) { feedback('edit-status', error.message, true); }
   finally { $('edit-fields').disabled = false; }
-};
-$('sign-out').onclick = async () => {
-  $('sign-out').disabled = true;
-  try { await request('logout', {}); location.assign('/'); }
-  catch (error) { feedback('logout-error', error.message, true); $('sign-out').disabled = false; }
 };
 $('open-delete').onclick = () => {
   if (!user) return;

@@ -53,6 +53,7 @@ export function openAuth() {
   if (currentUser) location.assign('/profile');
   else { setTab('login'); $('auth-dialog').showModal(); }
 }
+$('menu-home').onclick = () => { closeAccountMenu(); location.assign('/'); };
 $('menu-profile').onclick = () => {
   closeAccountMenu(); location.assign('/profile');
 };

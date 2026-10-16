@@ -11,7 +11,7 @@ test('every page mounts one complete account menu and working theme picker witho
     mountAccountShell(document);mountAccountShell(document);
     const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);
     assert.equal(ids.length,new Set(ids).size,file+' duplicate IDs');
-    for(const id of ['account-button','menu-profile','menu-admin','menu-shop','menu-inventory','account-level','menu-login','logout-button','appearance-menu','language-menu','settings-button','auth-dialog','settings-dialog','sound-pack'])assert.ok(document.getElementById(id),file+': '+id);
+    for(const id of ['account-button','menu-home','menu-profile','menu-admin','menu-shop','menu-inventory','account-level','menu-login','logout-button','appearance-menu','language-menu','settings-button','auth-dialog','settings-dialog','sound-pack'])assert.ok(document.getElementById(id),file+': '+id);
     assert.ok(document.querySelector('.site-header #account-button'));
     assert.equal(document.querySelector('#menu-admin').hidden,true);
     assert.ok(document.querySelector('script[src="'+(file==='index.html'?'/app.js':'/account-page.js')+'"]'));
@@ -56,6 +56,7 @@ test('shared page menu handles account identity, Google return, sound preference
   assert.equal($('account-button-label').textContent,'<b>Player</b>');assert.equal($('account-button-label').children.length,0);
   assert.equal($('account-avatar').querySelector('img').getAttribute('src'),'/avatar.png');
   assert.equal($('account-level').textContent,'12');assert.equal($('account-level').hidden,false);
+  $('menu-home').click();assert.equal(navigations.at(-1),'/');
   $('menu-inventory').click();assert.equal(navigations.at(-1),'/inventory');
   $('menu-profile').click();assert.equal(navigations.at(-1),'/profile');
   document.dispatchEvent(new window.CustomEvent('accountchange',{detail:{id:'new-user'}}));assert.equal(reloads,1);

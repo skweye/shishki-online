@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/themes.css">
   <link rel="stylesheet" href="/account-menu.css"><link rel="stylesheet" href="/auth.css"><link rel="stylesheet" href="/glass.css">
   <link rel="stylesheet" href="/profile-page.css">
-  <link rel="stylesheet" href="/shop.css"><link rel="stylesheet" href="/cases.css">
+  <link rel="stylesheet" href="/cosmetics.css"><link rel="stylesheet" href="/battleship.css"><link rel="stylesheet" href="/shop.css"><link rel="stylesheet" href="/cases.css">
   <script src="/theme.js"></script><script type="module" src="/profile-page.js"></script>
 <script type="module" src="/account-page.js"></script><link rel="stylesheet" href="/controls.css"></head>
 <body class="profile-page">
@@ -16,7 +16,6 @@
   <header class="site-header">
     <a class="brand" href="/" aria-label="Шашки, главная"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>шашки<span class="brand-dot">.</span></a>
     <span class="header-caption">Ваша игра. Ваша история.</span>
-    <a class="back-link" href="/">← К игре</a>
   </header>
   <main class="account-page">
     <section id="page-state" class="profile-surface page-state" aria-live="polite">
@@ -24,14 +23,13 @@
       <a id="sign-in" class="primary-button" href="/?login=1&amp;returnTo=profile" hidden>Войти или зарегистрироваться</a>
       <button id="retry" class="secondary-button" hidden>Попробовать снова</button>
     </section>
-    <div id="account-content" hidden><a href="/inventory" class="secondary-button"><span aria-hidden="true">▣</span> <span>Инвентарь</span></a><a id="admin-link" class="back-link" href="/admin" hidden>Админ-панель ↗</a>
-      <section class="profile-hero">
+    <div id="account-content" hidden>
+      <section class="profile-hero profile-surface">
         <div class="large-avatar" id="hero-avatar" aria-hidden="true"></div>
-        <div class="profile-intro"><p class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</p><div class="profile-name-line"><h1 id="hero-name" data-no-translate></h1><span id="hero-level" class="level-badge"></span></div><p id="member-since"></p></div>
-        <a href="/" class="primary-button play-again">Сыграть партию <span aria-hidden="true">↗</span></a>
+        <div class="profile-intro"><p class="eyebrow">ЛИЧНЫЙ КАБИНЕТ</p><div class="profile-name-line"><h1 id="hero-name" tabindex="-1" data-no-translate></h1></div><p id="member-since"></p></div>
+        <div id="profile-level" class="profile-level"></div>
       </section>
-      <a href="/shop" class="profile-surface profile-wallet"><span class="coin-symbol" aria-hidden="true">◈</span><strong id="profile-coins">0</strong><span class="subtle">монет</span><span>Кейсы и награды ↗</span></a>
-      <section id="level-progress" class="profile-surface level-progress"></section>
+      <div class="profile-wallet"><span class="coin-symbol" aria-hidden="true">◈</span><strong id="profile-coins">0</strong><span class="subtle">монет</span></div>
       <section aria-labelledby="stats-title">
         <div class="section-heading"><div><p class="eyebrow">КАЖДАЯ ПАРТИЯ — ОПЫТ</p><h2 id="stats-title">Ваша статистика</h2></div><span class="online-label">Онлайн-партии</span></div>
         <div class="stat-grid">
@@ -71,12 +69,13 @@
             <div class="account-details"><span class="subtle">Почта аккаунта</span><strong id="account-email"></strong><p id="account-method"></p><p id="account-verification" class="subtle"></p><a id="connect-google" class="secondary-button" href="/api/auth/google?returnTo=%2Fprofile" hidden>Подключить Google</a></div>
           </section>
 
-          <section class="profile-surface content-card security-card" aria-labelledby="account-actions-title"><h2 id="account-actions-title">Управление аккаунтом</h2><button id="sign-out" class="secondary-button">Выйти из аккаунта</button><p id="logout-error" class="feedback" role="status"></p><div class="danger-zone"><h3>Удаление аккаунта</h3><p>Профиль, аватар, личная статистика, монеты и коллекция будут удалены. Все сеансы входа завершатся. Отменить удаление нельзя.</p><button id="open-delete" class="danger-button">Удалить аккаунт</button></div></section>
+          <section class="profile-surface content-card security-card" aria-labelledby="account-actions-title"><h2 id="account-actions-title">Управление аккаунтом</h2><div class="danger-zone"><h3>Удаление аккаунта</h3><p>Профиль, аватар, личная статистика, монеты и коллекция будут удалены. Все сеансы входа завершатся. Отменить удаление нельзя.</p><button id="open-delete" class="danger-button">Удалить аккаунт</button></div></section>
         </div>
       </div>
     </div>
     <footer><span>шашки. Хорошая компания. Отличная партия.</span><a href="/privacy">Конфиденциальность</a></footer>
   </main>
+  <dialog id="case-dialog" aria-labelledby="case-title"><div class="dialog-heading"><h2 id="case-title">Открыть кейс</h2><button class="icon-button" id="case-close" aria-label="Закрыть">×</button></div><div id="case-chest" class="case-chest" aria-hidden="true"><span>✦</span></div><div id="case-reel" class="case-reel" hidden></div><p id="case-cost"></p><div id="case-odds"></div><details><summary>Все предметы и шансы</summary><ul id="case-contents" class="case-contents"></ul></details><div id="case-prize" class="shop-art case-prize" hidden aria-hidden="true"></div><p id="case-result" role="status"></p><p id="case-error" class="feedback" role="alert"></p><div class="delete-actions"><button id="case-preview" class="secondary-button" hidden>Открыть в инвентаре</button><button id="case-confirm" class="primary-button">Открыть кейс</button></div></dialog>
   <dialog id="delete-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
     <div class="dialog-heading"><h2 id="delete-title">Удалить аккаунт?</h2><button id="cancel-delete-icon" class="icon-button" aria-label="Отмена">×</button></div>
     <p id="delete-description">Ваш профиль, личные результаты, монеты и коллекция исчезнут без возможности восстановления. Сохранённые результаты соперников останутся без связи с вашим аккаунтом.</p>

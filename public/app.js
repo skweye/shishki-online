@@ -524,6 +524,7 @@ function updateStart() {
   $('start-hint').textContent = local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : $('start-form').elements.variant.value==='domino' ? 'Первый ход — старший дубль. Если дублей нет — старшая кость.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
 }
 $('home-button').onclick = goHome;
+$('menu-home').onclick = () => { closeAccountMenu(); goHome(); };
 document.querySelector('.brand').onclick = event => { event.preventDefault(); goHome(); };
 $('start-form').onchange = updateStart;
 $('start-form').onsubmit = async event => {

@@ -1,5 +1,8 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+К игре|Play|До гри
+Забрать награду|Claim reward|Забрати нагороду
+Кейс на уровне|Case at level|Кейс на рівні
 Меню партии|Match menu|Меню партії
 Действия партии|Match actions|Дії партії
 Панель партии|Match panel|Панель партії

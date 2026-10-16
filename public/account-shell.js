@@ -1,6 +1,7 @@
 // Shared account controls for every page. Markup contains no user data.
 export const accountMarkup = `<div class="account-anchor"><button class="account-button" id="account-button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="Войти или зарегистрироваться"><span class="account-avatar" id="account-avatar" aria-hidden="true">↗</span><span id="account-button-label" data-no-translate>Войти</span><span id="account-level" class="level-badge" hidden></span></button><div class="account-menu" id="account-menu" hidden role="menu" aria-label="Меню аккаунта">
   <div class="menu-identity" id="menu-identity" data-no-translate>Гость</div>
+  <button role="menuitem" id="menu-home">К игре</button>
   <button role="menuitem" id="menu-profile">Профиль</button>
   <button role="menuitem" id="menu-admin" hidden>Админ-панель</button>
   <button role="menuitem" id="menu-shop">Кейсы и награды</button>

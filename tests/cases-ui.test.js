@@ -39,8 +39,8 @@ test('pending requests restore after reload, reward cases cost no coins and low 
   component.render();assert.equal($('case-dialog').open,true);assert.match($('case-error').textContent,/незавершённый/);
   await $('case-confirm').onclick();assert.deepEqual(sent,old);$('case-close').click();
   state={...state,balance:0,cases:{standard:1,premium:0,royal:0},progression:progression(levelThreshold(10))};component.render();
-  const buttons=$('case-catalog').querySelectorAll('button');assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,true);
-  buttons[0].click();assert.match($('case-cost').textContent,/бесплатно/);assert.match($('level-progress').textContent,/Уровень 20/);
+  const buttons=$('case-catalog').querySelectorAll('button');assert.equal(buttons[0].disabled,true);assert.equal(buttons[1].disabled,true);
+  component.openReward();assert.match($('case-cost').textContent,/Награда за уровень — бесплатно/);assert.equal($('level-progress'),null);
   await $('case-confirm').onclick();assert.equal(sent.source,'reward');
 });
 
