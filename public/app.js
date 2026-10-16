@@ -325,6 +325,15 @@ const poolBoard = createPoolBoard({
     try{const next=placePoolCue(game,x,y);if(mode==='online')send({type:'pool-place',x,y});else{acceptGame(next,false);localSave();render();}return true;}catch(error){toast(error.message);return false;}
   }
 });
+let lastPoolAim='',lastPoolAimAt=0;
+setInterval(()=>{
+  if(mode!=='online'||!isPool()||!canPlay()||document.hidden||$('game-screen').hidden||socket?.readyState!==WebSocket.OPEN){lastPoolAim='';return;}
+  if(socket.bufferedAmount>4096)return;
+  const packet=JSON.stringify({type:'pool-aim',revision:game.revision,...poolBoard.getAim()});
+  const now=performance.now();
+  if(packet===lastPoolAim&&now-lastPoolAimAt<1000)return;
+  socket.send(packet);lastPoolAim=packet;lastPoolAimAt=now;
+},100);
 const chapaevBoard = createChapaevBoard({
   impact: () => sounds.play('impact'),
   shoot(id, dx, dy) {
@@ -420,6 +429,7 @@ function applySnapshot(data, audible = true) {
   if (Number.isFinite(data.serverNow)) clockSync = { now: data.serverNow, received: performance.now() };
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
   pending = false; render();
+  poolBoard.receiveAim(isPool()&&data.poolAim?.role!==room.role?data.poolAim:null);
 }
 function connect() {
   if (!room) return;
@@ -441,6 +451,7 @@ function connect() {
     try {
       const data = JSON.parse(event.data);
       if (data.type === 'state') { applySnapshot(data, !firstSnapshot); firstSnapshot = false; }
+      if (data.type === 'pool-aim' && isPool() && data.role !== room.role) poolBoard.receiveAim(data);
       if (data.type === 'chat') room.chat = roomChat.receive(data.message);
       if (data.type === 'error') {
         if (data.context === 'chat') roomChat.error(data.message);
@@ -450,7 +461,7 @@ function connect() {
   };
   ws.onclose = event => {
     if (socket !== ws) return;
-    clearInterval(heartbeat); connected = false; pending = false; render();
+    clearInterval(heartbeat); connected = false; pending = false; poolBoard.receiveAim(null); render();
     if (event.code === 4003) {
       $('status-title').textContent = 'Войдите в аккаунт';
       $('status-text').textContent = 'Сессия закончилась. Войдите снова и откройте ссылку на комнату.';

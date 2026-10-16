@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { validPoolAim } from '../public/pool-aim.js';
 import { actBattleship, battleshipView } from '../public/battleship.js';
 import { actDomino, readyDominoRound, dominoView } from '../public/domino.js';
 import { newGame, applyMove, opposite, validVariant, variantOf } from '../public/game.js';
@@ -147,6 +148,7 @@ export class GameRoom extends DurableObject {
   snapshot(role = null) {
     return {
       game: battleshipView(dominoView(this.room.game, role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
+      poolAim: this.poolAim && Date.now()-this.poolAimAt<3000 && validPoolAim(this.poolAim,this.room.game,this.poolAim.role) ? this.poolAim : null,
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer,
       names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
@@ -251,6 +253,13 @@ export class GameRoom extends DurableObject {
         if (!data || typeof data !== 'object') throw new Error('Некорректное сообщение.');
         messageType = data.type;
         const actionNow = Date.now();
+        if(data.type==='pool-aim'){
+          if(!this.room.players.black||!validPoolAim(data,this.room.game,role)||actionNow-(session.lastAim||0)<60)return;
+          session.lastAim=actionNow;ws.serializeAttachment(session);
+          this.poolAim={type:'pool-aim',role,revision:data.revision,angle:data.angle,power:data.power,placing:data.placing};this.poolAimAt=actionNow;
+          for(const peer of this.ctx.getWebSockets())if(peer.deserializeAttachment()?.role!==role){try{peer.send(JSON.stringify(this.poolAim));}catch{}}
+          return; // No persisted state, move revision, rewards or inactivity extension.
+        }
         await this.expireClock(actionNow);
         if (data.type === 'chat') {
           const lastSent = this.room.chatLastSent?.[role];
@@ -323,8 +332,8 @@ export class GameRoom extends DurableObject {
       }
     });
   }
-  webSocketClose(ws) { if (this.room) this.broadcast(); }
-  webSocketError(ws) { ws.close(1011, 'Ошибка соединения'); if (this.room) this.broadcast(); }
+  webSocketClose(ws) { if(this.poolAim?.role===ws.deserializeAttachment()?.role)this.poolAim=null; if (this.room) this.broadcast(); }
+  webSocketError(ws) { ws.close(1011, 'Ошибка соединения'); this.webSocketClose(ws); }
   async alarm() {
     return this.ctx.blockConcurrencyWhile(async () => {
       if (this.room && !this.expired()) {

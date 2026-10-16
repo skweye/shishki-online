@@ -62,7 +62,7 @@ test('domino keeps hands private through HTTP, sockets, rejected moves and recon
 test('pool server validates shots and placement, synchronizes, restores, chats and rematches',async()=>{
   const {data:room,status}=await post('/api/rooms',{variant:'pool8'});assert.equal(status,201);assert.equal(room.clock,null);
   const {data:joined}=await post(`/api/rooms/${room.code}/join`);
-  const a=client(room.code,room.token),b=client(room.code,joined.token);
+  const a=client(room.code,room.token);let b=client(room.code,joined.token);
   try{
     await a.wait(m=>m.type==='state'&&m.ready);await b.wait(m=>m.type==='state'&&m.ready);
     await b.send({type:'pool-shot',dx:.85,dy:0,revision:0});await b.wait(m=>m.type==='error'&&m.message.includes('соперника'));
@@ -70,6 +70,10 @@ test('pool server validates shots and placement, synchronizes, restores, chats a
     await a.send({type:'pool-place',x:4,y:5,revision:0});
     const placed=await b.wait(m=>m.type==='state'&&m.game.revision===1);
     assert.equal(placed.game.balls.find(ball=>ball.id===0).x,4);
+    const aim={type:'pool-aim',angle:34,power:.65,placing:false,revision:1};
+    await a.send({...aim,role:'black'});assert.deepEqual(await b.wait(m=>m.type==='pool-aim'),{...aim,role:'white'});
+    b.ws.close();b=client(room.code,joined.token);
+    const snapshot=await b.wait(m=>m.type==='state');assert.deepEqual(snapshot.poolAim,{...aim,role:'white'});assert.equal(snapshot.game.revision,1);
     await a.send({type:'pool-shot',dx:100,dy:0,revision:1});await a.wait(m=>m.type==='error');
     await a.send({type:'pool-shot',dx:.85,dy:0,revision:0});await a.wait(m=>m.type==='error'&&m.message.includes('изменилась'));
     const command={type:'pool-shot',dx:.85,dy:0,revision:1};
@@ -78,6 +82,9 @@ test('pool server validates shots and placement, synchronizes, restores, chats a
     assert.deepEqual(hit.game,applyPoolShot(placed.game,command));assert.equal(hit.clock,null);
     assert.deepEqual((await b.wait(m=>m.type==='state'&&m.game.revision===2)).game,hit.game);
     const shooter=hit.game.turn==='white'?a:b;
+    const watcher=shooter===a?b:a;
+    const nextAim={type:'pool-aim',angle:-120,power:.05,placing:false,revision:2};
+    await shooter.send(nextAim);assert.deepEqual(await watcher.wait(m=>m.type==='pool-aim'&&m.revision===2),{...nextAim,role:hit.game.turn});
     await shooter.send({type:'pool-shot',dx:.05,dy:0,revision:2});
     const uncalled=await a.wait(m=>m.type==='state'&&m.game.revision===3);
     assert.deepEqual(uncalled.game,applyPoolShot(hit.game,{dx:.05,dy:0}));

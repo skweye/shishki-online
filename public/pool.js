@@ -5,6 +5,16 @@ export const POCKETS = Object.freeze([{x:0,y:0},{x:10,y:0},{x:20,y:0},{x:0,y:10}
 export const pocketGeometry=p=>({x:p.x,y:p.y+(p.x===10?(p.y===0?-12:12)/54:0),radius:(p.x===10?29:32)/54});
 const R=TABLE.radius, DT=1/240, MAX_SPEED=36, DRAG=2.8;
 const opposite=side=>side==='white'?'black':'white';
+// Solve contact before advancing the balls. Resolving penetration after a whole
+// frame changes the collision normal, especially on powerful, glancing shots.
+function contactTime(a,b,limit){
+  const x=b.x-a.x,y=b.y-a.y,vx=b.vx-a.vx,vy=b.vy-a.vy,speed=vx*vx+vy*vy,dot=x*vx+y*vy;
+  if(speed<1e-12||dot>=0)return null;
+  const gap=x*x+y*y-4*R*R,discriminant=dot*dot-speed*gap;
+  if(discriminant<0)return null;
+  const time=gap<=1e-10?0:gap/(-dot+Math.sqrt(discriminant));
+  return time<=limit+1e-10?Math.max(0,time):null;
+}
 export const ballGroup=id=>id>=1&&id<=7?'solid':id>=9&&id<=15?'stripe':null;
 export const remainingPool=(state,side)=>state.groups[side]?state.balls.filter(b=>ballGroup(b.id)===state.groups[side]).length:7;
 export function poolTargets(state) {
@@ -50,11 +60,17 @@ export function simulatePool(state,dx,dy,collectFrames=false) {
     if(hit){if(b.id)railBalls.add(b.id);if(firstContact!==null)railAfterContact=true;if(collectFrames)events.push({time,kind:'rail',strength:Math.min(1,Math.hypot(b.vx,b.vy)/25)});}
   }
   for(let step=0;step<2400;step++){
-    time=(step+1)*DT;
-    for(const b of balls)if(!b.out){b.x+=b.vx*DT;b.y+=b.vy*DT;rails(b);}
+    // Split the first impact at its exact time. The guide describes this contact;
+    // later multi-ball and cushion interactions keep the established solver.
+    let firstImpact=DT;
+    if(firstContact===null){const cue=balls.find(b=>b.id===0&&!b.out);if(cue)for(const b of balls)if(b.id&&!b.out){const contact=contactTime(cue,b,firstImpact);if(contact!==null)firstImpact=Math.min(firstImpact,contact);}}
+    const segments=firstImpact<DT?[firstImpact,DT-firstImpact]:[DT];let elapsed=0;
+    for(const segment of segments){
+    elapsed+=segment;time=step*DT+elapsed;
+    for(const b of balls)if(!b.out){b.x+=b.vx*segment;b.y+=b.vy*segment;rails(b);}
     for(let pass=0;pass<2;pass++)for(let i=0;i<balls.length;i++)for(let j=i+1;j<balls.length;j++){
       const a=balls[i],b=balls[j];if(a.out||b.out)continue;
-      const x=b.x-a.x,y=b.y-a.y,d=Math.hypot(x,y);if(d>=2*R)continue;
+      const x=b.x-a.x,y=b.y-a.y,d=Math.hypot(x,y);if(d>2*R+1e-8)continue;
       const nx=d>1e-9?x/d:1,ny=d>1e-9?y/d:0,overlap=(2*R-d+.000001)/2;
       a.x-=nx*overlap;a.y-=ny*overlap;b.x+=nx*overlap;b.y+=ny*overlap;
       const approach=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;
@@ -64,6 +80,7 @@ export function simulatePool(state,dx,dy,collectFrames=false) {
         if(collectFrames&&approach>.4)events.push({time,kind:'ball',strength:Math.min(1,approach/25)});
         if(collectFrames&&approach>1&&(!collisions.length||step*DT-collisions.at(-1)>.08))collisions.push(step*DT);
       }
+    }
     }
     for(const b of balls)if(!b.out){rails(b);const speed=Math.hypot(b.vx,b.vy),scale=speed?Math.max(0,speed-DRAG*DT)/speed:0;b.vx*=scale;b.vy*=scale;}
     if(collectFrames&&step%4===3)frames.push(frame());

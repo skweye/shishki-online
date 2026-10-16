@@ -51,6 +51,33 @@ async function roomWith(saved = fixture(), env = {}) {
 }
 const join = (room, token) => room.fetch(new Request('https://game.test/join', { method: 'POST', body: JSON.stringify({ token }) }));
 
+test('pool aim is authenticated, bounded, ephemeral and independent of move throttling',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  const initial=fixture();initial.game=newGame('pool8');
+  const {room,ws,values,alarm}=await roomWith(initial);
+  const peer={...ws,session:{role:'black',lastMessage:0},messages:[]};room.ctx.getWebSockets().push(peer);
+  const aim={type:'pool-aim',revision:0,angle:32,power:.8,placing:false};
+  const saved=structuredClone(values.get('room')),deadline=alarm();
+  await room.webSocketMessage(ws,JSON.stringify({...aim,role:'black',winner:'white'}));
+  assert.deepEqual(peer.messages,[{...aim,role:'white'}]);assert.equal(ws.messages.length,0);
+  assert.deepEqual(values.get('room'),saved);assert.equal(alarm(),deadline);assert.equal(room.room.game.revision,0);
+  assert.deepEqual(room.snapshot('black').poolAim,{...aim,role:'white'});
+  await room.webSocketMessage(ws,JSON.stringify({...aim,angle:33}));assert.equal(peer.messages.length,1);
+  t.mock.timers.tick(100);
+  for(const invalid of [{angle:181},{power:2},{power:0},{angle:'20'},{revision:1},{placing:1}])await room.webSocketMessage(ws,JSON.stringify({...aim,...invalid}));
+  await room.webSocketMessage(peer,JSON.stringify(aim));assert.equal(peer.messages.length,1);assert.equal(ws.messages.length,0);
+  await room.webSocketMessage(ws,JSON.stringify({...aim,angle:-179}));assert.equal(peer.messages.at(-1).angle,-179);
+  // An aim packet must not consume the separate action rate limit.
+  await room.webSocketMessage(ws,JSON.stringify({type:'pool-shot',dx:.85,dy:0,revision:0}));
+  assert.equal(room.room.game.revision,1);assert.equal(room.snapshot('black').poolAim,null);
+  t.mock.timers.tick(100);
+  const active=room.room.game.turn==='white'?ws:peer,revision=room.room.game.revision;
+  await room.webSocketMessage(active,JSON.stringify({...aim,revision}));assert.ok(room.snapshot().poolAim);
+  t.mock.timers.tick(3000);assert.equal(room.snapshot().poolAim,null);
+  await room.webSocketMessage(active,JSON.stringify({...aim,revision}));room.webSocketClose(active);assert.equal(room.snapshot().poolAim,null);
+  room.room.game.winner='white';t.mock.timers.tick(100);await room.webSocketMessage(active,JSON.stringify({...aim,revision}));assert.equal(room.poolAim,null);
+});
+
 test('server alarms finish timed games even without sockets, and reconnecting cannot reset a clock', async t => {
   t.mock.timers.enable({ apis: ['Date'], now: START });
   const initial=fixture();initial.clock=createClock('russian',START);
