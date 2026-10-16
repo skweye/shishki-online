@@ -10,7 +10,8 @@
   <link rel="stylesheet" href="/profile-page.css">
   <link rel="stylesheet" href="/cosmetics.css"><link rel="stylesheet" href="/battleship.css"><link rel="stylesheet" href="/shop.css"><link rel="stylesheet" href="/cases.css">
   <script src="/theme.js"></script><script type="module" src="/profile-page.js"></script>
-<script type="module" src="/account-page.js"></script><link rel="stylesheet" href="/controls.css"></head>
+<script type="module" src="/account-page.js"></script><link rel="stylesheet" href="/controls.css"><link rel="stylesheet" href="/design.css">
+</head>
 <body class="profile-page">
   <div class="ambient-scene" aria-hidden="true"><i class="ambient-board"></i><i class="ambient-piece ambient-light"></i><i class="ambient-piece ambient-dark"></i></div>
   <header class="site-header">
@@ -33,28 +34,28 @@
       <section aria-labelledby="stats-title">
         <div class="section-heading"><div><p class="eyebrow">КАЖДАЯ ПАРТИЯ — ОПЫТ</p><h2 id="stats-title">Ваша статистика</h2></div><span class="online-label">Онлайн-партии</span></div>
         <div class="stat-grid">
-          <div class="profile-surface stat"><span>Всего партий</span><strong id="stat-played">0</strong></div>
-          <div class="profile-surface stat stat-win"><span>Победы</span><strong id="stat-wins">0</strong></div>
-          <div class="profile-surface stat"><span>Поражения</span><strong id="stat-losses">0</strong></div>
-          <div class="profile-surface stat"><span>Ничьи</span><strong id="stat-draws">0</strong></div>
-          <div class="profile-surface stat"><span>Доля побед</span><strong id="stat-rate">—</strong></div>
+          <div class="stat"><span>Всего партий</span><strong id="stat-played">0</strong></div>
+          <div class="stat stat-win"><span>Победы</span><strong id="stat-wins">0</strong></div>
+          <div class="stat"><span>Поражения</span><strong id="stat-losses">0</strong></div>
+          <div class="stat"><span>Ничьи</span><strong id="stat-draws">0</strong></div>
+          <div class="stat"><span>Доля побед</span><strong id="stat-rate">—</strong></div>
         </div>
         <p class="stats-note">Учитываются завершённые онлайн-партии с момента добавления статистики. Локальные игры и отдельные раунды Чапаева не учитываются.</p>
       </section>
       <div class="account-columns">
         <div class="account-column">
-          <section class="profile-surface content-card" aria-labelledby="modes-title">
+          <section class="content-card" aria-labelledby="modes-title">
             <div class="section-heading"><h2 id="modes-title">По режимам</h2><span class="subtle">И / В / П / Н</span></div>
             <div id="mode-stats" class="mode-stats"></div>
           </section>
-          <section class="profile-surface content-card" aria-labelledby="recent-title">
+          <section class="content-card" aria-labelledby="recent-title">
             <div class="section-heading"><h2 id="recent-title">Последние партии</h2><span class="subtle">Последние 20</span></div>
             <div id="recent-empty" class="history-empty"><span aria-hidden="true">◌</span><h3>История начинается с первого хода</h3><p>Завершите онлайн-партию, и её результат появится здесь.</p></div>
             <ol id="recent-games" class="recent-games"></ol>
           </section>
         </div>
         <div class="account-column">
-          <section class="profile-surface content-card" aria-labelledby="edit-title">
+          <section class="content-card" aria-labelledby="edit-title">
             <p class="eyebrow">ВАШЕ МЕСТО ЗА ДОСКОЙ</p><h2 id="edit-title">Настройки профиля</h2>
             <form id="edit-profile">
               <fieldset id="edit-fields">
@@ -69,7 +70,7 @@
             <div class="account-details"><span class="subtle">Почта аккаунта</span><strong id="account-email"></strong><p id="account-method"></p><p id="account-verification" class="subtle"></p><a id="connect-google" class="secondary-button" href="/api/auth/google?returnTo=%2Fprofile" hidden>Подключить Google</a></div>
           </section>
 
-          <section class="profile-surface content-card security-card" aria-labelledby="account-actions-title"><h2 id="account-actions-title">Управление аккаунтом</h2><div class="danger-zone"><h3>Удаление аккаунта</h3><p>Профиль, аватар, личная статистика, монеты и коллекция будут удалены. Все сеансы входа завершатся. Отменить удаление нельзя.</p><button id="open-delete" class="danger-button">Удалить аккаунт</button></div></section>
+          <section class="content-card security-card" aria-labelledby="account-actions-title"><h2 id="account-actions-title">Управление аккаунтом</h2><div class="danger-zone"><h3>Удаление аккаунта</h3><p>Профиль, аватар, личная статистика, монеты и коллекция будут удалены. Все сеансы входа завершатся. Отменить удаление нельзя.</p><button id="open-delete" class="danger-button">Удалить аккаунт</button></div></section>
         </div>
       </div>
     </div>

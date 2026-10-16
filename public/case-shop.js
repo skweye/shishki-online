@@ -33,16 +33,18 @@ export function createCaseShop({request,getState,update,preview}){
   function render(){
     const state=getState();
     $('case-catalog')?.replaceChildren(...CASES.map(box=>{
-      const card=el('article','','profile-surface case-card');card.dataset.case=box.id;
+      const card=el('article','','case-card');card.dataset.case=box.id;
       const chest=el('div','','case-chest');chest.setAttribute('aria-hidden','true');chest.append(el('span','✦'));
       const source=state?.fullAccess?'access':'coins';
       const button=el('button',t(!state?'Войти':source==='coins'?'Открыть кейс':'Открыть бесплатно'),'secondary-button');
       button.disabled=busy||!!state&&source==='coins'&&state.balance<box.price;
       button.onclick=()=>{if(!state){location.assign('/?login=1&returnTo=shop');return;}try{const old=JSON.parse(localStorage.getItem(key()));if(old&&caseById(old.caseId)){show(caseById(old.caseId),old.source,old);return;}}catch{}show(box,source);};
-      card.append(chest,el('h3',t(box.name)),el('p',`${box.price} ◈`),odds(box),button);
+      const info=el('div','','case-info'),actions=el('div','','case-actions');
+      info.append(el('h3',t(box.name)),odds(box));actions.append(el('p',`${box.price} ◈`,'case-price'),button);
+      card.append(chest,info,actions);
       const contents=el('details',''),summary=el('summary',t('Все предметы и шансы')),list=el('ul','','case-contents');
       for(const {item,rarity,chance} of caseContents(box)){const li=el('li',`${t(item.name)} · ${number(chance)}%`);li.dataset.rarity=rarity;list.append(li);}
-      contents.append(summary,list);card.append(contents);return card;
+      contents.append(summary,list);info.append(contents);return card;
     }));
     $('case-history')?.replaceChildren(...(state?.openings||[]).map(row=>{
       const item=itemById(row.itemId);return el('li',`${t(caseById(row.caseId)?.name||'Кейс')} → ${t(item?.name||row.itemId)} · ${t(RARITIES[row.rarity].name)}${row.duplicate?' · '+t('Повтор')+' +'+row.compensation+' ◈':''}`);
