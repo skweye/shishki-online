@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { brotliCompressSync } from 'node:zlib';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { watch } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseHTML } from 'linkedom';
 import { prepareAssets } from '../scripts/prepare-assets.mjs';
@@ -47,7 +48,9 @@ test('all pages carry their complete ordered CSS, authorized by the delivered CS
   }
   const first = await readFile(resolve(output, 'index.html'), 'utf8');
   await writeFile(resolve(output, 'obsolete.css'), 'stale');
-  await prepareAssets(output);
+  const directory = await stat(output), watcher = watch(output, { persistent: false });
+  try { await prepareAssets(output); } finally { watcher.close(); }
+  assert.equal((await stat(output)).ino, directory.ino, 'rebuild preserves the directory watched by Wrangler on Windows');
   assert.equal(await readFile(resolve(output, 'index.html'), 'utf8'), first);
   assert.equal((await readdir(output)).includes('obsolete.css'), false);
 });

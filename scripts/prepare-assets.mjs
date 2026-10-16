@@ -8,6 +8,18 @@ const source = resolve(root, 'public');
 const normalize = text => text.replace(/\r\n?/g, '\n');
 const attributes = tag => Object.fromEntries([...tag.matchAll(/([\w-]+)\s*=\s*["']([^"']*)["']/g)].map(([, key, value]) => [key.toLowerCase(), value]));
 
+async function pruneAssets(sourceDir, outputDir) {
+  const keep = new Map((await readdir(sourceDir, { withFileTypes: true })).map(entry => [entry.name, entry]));
+  for (const entry of await readdir(outputDir, { withFileTypes: true })) {
+    const original = keep.get(entry.name), target = resolve(outputDir, entry.name);
+    if (!original || entry.isSymbolicLink() || original.isDirectory() !== entry.isDirectory()) {
+      await rm(target, { recursive: true, force: true });
+    } else if (entry.isDirectory()) {
+      await pruneAssets(resolve(sourceDir, entry.name), target);
+    }
+  }
+}
+
 // CSS travels with the document: no dependency on separate stylesheet requests
 // or third-party fonts. Exact CSP hashes authorize only the generated CSS.
 export async function prepareAssets(outputDir = resolve(root, '.site-assets')) {
@@ -51,9 +63,10 @@ export async function prepareAssets(outputDir = resolve(root, '.site-assets')) {
   headers = headers.replace("style-src 'self';", `style-src 'self' ${[...hashes].join(' ')};`);
   if (headers.split('\n').some(line => line.length > 2000)) throw new Error('Cloudflare header line exceeds 2000 characters');
 
-  // The resolved destination was checked above; never clean the source checkout.
-  await rm(outputDir, { recursive: true, force: true });
+  // Keep watched directories in place: Windows locks the dev server's root.
+  // Only stale entries inside the checked output tree are removed.
   await mkdir(outputDir, { recursive: true });
+  await pruneAssets(source, outputDir);
   await cp(source, outputDir, { recursive: true });
   for (const { page, html } of generated) await writeFile(resolve(outputDir, page), html);
   await writeFile(resolve(outputDir, '_headers'), headers);
