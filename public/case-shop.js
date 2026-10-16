@@ -36,7 +36,7 @@ export function createCaseShop({request,getState,update,preview}){
       const card=el('article','','profile-surface case-card');card.dataset.case=box.id;
       const chest=el('div','','case-chest');chest.setAttribute('aria-hidden','true');chest.append(el('span','✦'));
       const free=state?.cases[box.id]||0,source=state?.fullAccess?'access':free?'reward':'coins';
-      const button=el('button',t(!state?'Войти':source==='coins'?'Открыть кейс':'Открыть бесплатно'),'primary-button');
+      const button=el('button',t(!state?'Войти':source==='coins'?'Открыть кейс':'Открыть бесплатно'),'secondary-button');
       button.disabled=busy||!!state&&source==='coins'&&state.balance<box.price;
       button.onclick=()=>{if(!state){location.assign('/?login=1&returnTo=shop');return;}try{const old=JSON.parse(localStorage.getItem(key()));if(old&&caseById(old.caseId)){show(caseById(old.caseId),old.source,old);return;}}catch{}show(box,source);};
       card.append(chest,el('h3',t(box.name)),el('p',`${box.price} ◈ · ${t('Наградные кейсы')}: ${free}`),odds(box),button);

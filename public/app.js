@@ -1,5 +1,6 @@
 import { actBattleship, validateFleet } from './battleship.js';
 import { createBattleshipBoard } from './battleship-board.js';
+import { createMatchUI } from './match-ui.js';
 import { closeAccountMenu } from './account-menu.js';
 import { newGame, legalMoves, applyMove, sideOf, opposite, squareName, VARIANTS, boardSize, variantOf } from './game.js';
 import { attachBoardDrag } from './board-drag.js';
@@ -23,6 +24,7 @@ import { actDomino, nextDominoRound } from './domino.js';
 import { createDominoBoard } from './domino-board.js';
 
 const $ = id => document.getElementById(id);
+const matchUI=createMatchUI();
 const names = { white: 'Белые', black: 'Чёрные' };
 const sounds = createSounds();
 const rocketEffect = createRocketEffect(document.querySelector('.board-frame'), sounds);
@@ -69,6 +71,7 @@ function toast(message) {
 }
 function confirm(title, message, action, label = 'Продолжить') {
   $('confirm-title').textContent = title; $('confirm-text').textContent = message;
+  $('confirm-yes').className=['Сдаться','Начать заново'].includes(label)?'danger-button':'primary-button';
   $('confirm-yes').textContent = label; confirmAction = action; $('confirm-dialog').showModal();
 }
 function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
@@ -115,7 +118,7 @@ function renderBoard(keepDrag = false) {
   $('pool-board').hidden = !isPool();
   document.querySelector('.board-frame').classList.toggle('pool-frame',isPool());
   document.querySelector('.game-layout').classList.toggle('pool-layout',isPool());
-  $('chapaev-board').hidden = $('shot-controls').hidden = !isChapaev();
+  $('chapaev-board').hidden = !isChapaev();$('shot-controls').hidden = !isChapaev()||!canPlay();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
   if(isSea()){seaBoard.render(game,{mode,role:room?.role,roomCode:room?.code,skins:mode==='local'?{white:currentUser?.shipSkin,black:currentUser?.shipSkin}:{white:room?.cosmetics?.white?.ship,black:room?.cosmetics?.black?.ship},enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isDomino()){
@@ -206,40 +209,16 @@ function render() {
   updateBackdrop();
   renderBoard(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
-  $('game-description').textContent = isPool() ? 'Точный прицел. Мягкий удар. Восьмёрка решает всё.' : 'Знакомая доска. Новый соперник. Всё решает стратегия.';
-  document.querySelector('.rule-chip .mini-board').textContent=isPool()?'⑧':isNarde()?'⚄':isChess()?'♞':'▦';
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
+  document.querySelector('.rule-chip .mini-board').textContent=({pool8:'⑧',narde:'⚄',chess:'♞',domino:'◈',battleship:'⚓',chapaev:'↗'})[variantOf(game)]||'▦';
   $('variant-description').textContent = isSea() ? '10 кораблей · Поле 10 × 10' : isDomino() ? 'По 7 костей · Базар · До 100 очков' : isPool() ? '15 шаров · 6 луз · Без часов' : isNarde() ? '24 пункта · По 15 фишек · Без часов' : isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
-  $('move-help').textContent = isChess() ? 'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.' : isChapaev() ? 'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.' : 'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
-  $('board-tip').innerHTML = isChess() ? '<span aria-hidden="true">♚</span><p><strong>Берегите короля</strong><br>Рокировка — ход королём на две клетки. Цель игры — поставить мат.</p>' : isChapaev() ? '<span aria-hidden="true">↗</span><p><strong>Удары по очереди</strong><br>После каждого удара очередь переходит сопернику, даже при выбивании.</p>' : '<span aria-hidden="true">✧</span><p><strong>Маленькая подсказка</strong><br>Взятие обязательно. Если можно взять ещё одну шашку, продолжайте ход.</p>';
-  $('local-note').querySelector('p').innerHTML = isChapaev() ? 'Меткость важнее силы.<br>Белые начинают, дальше — строго по очереди.' : 'Сядьте поудобнее.<br>Белые начинают, дальше — по очереди.';
-  if (isNarde()) {
-    $('move-help').textContent='Нажмите на фишку и пункт назначения или перетащите её.';
-    $('board-tip').innerHTML='<span aria-hidden="true">⚄</span><p><strong>Дорога домой</strong><br>Проведите все 15 фишек в дом и выведите их раньше соперника.</p>';
-    $('local-note').querySelector('p').textContent='Первый ход определят кости: большее число начинает.';
-  }
-  if(isPool()){
-    $('move-help').textContent='Мышь — прицел, колесо — сила, ЛКМ по столу — удар. На телефоне прицельтесь касанием и нажмите «Ударить». Оттягивание битка и ползунки также доступны. 0° — вправо по столу.';
-    $('board-tip').innerHTML='<span aria-hidden="true">⑧</span><p><strong>Оставьте восьмёрку напоследок</strong><br>Сначала забейте свою группу шаров, затем восьмёрку. Заказ не нужен.</p>';
-    $('local-note').querySelector('p').textContent='Разбейте пирамиду. Группы определяются первым шаром, забитым без фола после разбоя.';
-  }
-  if(isDomino()){
-    $('game-description').textContent='Знакомые точки. Новая цепочка. Каждый ход имеет значение.';
-    document.querySelector('.rule-chip .mini-board').textContent='◈';
-    $('move-help').textContent='Перетягивайте кости к концам цепочки: прямо или с поворотом. Нет хода — берите с базара.';
-    $('board-tip').innerHTML='<span aria-hidden="true">◈</span><p><strong>Соберите 100 очков</strong><br>Освободите руку раньше соперника. При рыбе выигрывает меньшая сумма точек.</p>';
-    $('local-note').querySelector('p').textContent='Перед передачей устройства кости скрываются. Открывайте только свою руку.';
-  }
-  if(isSea()){$('game-description').textContent='Тихое море. Скрытый флот. Точный выстрел.';document.querySelector('.rule-chip .mini-board').textContent='⚓';$('move-help').textContent='Выберите клетку на поле соперника.';$('board-tip').textContent='Попадание даёт ещё один выстрел.';$('local-note').querySelector('p').textContent='Откройте поле, когда соперник отвернётся.';}
+  const help={chess:'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.',chapaev:'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.',narde:'Нажмите на фишку и пункт назначения или перетащите её.',pool8:'Мышь — прицел, колесо — сила, ЛКМ по столу — удар. На телефоне прицельтесь касанием и нажмите «Ударить». Оттягивание битка и ползунки также доступны. 0° — вправо по столу.',domino:'Перетягивайте кости к концам цепочки: прямо или с поворотом. Нет хода — берите с базара.',battleship:'Выберите клетку на поле соперника.'};
+  $('move-help').textContent=help[variantOf(game)]||'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
   $('flip-button').hidden=isDomino()||isSea();
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
-  $('game-panel-title').textContent = mode === 'local' ? isPool() ? 'За одним столом' : 'За одной доской' : 'С другом онлайн';
   $('mode-badge').textContent = mode === 'local' ? 'ЛОКАЛЬНО' : 'ОНЛАЙН';
-  $('online-controls').hidden = mode === 'local'; $('local-note').hidden = mode !== 'local';
-  $('online-lobby').hidden = !!room; $('room-controls').hidden = !room;
-  $('board-caption').textContent = (mode === 'local' ? 'Два игрока, одно устройство' : room ? 'Комната ' + room.code : 'Пригласите друга за доску') + (isChapaev() ? ` · Раунд ${game.round || 1} · ${game.score?.white || 0}:${game.score?.black || 0}` : '');
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
   $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
@@ -256,6 +235,7 @@ function render() {
     $('room-hint').textContent = room.ready ? (room.accountBound?.[room.role] ? 'Ваше место привязано к аккаунту.' : 'Ваше место сохранено в этом браузере.') : 'Отправьте ссылку другу. Вы играете белыми.';
   }
   renderResult();
+  matchUI.update({mode,room,game,animating,flipped,playable:canPlay()});
 }
 
 function renderResult() {
@@ -452,7 +432,7 @@ function connect() {
       const data = JSON.parse(event.data);
       if (data.type === 'state') { applySnapshot(data, !firstSnapshot); firstSnapshot = false; }
       if (data.type === 'pool-aim' && isPool() && data.role !== room.role) poolBoard.receiveAim(data);
-      if (data.type === 'chat') room.chat = roomChat.receive(data.message);
+      if (data.type === 'chat') { room.chat = roomChat.receive(data.message); matchUI.chat(room.chat); }
       if (data.type === 'error') {
         if (data.context === 'chat') roomChat.error(data.message);
         else { pending = false; toast(data.message); render(); }
@@ -517,7 +497,7 @@ function showScreen(screen) {
   updateBackdrop();
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (screen === 'home') { updateStart(); $('home-title').focus({ preventScroll: true }); }
-  else $('home-button').focus({ preventScroll: true });
+  else $('variant-title').focus({ preventScroll: true });
 }
 function goHome() {
   const action = () => {
@@ -565,7 +545,7 @@ $('start-form').onsubmit = async event => {
   catch (error) { toast(error.message || 'Не удалось создать комнату. Попробуйте ещё раз.'); }
   finally { $('start-button').disabled = false; $('home-join-button').disabled = false; updateStart(); }
 };
-$('flip-button').onclick = () => { flipped = !flipped; renderBoard(); };
+$('flip-button').onclick = () => { flipped = !flipped; render(); };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
   $('battleship-rules').hidden=variant!=='battleship';
@@ -576,8 +556,7 @@ $('rules-button').onclick = () => {
   if(variant==='domino')$('rules-variant').textContent='Классическое домино вдвоём: набор 0–6, базар и партия до 100 очков. Без часов.';
   $('rules-dialog').showModal();
 };
-$('join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
-$('home-join-button').onclick = $('join-button').onclick;
+$('home-join-button').onclick = () => { $('join-error').textContent = ''; $('join-dialog').showModal(); };
 $('settings-button').onclick = () => { closeAccountMenu(); $('settings-dialog').showModal(); };
 $('settings-back').onclick = () => $('settings-dialog').close();
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
@@ -587,12 +566,6 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
 }));
 $('confirm-yes').onclick = () => { $('confirm-dialog').close(); confirmAction?.(); };
-$('create-button').onclick = async () => {
-  $('create-button').disabled = true;
-  try { const data = await api('/api/rooms', { variant: $('start-form').elements.variant.value }); enterRoom(data.code, data); sounds.play('start'); }
-  catch (error) { toast(error.message || 'Не удалось создать комнату.'); }
-  finally { $('create-button').disabled = false; }
-};
 $('join-form').onsubmit = async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
   try { await join(extractCode($('join-code').value)); $('join-dialog').close(); }
@@ -605,8 +578,8 @@ $('copy-button').onclick = async () => {
 };
 function resetLocal() { dominoBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
-  if (room) confirm('Покинуть комнату?', 'Партия сохранится. Вы сможете вернуться по той же ссылке в этом браузере.', () => { leave(); mode = 'online'; game = newGame(); render(); }, 'Покинуть');
-  else if (game.history.length || game.path.length || isNarde() && game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
+  if (room) goHome();
+  else if (game.history.length || game.path.length || game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
   else resetLocal();
 };
 function finishLocal(winner, reason) {
@@ -662,5 +635,5 @@ const invite = new URL(location.href).searchParams.get('room');
 if (invite) {
   mode = 'online'; showScreen('game'); render(); $('status-title').textContent = 'Открываем комнату…';
   try { await join(extractCode(invite)); }
-  catch (error) { toast(error.message); $('status-title').textContent = 'Не удалось войти'; $('status-text').textContent = error.message; }
+  catch (error) { leave();mode='local';showScreen('home');render();toast(error.message); }
 }

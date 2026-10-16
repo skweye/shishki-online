@@ -61,8 +61,8 @@ function render() {
     const rarity=rarityOf(item);card.dataset.rarity=rarity;
     heading.append(el('h3', item.name), el('span', RARITIES[rarity]?.name || 'Базовый', 'item-price rarity-label'));
     const actions = el('div', '', 'shop-item-actions');
-    const view = el('button', '', 'secondary-button'); view.append(el('span','◉','action-icon'),el('span','Посмотреть')); view.firstChild.setAttribute('aria-hidden','true'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => openPreview(item);
-    const action = el('button', equipped ? '✓ Выбрано' : owned ? 'Выбрать' : state ? 'Из кейсов' : 'Войти', 'primary-button');
+    const view = el('button', '', 'ghost-button'); view.append(el('span','◉','action-icon'),el('span','Посмотреть')); view.firstChild.setAttribute('aria-hidden','true'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => openPreview(item);
+    const action = el('button', equipped ? '✓ Выбрано' : owned ? 'Выбрать' : state ? 'Из кейсов' : 'Войти', 'secondary-button');action.dataset.action='equip';
     action.disabled = busy || equipped || !!state && !owned;
     action.setAttribute('aria-label', (owned ? 'Выбрать: ' : 'Из кейсов: ') + item.name);
     action.onclick = () => {if (!state) location.assign('/?login=1&returnTo=shop');else if(owned) equip(item);};

@@ -1,0 +1,19 @@
+/* Shared hierarchy: game cells, pieces and selector cards keep their own styles. */
+body .primary-button,body .secondary-button,body .danger-button{min-height:44px;border-radius:12px;font-weight:550;gap:9px;text-decoration:none;transition:background .15s,border-color .15s}
+body .primary-button{background:var(--theme-accent);color:var(--theme-on-accent);border:1px solid var(--theme-accent);box-shadow:none}
+body .primary-button:hover{background:color-mix(in srgb,var(--theme-accent) 87%,var(--theme-text));box-shadow:none}
+body .secondary-button{background:transparent;border:1px solid var(--glass-edge,var(--theme-border));color:var(--theme-secondary);box-shadow:none}
+body .secondary-button:hover{background:var(--glass-fill,var(--theme-raised));border-color:var(--theme-muted)}
+body .ghost-button,body .text-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--theme-secondary);font:inherit;font-size:12px;box-shadow:none;text-decoration:none}
+body .ghost-button:hover,body .text-button:hover{background:var(--glass-fill,var(--theme-raised));border-color:transparent;color:var(--theme-text)}
+body .link-button{padding:6px 0;min-height:44px;border:0;background:transparent;color:var(--theme-accent);font:inherit;font-size:12px;text-underline-offset:4px}
+body .link-button:hover{text-decoration:underline}
+body .danger-button{display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border:1px solid #c57b6980;background:#b65e4b12;color:var(--theme-text);font-size:12px}
+body .danger-button:hover{background:#b65e4b25;border-color:#c57b69}
+body :is(.primary-button,.secondary-button,.ghost-button,.text-button,.link-button,.danger-button,.menu-action):focus-visible{outline:2px solid var(--theme-accent);outline-offset:3px}
+body :is(.primary-button,.secondary-button,.ghost-button,.danger-button):disabled{opacity:.5;cursor:default}
+body .icon-button.ghost-button{width:44px;height:44px;flex:none;padding:0;font-size:26px}
+body .confirm-actions button{flex:1;margin:0}
+@media(prefers-reduced-motion:reduce){body button{transition:none!important}}
+
+body .case-card>.secondary-button{margin-top:auto}body .shop-item-actions .ghost-button{font-size:11px}

@@ -96,7 +96,11 @@ export function createPoolBoard({shoot,place,sound}) {
   }
   function controls(){
     if(!state)return;root.querySelectorAll('input,button').forEach(el=>el.disabled=!playable||!!shown);
-    $('place').hidden=!state.ballInHand;$('placement').hidden=!placing;$('shoot').disabled=!playable||!!shown||placing||!state.balls.some(b=>b.id===0);
+    root.querySelector('.pool-fields').hidden=!playable||!!shown||placing;
+    root.querySelector('.pool-actions').hidden=!playable||!!shown;
+    $('shoot').hidden=!playable||!!shown||placing;
+    $('place').textContent=t(placing?'Отменить размещение':'Переставить биток');
+    $('place').hidden=!playable||!state.ballInHand;$('placement').hidden=!playable||!placing;$('shoot').disabled=!playable||!!shown||placing||!state.balls.some(b=>b.id===0);
     readings();
     $('notice').textContent=[state.foul?t(foulText[state.foul]):'',state.winner?'':state.breaking?t('Разбейте пирамиду.'):state.ballInHand?t(state.ballInHand==='kitchen'?'Биток с руки в доме: X меньше 5.':'Биток с руки в любой свободной точке.'):t('Прицельтесь и выберите силу удара. Заказы не нужны.')].filter(Boolean).join(' ');
     canvas.style.cursor=playable&&!shown?'crosshair':'default';

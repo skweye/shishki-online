@@ -26,7 +26,7 @@ test('inventory deep link previews the awarded item, filters only owned items an
   $('preview-close').click();assert.equal($('preview-dialog').open,false);
   assert.equal(document.querySelectorAll('.shop-item-actions button[disabled]').length,0);
   const marble=[...document.querySelectorAll('.shop-item')].find(card=>card.textContent.includes('Каррарский мрамор'));
-  marble.querySelector('.primary-button').click();await new Promise(resolve=>setImmediate(resolve));
+  marble.querySelector('[data-action="equip"]').click();await new Promise(resolve=>setImmediate(resolve));
   assert.ok(requests.includes('/api/auth/shop/equip'));assert.equal(state.user.pieceSkin,'marble');assert.deepEqual(navigations,[]);
   document.querySelector('[data-filter="cue"]').click();assert.equal($('shop-catalog').querySelectorAll('article').length,0);
   assert.match($('shop-catalog').textContent,/нет предметов/);

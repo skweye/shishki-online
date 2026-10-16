@@ -1,5 +1,15 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Меню партии|Match menu|Меню партії
+Действия партии|Match actions|Дії партії
+Панель партии|Match panel|Панель партії
+Комната и приглашение|Room and invitation|Кімната та запрошення
+Ходы|Moves|Ходи
+Чат|Chat|Чат
+Новые сообщения|New messages|Нові повідомлення
+Управление игрой|Game controls|Керування грою
+Отменить размещение|Cancel placement|Скасувати розміщення
+Предложение ничьей отправлено|Draw offer sent|Пропозицію нічиєї надіслано
 Опыт аккаунта|Account experience|Досвід акаунта
 Инвентарь|Inventory|Інвентар
 Инвентарь — Шашки|Inventory — Shishki|Інвентар — Шашки

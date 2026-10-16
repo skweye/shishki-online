@@ -8,7 +8,7 @@ export function createBattleshipBoard(action){
   const opposite=side=>side==='white'?'black':'white';
   const side=()=>options.mode==='local'?state.turn:options.role||'white';
   const editable=()=>state?.phase==='setup'&&!state.winner&&!state.ready[side()]&&options.enabled&&(options.mode!=='local'||unlocked===key);
-  const button=(label,command,disabled=false)=>`<button type="button" class="secondary-button" data-sea-action="${command}" ${disabled?'disabled':''}>${t(label)}</button>`;
+  const button=(label,command,disabled=false)=>disabled&&['remove','clear'].includes(command)?'':`<button type="button" class="${command==='clear'?'danger-button':command==='hide'?'ghost-button':'secondary-button'}" data-sea-action="${command}" ${disabled?'disabled':''}>${t(label)}</button>`;
   const fleet=()=>draft.filter(Boolean);
   function candidate(index,cell,rotation){
     const ship=shipCells(cell,FLEET[index],rotation);

@@ -14,7 +14,7 @@ export function createNardeBoard({move,roll}) {
   const play=(from,to)=>{const choice=options().find(m=>m.from===from&&m.to===to);if(choice)move(from,to,chosenDie??choice.die);};
   const drag=attachBoardDrag(root,{moves:options,select:from=>{selected=from;draw();},move:play});
   const clearSelection=()=>{drag.cancel();selected=null;draw();};
-  const deselect=document.createElement('button');deselect.type='button';deselect.className='secondary-button narde-deselect';
+  const deselect=document.createElement('button');deselect.type='button';deselect.className='ghost-button narde-deselect';
   root.querySelector('.narde-controls').append(deselect);deselect.onclick=clearSelection;
   function draw() {
     if(!game)return;
@@ -55,10 +55,10 @@ export function createNardeBoard({move,roll}) {
     root.classList.toggle('narde-rolling',rolling);
     dice.hidden=!game.rolled.length;
     rollButton.textContent=t(game.opening?'Разыграть первый ход':'Бросить кости');rollButton.disabled=!playable||!!game.dice.length||rolling;
-    rollButton.hidden=!!game.dice.length||!!game.winner||rolling;
+    rollButton.hidden=!playable||!!game.dice.length||!!game.winner||rolling;
     root.querySelector('.narde-roll-status').textContent=rolling?t('Кости в движении…'):'';
-    off.textContent=t('Вывести фишку')+` · ${game.off.white} / ${game.off.black}`;off.disabled=!moves.some(m=>m.from===selected&&m.to===24);off.classList.toggle('legal',!off.disabled);
-    deselect.textContent=t('Отменить выбор');deselect.disabled=selected===null||!playable||rolling;
+    off.textContent=t('Вывести фишку')+` · ${game.off.white} / ${game.off.black}`;off.disabled=!moves.some(m=>m.from===selected&&m.to===24);off.classList.toggle('legal',!off.disabled);off.hidden=off.disabled;
+    deselect.textContent=t('Отменить выбор');deselect.disabled=selected===null||!playable||rolling;deselect.hidden=deselect.disabled;
     const home=game.board.every((v,p)=>Math.sign(v)!==(game.turn==='white'?1:-1)||nardeProgress(p,game.turn)>=18);
     hint.textContent=t(game.opening?'Первый ход определят кости: большее число начинает.':game.winner?'Партия завершена.':!game.dice.length?'Бросьте кости. Если ходов нет, очередь перейдёт сопернику.':home?'Все фишки дома. Выбирайте фишку и выводите её с доски.':'Выберите фишку и подсвеченный пункт. Можно перетаскивать.');
     if(focus!==undefined)root.querySelector(`[data-index="${focus}"]`)?.focus({preventScroll:true});
