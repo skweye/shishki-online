@@ -1,3 +1,4 @@
+import { actionSound } from './sounds.js';
 import { CATALOG } from './shop-catalog.js';
 import { rarityOf, RARITIES } from './cases.js';
 import { createCaseShop } from './case-shop.js';
@@ -13,7 +14,7 @@ const $ = id => document.getElementById(id);
 const inventory=!!document.querySelector('.inventory-page');
 let linkedItemOpened=false;
 let state = null, filter = 'all', effectSlot = 'victory', busy = false, previewItem = null;
-const preview = createRocketEffect($('preview-board'), { play() {} });
+const preview = createRocketEffect($('preview-board'), { play(kind) { if(['petals','blizzard'].includes(kind)) actionSound(kind); } });
 function paintCue(canvas,time=cosmeticTime()){
   const ctx=canvas.getContext('2d');ctx.clearRect(0,0,400,140);ctx.save();ctx.translate(365,70);drawCue(ctx,canvas.dataset.cue,0,time);ctx.restore();
 }
@@ -61,7 +62,7 @@ function render() {
     const rarity=rarityOf(item);card.dataset.rarity=rarity;
     heading.append(el('h3', item.name), el('span', RARITIES[rarity]?.name || 'Базовый', 'item-price rarity-label'));
     const actions = el('div', '', 'shop-item-actions');
-    const view = el('button', '', 'ghost-button'); view.append(el('span','◉','action-icon'),el('span','Посмотреть')); view.firstChild.setAttribute('aria-hidden','true'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => openPreview(item);
+    const view = el('button', '', 'ghost-button'); view.append(el('span','◉','action-icon'),el('span','Посмотреть')); view.firstChild.setAttribute('aria-hidden','true'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => { actionSound('preview'); openPreview(item); };
     const action = el('button', equipped ? '✓ Выбрано' : owned ? 'Выбрать' : state ? 'Из кейсов' : 'Войти', 'secondary-button');action.dataset.action='equip';
     action.disabled = busy || equipped || !!state && !owned;
     action.setAttribute('aria-label', (owned ? 'Выбрать: ' : 'Из кейсов: ') + item.name);
@@ -89,8 +90,8 @@ async function load() {
 async function equip(item) {
   if (busy) return; busy = true; render(); notice('Выбираем оформление…');
   const slot = effectSlot;
-  try { state = await request('/equip', { item: item.id, slot }); notice(item.type !== 'effect' ? `${item.name} — выбрано. Скин появится при следующем входе в комнату.` : `${item.name} — ${slot === 'victory' ? 'при победе' : 'при сдаче соперника'}.`); }
-  catch (error) { notice(error.message, true); }
+  try { state = await request('/equip', { item: item.id, slot }); actionSound('equip'); notice(item.type !== 'effect' ? `${item.name} — выбрано. Скин появится при следующем входе в комнату.` : `${item.name} — ${slot === 'victory' ? 'при победе' : 'при сдаче соперника'}.`); }
+  catch (error) { actionSound('error'); notice(error.message, true); }
   finally { busy = false; render(); }
 }
 function openPreview(item) {
@@ -115,6 +116,7 @@ $('preview-dialog').addEventListener('close', () => {preview.cancel();cueAnimati
 $('shop-retry').onclick = load;
 document.querySelectorAll('[data-filter]').forEach(button => {
   button.onclick = () => {
+    if(filter !== button.dataset.filter) actionSound('select');
     filter = button.dataset.filter;
     document.querySelectorAll('[data-filter]').forEach(item => { item.classList.toggle('active', item === button); item.setAttribute('aria-pressed', String(item === button)); });
     render();
@@ -122,6 +124,7 @@ document.querySelectorAll('[data-filter]').forEach(button => {
 });
 window.addEventListener('pageshow', event => { if (event.persisted) load(); });
 document.querySelectorAll('[data-slot]').forEach(button => { button.onclick = () => {
+  if(effectSlot !== button.dataset.slot) actionSound('select');
   effectSlot = button.dataset.slot;
   document.querySelectorAll('[data-slot]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
   $('slot-description').textContent = effectSlot === 'victory' ? 'Выбираете анимацию обычной победы: мат, взятие последней шашки или победа по времени.' : 'Выбираете анимацию, которая появится, когда ваш соперник сдастся.';

@@ -10,14 +10,14 @@ import {createCaseReel,reelItems,REEL_WINNER_INDEX} from '../public/case-reel.js
 
 function setup(storage=new Map()){
   const {document,window}=parseHTML(readFileSync(new URL('../public/shop.html',import.meta.url),'utf8'));
-  Object.assign(globalThis,{document,window,localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},matchMedia:()=>({matches:true})});
+  Object.assign(globalThis,{document,window,CustomEvent:window.CustomEvent,localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value),removeItem:key=>storage.delete(key)},matchMedia:()=>({matches:true})});
   const dialog=document.getElementById('case-dialog');dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{dialog.open=false;};
   return {document,window,storage,$:id=>document.getElementById(id)};
 }
 const account=()=>({user:{id:'player'},balance:100,cases:{standard:0,premium:0,royal:0},progression:progression(),openings:[],owned:['skin-classic']});
 
 test('case UI discloses odds before confirming and retries the same request after a lost response',async()=>{
-  const {$,storage}=setup();let state=account(),calls=[],viewed;
+  const {$,storage,document}=setup();const sounds=[];document.addEventListener('actionsound',event=>sounds.push(event.detail));let state=account(),calls=[],viewed;
   const opening={requestId:'fixed',caseId:'standard',itemId:'skin-marble',rarity:'epic',duplicate:false,compensation:0};
   const component=createCaseShop({getState:()=>state,update:next=>{state=next;},preview:item=>{viewed=item.id;},request:async(path,body)=>{
     calls.push({path,body:structuredClone(body)});if(calls.length===1)throw new Error('Network timeout');
@@ -29,7 +29,7 @@ test('case UI discloses odds before confirming and retries the same request afte
   await $('case-confirm').onclick();assert.equal(calls.length,1);assert.equal(storage.size,1);assert.match($('case-error').textContent,/timeout/);
   await $('case-confirm').onclick();assert.equal(calls.length,2);assert.deepEqual(calls[0],calls[1]);assert.equal(storage.size,0);
   assert.equal(state.balance,0);assert.match($('case-result').textContent,/Каррарский мрамор/);assert.equal($('case-confirm').hidden,true);
-  assert.equal($('case-prize').querySelectorAll('.piece').length,2);$('case-preview').click();assert.equal(viewed,'skin-marble');
+  assert.equal($('case-prize').querySelectorAll('.piece').length,2);$('case-preview').click();assert.equal(viewed,'skin-marble');assert.deepEqual(sounds,['case-open','error','case-open','case-epic']);
 });
 
 test('pending requests restore after reload, reward cases cost no coins and low balances cannot buy cases',async()=>{
@@ -45,26 +45,28 @@ test('pending requests restore after reload, reward cases cost no coins and low 
 });
 
 test('reel stops at the server item and finishes immediately on hidden tab or reduced motion',async()=>{
-  const {document,window,$}=setup();let complete,frames,options,finished=0,cancelled=0;
+  const {document,window,$}=setup();let complete,frames,options,finished=0,cancelled=0,tick,progress=0,ticks=0,stopped=0;
+  globalThis.requestAnimationFrame=fn=>{tick=fn;return 1;};globalThis.cancelAnimationFrame=()=>stopped++;
   const winner=itemById('skin-marble');
   assert.equal(reelItems(CASES[0],winner,()=>0)[REEL_WINNER_INDEX],winner);
   const originalRandom=Math.random;Math.random=()=>0;
   window.HTMLElement.prototype.animate=function(keyframes,settings){
     frames=keyframes;options=settings;
-    return {finished:new Promise(resolve=>{complete=resolve;}),finish(){finished++;complete();},cancel(){cancelled++;}};
+    return {effect:{getComputedTiming:()=>({progress})},finished:new Promise(resolve=>{complete=resolve;}),finish(){finished++;complete();},cancel(){cancelled++;}};
   };
   globalThis.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});
   try{
-    const reel=createCaseReel($('case-reel'));
+    const reel=createCaseReel($('case-reel'),()=>ticks++);
     const spin=reel.play(CASES[0],winner);
     assert.equal($('case-reel').hidden,false);assert.equal(options.duration,4400);
     assert.equal(frames.at(-1).transform,`translateX(-${REEL_WINNER_INDEX*140+64}px)`);
     const card=$('case-reel').querySelectorAll('.case-reel-card')[REEL_WINNER_INDEX];
     assert.equal(card.querySelector('[data-item]').dataset.item,winner.id);
+    progress=.1;tick();tick();assert.equal(ticks,1);progress=.2;tick();assert.equal(ticks,2);
     document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));await spin;
-    assert.equal(finished,1);assert.equal(card.classList.contains('reel-winner'),true);
+    assert.equal(finished,1);assert.equal(stopped,1);tick();assert.equal(ticks,2);assert.equal(card.classList.contains('reel-winner'),true);
     reel.reset();assert.equal(cancelled,1);assert.equal($('case-reel').hidden,true);
     document.hidden=false;globalThis.matchMedia=()=>({matches:true});await reel.play(CASES[0],winner);
     assert.equal($('case-reel').hidden,true);assert.equal($('case-reel').children.length,0);
-  }finally{Math.random=originalRandom;delete window.HTMLElement.prototype.animate;}
+  }finally{Math.random=originalRandom;delete window.HTMLElement.prototype.animate;delete globalThis.requestAnimationFrame;delete globalThis.cancelAnimationFrame;}
 });

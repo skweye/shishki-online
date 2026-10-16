@@ -1,5 +1,7 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Звуки игры и интерфейса|Game and interface sounds|Звуки гри та інтерфейсу
+Ходы, кейсы, награды и выбор оформления|Moves, cases, rewards and appearance selection|Ходи, кейси, нагороди та вибір оформлення
 К игре|Play|До гри
 Забрать награду|Claim reward|Забрати нагороду
 Кейс на уровне|Case at level|Кейс на рівні

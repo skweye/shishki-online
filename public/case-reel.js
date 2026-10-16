@@ -8,7 +8,7 @@ export const REEL_WINNER_INDEX=32;
 export function reelItems(box,winner,random=Math.random){
   return Array.from({length:40},(_,index)=>index===REEL_WINNER_INDEX?winner:selectCaseItem(box,random(),random()));
 }
-export function createCaseReel(root){
+export function createCaseReel(root, onTick = () => {}){
   let animation=null,finish=null;
   function reset(){finish?.();animation?.cancel();animation=null;root.hidden=true;root.replaceChildren();}
   async function play(box,winner){
@@ -28,11 +28,20 @@ export function createCaseReel(root){
     animation=track.animate([{transform:'translateX(-64px)'},{transform:`translateX(-${REEL_WINNER_INDEX*140+64}px)`}],
       {duration:4400,easing:'cubic-bezier(.12,.68,.08,1)',fill:'forwards'});
     await new Promise(resolve=>{
-      let done=false;
+      let done=false, frame=null, lastCell=0;
+      function tick(){
+        if(done)return;
+        const progress=animation?.effect?.getComputedTiming().progress;
+        const cell=Math.floor((progress || 0)*REEL_WINNER_INDEX+.5);
+        if(cell>lastCell){lastCell=cell;onTick();}
+        frame=requestAnimationFrame(tick);
+      }
+      if(typeof requestAnimationFrame==='function')frame=requestAnimationFrame(tick);
       const visibility=()=>{if(document.hidden)complete();};
       const motion=()=>{if(reduced.matches)complete();};
       function complete(){
         if(done)return;done=true;
+        if(frame!==null)cancelAnimationFrame(frame);
         document.removeEventListener('visibilitychange',visibility);reduced.removeEventListener?.('change',motion);
         try{animation?.finish();}catch{}
         finish=null;track.children[REEL_WINNER_INDEX].classList.add('reel-winner');resolve();

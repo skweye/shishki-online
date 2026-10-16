@@ -36,13 +36,18 @@ export function pieceReaction(effect, piece, elapsed, { winner = 'white', fromTo
     } else { out.y = -Math.sin(pull * Math.PI) * .045; out.scale = 1 + Math.sin(pull * Math.PI) * .12; }
     out.color = '#b2a2ff'; out.glow = Math.sin(pull * Math.PI) * 18;
   } else if (effect === 'blizzard') {
-    const wind = smooth(t / 600), freeze = Math.sin(clamp(t / 2250) * Math.PI);
-    out.x = Math.sin(t / 350 + y * 5) * .025 * wind * strength; out.y = .045 * wind * strength;
-    out.rotation = Math.sin(t / 450 + x * 4) * 12 * strength; out.hue = freeze * 150; out.brightness = 1 + freeze * .45; out.glow = freeze * 13; out.color = '#a9e4ff';
+    const direction = fromTop ? -1 : 1, arrival = (fromTop ? 1-x : x)*450;
+    const gust = Math.sin(clamp((t-arrival)/2000)*Math.PI);
+    const freeze = smooth((t-arrival)/650) * (1-smooth((t-1850)/650));
+    out.x = direction*.055*gust*strength; out.y = .016*gust*strength;
+    out.rotation = direction*gust*18*strength; out.brightness = 1+freeze*.3;
+    out.glow = freeze*12; out.color = '#bdeeff';
   } else if (effect === 'petals') {
-    const breeze = Math.sin(clamp(t / 2250) * Math.PI);
-    out.x = Math.sin(t / 600 + y * 4) * .035 * breeze; out.y = -Math.abs(Math.sin(t / 550 + x * 3)) * .04 * breeze;
-    out.rotation = Math.sin(t / 500 + x * 4) * 12 * breeze; out.color = '#ffa9c9'; out.glow = breeze * 10;
+    const direction = fromTop ? -1 : 1, breeze = Math.sin(clamp((t-(x+y)*120)/2200)*Math.PI);
+    out.x = direction*.025*breeze + Math.sin(t/450+y*4)*.012*breeze;
+    out.y = -Math.sin(clamp(t/2200)*Math.PI)*.025*breeze;
+    out.rotation = Math.sin(t/550+x*3)*7*breeze; out.color = '#ffc0d6';
+    out.glow = breeze*(winning?12:5); out.brightness = 1+breeze*.12;
   } else if (effect === 'eclipse') {
     const shadow = Math.sin(clamp(t / 2250) * Math.PI);
     out.brightness = winning ? 1 + shadow * .25 : 1 - shadow * .8;

@@ -1,3 +1,4 @@
+import { actionSound } from './sounds.js';
 import { CASES, caseById, caseContents, RARITIES } from './cases.js';
 import { itemById } from './shop-catalog.js';
 import { t } from './i18n.js';
@@ -5,7 +6,7 @@ import { renderItemArt } from './item-art.js';
 import { createCaseReel } from './case-reel.js';
 export function createCaseShop({request,getState,update,preview}){
   const $=id=>document.getElementById(id),dialog=$('case-dialog');
-  const reel=createCaseReel($('case-reel'));
+  const reel=createCaseReel($('case-reel'), () => actionSound('case-tick'));
   let pending=null,busy=false,result=null,recovered=false;
   const key=()=>`shishki-case-pending-${getState()?.user.id}`;
   function remember(value){try{if(value)localStorage.setItem(key(),JSON.stringify(value));else localStorage.removeItem(key());}catch{}}
@@ -55,6 +56,7 @@ export function createCaseShop({request,getState,update,preview}){
   $('case-confirm').onclick=async()=>{
     if(busy||!pending)return;busy=true;$('case-confirm').disabled=true;$('case-close').disabled=true;$('case-error').textContent='';remember(pending);
     try{
+      actionSound('case-open');
       const next=await request('/open',pending);result=next.opening;remember(null);update(next);
       // A visual failure must never turn a successful award into another purchase.
       $('case-chest').hidden=true;
@@ -62,8 +64,10 @@ export function createCaseShop({request,getState,update,preview}){
       const prize=$('case-prize'),item=itemById(result.itemId);prize.hidden=false;prize.dataset.rarity=result.rarity;
       renderItemArt(prize,item);
       $('case-result').textContent=`${t(itemById(result.itemId).name)} · ${t(RARITIES[result.rarity].name)} · ${result.duplicate?t('Повтор')+' +'+result.compensation+' ◈':t('Добавлено в коллекцию')}`;
+      actionSound(result.duplicate ? 'duplicate' : 'case-' + result.rarity);
       $('case-preview').hidden=false;$('case-confirm').hidden=true;pending=null;
     }catch(error){
+      actionSound('error');
       $('case-error').textContent=error.message+' '+t('Повтор безопасен: второй кейс не спишется.');
       $('case-confirm').textContent=t('Повторить запрос');
       if(error.status&&error.status<500){remember(null);pending=null;$('case-confirm').hidden=true;}
@@ -77,7 +81,7 @@ export function createCaseShop({request,getState,update,preview}){
     // Resolve a lost response before starting any new operation, on either page.
     try{const old=JSON.parse(localStorage.getItem(key()));if(old&&caseById(old.caseId)){show(caseById(old.caseId),old.source,old);return;}}catch{}
     const box=CASES.find(box=>state.cases?.[box.id]>0);
-    if(box)show(box,'reward');
+    if(box){actionSound('reward');show(box,'reward');}
   }
   return {render,openReward};
 }

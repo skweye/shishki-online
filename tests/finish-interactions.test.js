@@ -70,3 +70,24 @@ test('portal absorbs opponents and reduced motion keeps all pieces stationary an
     assert.equal(result.x, 0); assert.equal(result.y, 0); assert.equal(result.scale, 1); assert.equal(result.rotation, 0); assert.equal(result.opacity, 1);
   }
 });
+
+
+test('sakura and blizzard cover wide fields without stretching particles and cancel their animations',()=>{
+  const {document,window}=parseHTML('<html><body><div id="frame"></div></body></html>');
+  let reduced=false,cancelled=0,animations=[];
+  Object.assign(globalThis,{document,window,matchMedia:()=>({matches:reduced}),requestAnimationFrame:()=>1,cancelAnimationFrame(){}});
+  window.HTMLElement.prototype.animate=function(frames,timing){animations.push({frames,timing});return {cancel(){cancelled++;}};};
+  const frame=document.getElementById('frame');Object.assign(frame,{clientWidth:1000,clientHeight:400,clientLeft:0,clientTop:0,offsetWidth:1000,offsetHeight:400});
+  frame.getBoundingClientRect=()=>({left:0,top:0,width:1000,height:400});
+  const effect=createRocketEffect(frame,{play(){}});
+  try{
+    for(const [name,count,selector] of [['petals',34,'.weather-petal'],['blizzard',64,'.weather-snow']]){
+      animations=[];cancelled=0;effect.launch(false,()=>{},name);
+      const field=frame.querySelector('.weather-field');assert.equal(field.style.width,'1000px');assert.equal(field.style.height,'400px');
+      assert.equal(field.querySelectorAll(selector).length,count);assert.equal(animations.length,count);
+      for(const {frames,timing} of animations){assert.equal(frames[0].opacity,0);assert.equal(frames.at(-1).opacity,0);assert.ok(timing.duration+timing.delay<=FINISH_DURATION);assert.ok(frames.every(frame=>!frame.transform.includes('NaN')));}
+      effect.cancel();assert.equal(cancelled,count);assert.equal(frame.querySelector('.weather-field'),null);
+    }
+    reduced=true;effect.launch(false,()=>{},'petals');assert.equal(frame.querySelectorAll('.weather-petal').length,0);effect.cancel();
+  }finally{delete window.HTMLElement.prototype.animate;effect.cancel();}
+});

@@ -1,3 +1,4 @@
+import { actionSound } from './sounds.js';
 import { renderProgress } from './progression-ui.js';
 import { syncAccount } from './auth.js';
 import { createCaseShop } from './case-shop.js';
@@ -136,8 +137,8 @@ $('edit-profile').onsubmit = async event => {
   $('edit-fields').disabled = true; feedback('edit-status', 'Сохраняем…');
   try {
     const data = await request('profile', { name: $('nickname').value.trim(), avatar: draftAvatar });
-    showUser(data.user); feedback('edit-status', 'Изменения сохранены.');
-  } catch (error) { feedback('edit-status', error.message, true); }
+    showUser(data.user); actionSound('saved'); feedback('edit-status', 'Изменения сохранены.');
+  } catch (error) { actionSound('error'); feedback('edit-status', error.message, true); }
   finally { $('edit-fields').disabled = false; }
 };
 $('open-delete').onclick = () => {

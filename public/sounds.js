@@ -27,8 +27,20 @@ export function transitionSounds(previous, next, role = null) {
   return sounds;
 }
 
+// UI producers do not create extra audio contexts or overwrite settings handlers.
+export function actionSound(kind) {
+  document.dispatchEvent(new CustomEvent('actionsound', {detail: kind}));
+}
+export const ACTION_NOTES = Object.freeze({
+  'case-open': [196, 294, 392], 'case-common': [392, 494],
+  'case-rare': [392, 494, 587], 'case-epic': [330, 494, 659, 784],
+  'case-legendary': [392, 494, 587, 784, 988],
+  blizzard: [196, 294, 440], petals: [659, 784, 988],
+  reward: [523, 659], equip: [440, 660], saved: [392, 523],
+  duplicate: [587, 784, 659], error: [294, 247], preview: [440]
+});
 export function createSounds() {
-  const key = 'shashki-sounds-v1';
+  const key = 'shashki-sounds-v1', activeSources = new Set();
   let preferences = { enabled: true, volume: 35, pack: 'wood' }, context, master, noise;
   try {
     const saved = JSON.parse(localStorage.getItem(key));
@@ -57,6 +69,7 @@ export function createSounds() {
         for (let i = 0; i < samples.length; i++) samples[i] = (Math.random() * 2 - 1) * (1 - i / samples.length);
       }
       if (context.state === 'suspended') await context.resume();
+      master.gain.setTargetAtTime(preferences.enabled ? preferences.volume / 100 : 0, context.currentTime, .015);
     } catch { /* Browsers without audio still support the entire game. */ }
   }
   // Audio starts only after an explicit interaction with the page.
@@ -70,8 +83,8 @@ export function createSounds() {
     envelope.gain.linearRampToValueAtTime(gain, start + .012);
     envelope.gain.exponentialRampToValueAtTime(.0001, start + duration);
     envelope.gain.linearRampToValueAtTime(0, start + duration + .015);
-    osc.connect(envelope); envelope.connect(master); osc.start(start); osc.stop(start + duration + .02);
-    osc.onended = () => { osc.disconnect(); envelope.disconnect(); };
+    osc.connect(envelope); envelope.connect(master); activeSources.add(osc); osc.start(start); osc.stop(start + duration + .02);
+    osc.onended = () => { activeSources.delete(osc); osc.disconnect(); envelope.disconnect(); };
   }
   function tap(start, pitch = 510, gain = .2) {
     const pack = SOUND_PACKS[preferences.pack]; pitch *= pack.pitch; gain *= pack.noise;
@@ -84,14 +97,20 @@ export function createSounds() {
     envelope.gain.exponentialRampToValueAtTime(.0001, start + .11);
     envelope.gain.linearRampToValueAtTime(0, start + .13);
     source.connect(filter); filter.connect(envelope); envelope.connect(master);
-    source.start(start); source.onended = () => { source.disconnect(); filter.disconnect(); envelope.disconnect(); };
+    activeSources.add(source); source.start(start); source.onended = () => { activeSources.delete(source); source.disconnect(); filter.disconnect(); envelope.disconnect(); };
     tone(pitch * .48 * variation, start, preferences.pack === 'glass' ? .27 : .12, .1 * pack.body, pitch * (preferences.pack === 'glass' ? .48 : .36) * variation);
     tone(pitch * .94 * variation, start + .004, .12, .018 * pack.body);
   }
   function play(kind, delay = 0) {
     if (!preferences.enabled || !preferences.volume || document.hidden || context?.state !== 'running') return;
     const time = context.currentTime + .01 + delay;
-    if (kind === 'rocket') { tone(130, time, .85, .07, 700); tone(80, time + .08, 1, .04, 240); }
+    if (kind === 'case-tick') { tone(740 * SOUND_PACKS[preferences.pack].notes, time, .035, .025); }
+    else if (kind === 'select') { tone(420 * SOUND_PACKS[preferences.pack].notes, time, .06, .025, 500); }
+    else if (ACTION_NOTES[kind]) {
+      const pack = SOUND_PACKS[preferences.pack];
+      ACTION_NOTES[kind].forEach((note,i) => tone(note * pack.notes, time + i * .09, kind === 'case-legendary' ? .45 : .22, .055 * Math.min(1,pack.body)));
+    }
+    else if (kind === 'rocket') { tone(130, time, .85, .07, 700); tone(80, time + .08, 1, .04, 240); }
     else if (kind === 'move') tap(time);
     else if (kind === 'impact') tap(time, 460, .11);
     else if (kind === 'capture') { tap(time, 410, .22); tap(time + .095, 620, .17); }
@@ -101,6 +120,21 @@ export function createSounds() {
       notes?.forEach((note, i) => tone(note * pack.notes, time + i * .15, .32, (kind === 'defeat' ? .065 : .085) * Math.min(1, pack.body)));
     }
   }
+  let lastAction = -Infinity;
+  document.addEventListener('actionsound', event => {
+    const kind = event.detail;
+    if (!Object.hasOwn(ACTION_NOTES, kind) && !['case-tick','select'].includes(kind)) return;
+    const now = context?.currentTime || 0;
+    if (['case-tick','select'].includes(kind) && now - lastAction < .035) return;
+    lastAction = now; play(kind);
+  });
+  document.addEventListener('visibilitychange', () => {
+    // Silence already scheduled notes too; they must not resume on returning.
+    if (document.hidden && context?.state === 'running') {
+      for(const source of activeSources) { try { source.stop(); } catch {} }
+      activeSources.clear();
+    }
+  });
   const poolLast={};
   function pool(kind,strength=.5){
     if(!preferences.enabled||!preferences.volume||document.hidden||context?.state!=='running')return;
@@ -113,11 +147,11 @@ export function createSounds() {
     for(const ratio of [1,1.72]){
       const osc=context.createOscillator(),amp=context.createGain();osc.type='sine';osc.frequency.setValueAtTime(pitch*ratio*variation,time);osc.frequency.exponentialRampToValueAtTime(pitch*ratio*.64,time+duration);
       amp.gain.setValueAtTime(0,time);amp.gain.linearRampToValueAtTime(gain/(ratio*ratio),time+.001);amp.gain.exponentialRampToValueAtTime(.0001,time+duration);
-      osc.connect(amp);amp.connect(master);osc.start(time);osc.stop(time+duration+.01);osc.onended=()=>{osc.disconnect();amp.disconnect();};
+      osc.connect(amp);amp.connect(master);activeSources.add(osc); osc.start(time);osc.stop(time+duration+.01);osc.onended=()=>{activeSources.delete(osc);osc.disconnect();amp.disconnect();};
     }
     const source=context.createBufferSource(),filter=context.createBiquadFilter(),amp=context.createGain();source.buffer=noise;filter.type='bandpass';filter.frequency.value=kind==='ball'?3200:kind==='cue'?1900:500;filter.Q.value=.6;
     amp.gain.setValueAtTime(gain*.75,time);amp.gain.exponentialRampToValueAtTime(.0001,time+duration*.7);
-    source.connect(filter);filter.connect(amp);amp.connect(master);source.start(time);source.stop(time+duration);source.onended=()=>{source.disconnect();filter.disconnect();amp.disconnect();};
+    source.connect(filter);filter.connect(amp);amp.connect(master);activeSources.add(source); source.start(time);source.stop(time+duration);source.onended=()=>{activeSources.delete(source);source.disconnect();filter.disconnect();amp.disconnect();};
   }
   const toggle = document.getElementById('sound-enabled'), slider = document.getElementById('sound-volume'), output = document.getElementById('sound-volume-value');
   const packSelect = document.getElementById('sound-pack');
@@ -130,7 +164,7 @@ export function createSounds() {
   toggle.onchange = async () => { preferences.enabled = toggle.checked; save(); render(); await unlock(); play('move'); };
   slider.oninput = () => { preferences.volume = Number(slider.value); save(); render(); };
   slider.onchange = () => play('move');
-  document.getElementById('sound-preview').onclick = async () => { await unlock(); play('move'); play('capture', .4); play('promotion', .9); };
+  document.getElementById('sound-preview').onclick = async () => { await unlock(); play('move'); play('capture', .4); play('promotion', .9); play('case-tick', 1.5); play('case-rare', 1.8); };
   render();
   return { play, pool, transition(previous, next, role, skipMove = false) { transitionSounds(previous, next, role).filter(sound => !skipMove || sound !== 'move').forEach((sound, i) => play(sound, i * .28)); } };
 }
