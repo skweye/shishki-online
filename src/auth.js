@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
-import { shopState, buyItem, equipItem } from './shop.js';
+import { shopState, buyItem, equipItem, openCase } from './shop.js';
 import { adminOverview, changeShopAccess, grantAdmin } from './admin.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
@@ -166,7 +166,7 @@ export async function handleAuth(request, env, ctx, readBody) {
       ctx.waitUntil(tidy(env));
       return await googleStart(request, env);
     }
-    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile', '/api/auth/delete-account', '/api/auth/shop/buy', '/api/auth/shop/equip'].includes(path)) return error('Запрос не найден.', 404);
+    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile', '/api/auth/delete-account', '/api/auth/shop/buy', '/api/auth/shop/equip', '/api/auth/shop/open'].includes(path)) return error('Запрос не найден.', 404);
     if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
     if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
     let data;
@@ -176,11 +176,13 @@ export async function handleAuth(request, env, ctx, readBody) {
       const user = await authenticatedUser(request, env);
       if (!user) return error('Войдите в аккаунт.', 401);
       if (!await limit(env, 'shop:' + user.id, 60, 600)) return error('Слишком много запросов. Попробуйте позже.', 429);
+      let opening;
       try {
         if (path.endsWith('/buy')) await buyItem(env, user.id, data.item);
+        else if(path.endsWith('/open'))opening=await openCase(env,user.id,data);
         else await equipItem(env, user.id, data.item, data.slot);
       } catch (cause) { if (cause.status) return error(cause.message, cause.status); throw cause; }
-      return json({ user: cleanUser(await authenticatedUser(request, env)), ...await shopState(env, user.id) });
+      return json({ user: cleanUser(await authenticatedUser(request, env)), ...await shopState(env, user.id), ...(opening?{opening}:{}) });
     }
     if (path === '/api/auth/delete-account') {
       const user = await authenticatedUser(request, env);

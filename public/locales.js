@@ -1,5 +1,47 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Обычный|Common|Звичайний
+Редкий|Rare|Рідкісний
+Эпический|Epic|Епічний
+Легендарный|Legendary|Легендарний
+Базовый|Base|Базовий
+Кейс путешественника|Traveller's case|Кейс мандрівника
+Кейс мастера|Master's case|Кейс майстра
+Королевский кейс|Royal case|Королівський кейс
+Кейс|Case|Кейс
+Кейсы и награды|Cases and rewards|Кейси та нагороди
+Уровень|Level|Рівень
+Опыт до следующего уровня|Experience to the next level|Досвід до наступного рівня
+Всего опыта|Total experience|Усього досвіду
+Следующий кейс|Next case|Наступний кейс
+Наградные кейсы|Reward cases|Нагородні кейси
+Опыт: победа +100, ничья +60, поражение +40. От 4 ходов в завершённой онлайн-партии. Каждые 10 уровней — кейс; каждые 50 — королевский.|XP: win +100, draw +60, loss +40. At least 4 moves in a completed online match. A case every 10 levels; a royal case every 50.|Досвід: перемога +100, нічия +60, поразка +40. Від 4 ходів у завершеній онлайн-партії. Кожні 10 рівнів — кейс; кожні 50 — королівський.
+Открыть кейс|Open case|Відкрити кейс
+Открыть бесплатно|Open for free|Відкрити безкоштовно
+Стоимость|Cost|Вартість
+Повтор|Duplicate|Повтор
+Добавлено в коллекцию|Added to collection|Додано до колекції
+Из кейсов|From cases|З кейсів
+Награда за уровень — бесплатно|Level reward — free|Нагорода за рівень — безкоштовно
+Полный доступ — бесплатно|Full access — free|Повний доступ — безкоштовно
+Все предметы и шансы|All items and odds|Усі предмети й шанси
+Внутри редкости предметы равновероятны. Шансы округлены.|Items within each rarity are equally likely. Odds are rounded.|Предмети однієї рідкості рівноймовірні. Шанси округлено.
+Последние открытия|Recent openings|Останні відкриття
+Посмотреть предмет|View item|Переглянути предмет
+Повторить запрос|Retry request|Повторити запит
+Повтор безопасен: второй кейс не спишется.|Retrying is safe: a second case will not be charged.|Повтор безпечний: другий кейс не спишеться.
+Есть незавершённый запрос. Повтор безопасен: второй кейс не спишется.|An unfinished request was found. Retrying is safe: a second case will not be charged.|Є незавершений запит. Повтор безпечний: другий кейс не спишеться.
+Войдите, чтобы открывать кейсы и собирать коллекцию.|Sign in to open cases and build your collection.|Увійдіть, щоб відкривати кейси й збирати колекцію.
+Один предмет — для обоих случаев. Выберите событие, затем эффект в коллекции.|One item works for both events. Choose an event, then an effect from your collection.|Один предмет — для обох випадків. Виберіть подію, потім ефект у колекції.
+ПРЕДПРОСМОТР ПРЕДМЕТА|ITEM PREVIEW|ПЕРЕГЛЯД ПРЕДМЕТА
+Предметы выпадают только из кейсов. Шансы открыты; повторы возвращают монеты. Все монеты игровые.|Items only drop from cases. Odds are public; duplicates return coins. All coins are earned in game.|Предмети випадають лише з кейсів. Шанси відкриті; повтори повертають монети. Усі монети ігрові.
+Прямая покупка отключена. Предметы выпадают из кейсов.|Direct purchases are disabled. Items drop from cases.|Пряму купівлю вимкнено. Предмети випадають із кейсів.
+Этот предмет ещё не выпал из кейса.|This item has not dropped from a case yet.|Цей предмет ще не випав із кейса.
+Недостаточно монет для кейса.|Not enough coins for this case.|Недостатньо монет для кейса.
+Нет наградного кейса этого вида.|No reward case of this type available.|Немає нагородного кейса цього виду.
+Некорректный запрос кейса.|Invalid case request.|Некоректний запит кейса.
+Этот запрос уже использован.|This request has already been used.|Цей запит уже використано.
+Полный доступ недоступен.|Full access is unavailable.|Повний доступ недоступний.
 Анимированный|Animated|Анімований
 Каррарский мрамор|Carrara marble|Каррарський мармур
 Молочный и графитовый камень с тонкими золотыми прожилками.|Ivory and graphite stone with fine gold veins.|Молочний і графітовий камінь із тонкими золотими прожилками.

@@ -1,3 +1,4 @@
+import { renderProgress } from './progression-ui.js';
 import { syncAccount } from './auth.js';
 const $ = id => document.getElementById(id);
 const modes = [
@@ -64,7 +65,7 @@ function showStats(data) {
     const item = element('li', '', 'recent-game'), details = document.createElement('div');
     details.append(element('strong', modes.find(([id]) => id === game.variant)?.[1] || game.variant));
     const date = new Date(game.finished_at * 1000).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-    details.append(element('small', `${date} · ${game.variant === 'chapaev' ? 'Ударов' : 'Ходов'}: ${game.moves}${game.coins ? ' · +' + game.coins + ' ◈' : ''}`));
+    details.append(element('small', `${date} · ${game.variant === 'chapaev' ? 'Ударов' : 'Ходов'}: ${game.moves}${game.coins ? ' · +' + game.coins + ' ◈' : ''}${game.xp ? ' · +' + game.xp + ' XP' : ''}`));
     const badge = element('span', { win: 'Победа', loss: 'Поражение', draw: 'Ничья' }[game.result], 'result-badge');
     badge.dataset.result = game.result; item.append(details, badge); return item;
   }));
@@ -74,7 +75,7 @@ async function load() {
   $('state-title').textContent = 'Загружаем профиль…';
   try {
     const data = await request('account');
-    showUser(data.user); showStats(data);
+    showUser(data.user); showStats(data);renderProgress($('level-progress'),data.shop);
     $('profile-coins').textContent = data.shop.balance.toLocaleString('ru-RU');
     $('connect-google').hidden = user.googleLinked || !data.googleEnabled;
     $('page-state').hidden = true; $('account-content').hidden = false;

@@ -1,4 +1,5 @@
 import { matchCoins } from '../public/shop-catalog.js';
+import { matchXP } from '../public/cases.js';
 
 export async function accountStats(env, userId) {
   const [summary, recent] = await env.AUTH_DB.batch([
@@ -7,7 +8,7 @@ export async function accountStats(env, userId) {
       FROM account_results WHERE user_id = ? GROUP BY variant`).bind(userId),
     env.AUTH_DB.prepare('SELECT variant, result, moves, finished_at, coins FROM account_results WHERE user_id = ? ORDER BY finished_at DESC LIMIT 20').bind(userId)
   ]);
-  return { modes: summary.results, recent: recent.results };
+  return { modes: summary.results, recent: recent.results.map(row=>({...row,xp:matchXP(row.result,row.moves)})) };
 }
 export async function writeResults(env, results) {
   if (!results.length) return;

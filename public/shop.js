@@ -1,4 +1,6 @@
 import { CATALOG } from './shop-catalog.js';
+import { rarityOf, RARITIES } from './cases.js';
+import { createCaseShop } from './case-shop.js';
 import './i18n.js';
 import { drawCue, animatedCue } from './pool-cue.js';
 import { createCosmeticAnimation, canvasVisible, cosmeticTime } from './cosmetic-animation.js';
@@ -6,7 +8,7 @@ import { pieceArt } from './skin-art.js';
 import { fleetPreview } from './battleship-art.js';
 import { createRocketEffect } from './rocket.js';
 const $ = id => document.getElementById(id);
-let state = null, filter = 'all', effectSlot = 'victory', busy = false, pendingItem = null, previewItem = null;
+let state = null, filter = 'all', effectSlot = 'victory', busy = false, previewItem = null;
 const preview = createRocketEffect($('preview-board'), { play() {} });
 function paintCue(canvas,time=cosmeticTime()){
   const ctx=canvas.getContext('2d');ctx.clearRect(0,0,400,140);ctx.save();ctx.translate(365,70);drawCue(ctx,canvas.dataset.cue,0,time);ctx.restore();
@@ -25,10 +27,12 @@ async function request(path = '', data) {
   if (!response.ok) throw Object.assign(new Error(result.error || 'Не удалось выполнить запрос.'), { status: response.status });
   return result;
 }
+const caseShop=createCaseShop({request,getState:()=>state,update:value=>{state=value;render();},preview:openPreview});
 function notice(text, error = false) { $('shop-status').textContent = text; $('shop-status').dataset.error = String(error); }
 function isOwned(item) { return !!state?.owned.includes(item.id); }
 function isEquipped(item) { return !!state && (item.type === 'skin' ? state.user.pieceSkin : item.type === 'cue' ? state.user.cueSkin : item.type === 'ship' ? state.user.shipSkin : effectSlot === 'victory' ? state.user.victoryEffect : state.user.finishEffect) === item.value; }
 function render() {
+  caseShop.render();
   for (const slot of ['victory', 'resign']) {
     const value = slot === 'victory' ? state?.user.victoryEffect : state?.user.finishEffect;
     $(slot + '-choice').textContent = CATALOG.find(item => item.type === 'effect' && item.value === value)?.name || 'Без эффекта';
@@ -48,24 +52,14 @@ function render() {
     if(item.type==='cue'&&animatedCue(item.value))art.append(el('span','Анимированный','cue-motion-badge'));
     if (owned) art.append(el('span', equipped ? 'Выбрано' : 'В коллекции', 'item-status'));
     const body = el('div', '', 'shop-item-body'), heading = el('div', '', 'item-heading');
-    heading.append(el('h3', item.name), el('span', item.price ? `◈ ${item.price}` : 'Бесплатно', 'item-price'));
+    const rarity=rarityOf(item);card.dataset.rarity=rarity;
+    heading.append(el('h3', item.name), el('span', RARITIES[rarity]?.name || 'Базовый', 'item-price rarity-label'));
     const actions = el('div', '', 'shop-item-actions');
     const view = el('button', 'Посмотреть', 'secondary-button'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => openPreview(item);
-    const action = el('button', equipped ? '✓ Выбрано' : owned ? 'Выбрать' : state ? `Купить · ${item.price} ◈` : 'Войти', 'primary-button');
-    action.disabled = busy || equipped || !!state && !owned && state.balance < item.price;
-    action.setAttribute('aria-label', `${!state ? 'Войти' : equipped ? 'Выбрано' : owned ? 'Выбрать' : 'Купить'}: ${item.name}`);
-    if (state && !owned && state.balance < item.price) { action.textContent = `Не хватает ${item.price - state.balance} ◈`; }
-    action.onclick = () => {
-      if (!state) { location.assign('/?login=1&returnTo=shop'); return; }
-      if (owned) equip(item);
-      else {
-        pendingItem = item;
-        $('purchase-title').textContent = item.name;
-        $('purchase-description').textContent = `Стоимость — ${item.price} монет. После покупки останется ${state.balance - item.price}.`;
-        $('purchase-error').textContent = ''; $('purchase-confirm').textContent = `Купить за ${item.price} ◈`;
-        $('purchase-dialog').showModal();
-      }
-    };
+    const action = el('button', equipped ? '✓ Выбрано' : owned ? 'Выбрать' : state ? 'Из кейсов' : 'Войти', 'primary-button');
+    action.disabled = busy || equipped || !!state && !owned;
+    action.setAttribute('aria-label', (owned ? 'Выбрать: ' : 'Из кейсов: ') + item.name);
+    action.onclick = () => {if (!state) location.assign('/?login=1&returnTo=shop');else if(owned) equip(item);};
     actions.append(view, action); body.append(heading, el('p', item.description, 'item-description'), actions); card.append(art, body); return card;
   }));
   if (!items.length) $('shop-catalog').append(el('p', state ? 'В этой категории пока нет предметов.' : 'Войдите, чтобы увидеть свою коллекцию.', 'subtle'));
@@ -87,20 +81,6 @@ async function equip(item) {
   catch (error) { notice(error.message, true); }
   finally { busy = false; render(); }
 }
-$('purchase-confirm').onclick = async () => {
-  if (busy || !pendingItem) return;
-  busy = true; $('purchase-confirm').disabled = $('purchase-cancel').disabled = $('purchase-close').disabled = true;
-  const item = pendingItem;
-  try { state = await request('/buy', { item: item.id }); $('purchase-dialog').close(); notice(`${item.name} — теперь в вашей коллекции. Нажмите «Выбрать», чтобы использовать.`); }
-  catch (error) {
-    $('purchase-error').textContent = error.message;
-    try { state = await request(); } catch { /* Keep the last known balance until retry. */ }
-  }
-  finally { busy = false; $('purchase-confirm').disabled = $('purchase-cancel').disabled = $('purchase-close').disabled = false; render(); }
-};
-function closePurchase() { if (!busy) { $('purchase-dialog').close(); pendingItem = null; } }
-$('purchase-close').onclick = $('purchase-cancel').onclick = closePurchase;
-$('purchase-dialog').addEventListener('cancel', event => { if (busy) event.preventDefault(); });
 function openPreview(item) {
   preview.cancel(); previewItem = item; $('preview-title').textContent = item.name;
   $('preview-description').textContent = item.type === 'effect' ? `Пример анимации. В игре её увидят оба игрока ${effectSlot === 'victory' ? 'после вашей победы' : 'при сдаче вашего соперника'}.` : 'Ваши фишки сохраняют цвет стороны и получают выбранное оформление. Рисунок виден на доске, а дамки отмечены короной.';
@@ -135,5 +115,5 @@ document.querySelectorAll('[data-slot]').forEach(button => { button.onclick = ()
   $('slot-description').textContent = effectSlot === 'victory' ? 'Выбираете анимацию обычной победы: мат, взятие последней шашки или победа по времени.' : 'Выбираете анимацию, которая появится, когда ваш соперник сдастся.';
   render();
 }; });
-window.addEventListener('focus', () => { if (!busy && !$('purchase-dialog').open) load(); });
+window.addEventListener('focus', () => { if (!busy && !$('case-dialog').open) load(); });
 render(); await load();
