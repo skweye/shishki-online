@@ -4,8 +4,8 @@ body .primary-button{background:var(--theme-accent);color:var(--theme-on-accent)
 body .primary-button:hover{background:color-mix(in srgb,var(--theme-accent) 87%,var(--theme-text));box-shadow:none}
 body .secondary-button{background:transparent;border:1px solid var(--glass-edge,var(--theme-border));color:var(--theme-secondary);box-shadow:none}
 body .secondary-button:hover{background:var(--glass-fill,var(--theme-raised));border-color:var(--theme-muted)}
-body .ghost-button,body .text-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--theme-secondary);font:inherit;font-size:12px;box-shadow:none;text-decoration:none}
-body .ghost-button:hover,body .text-button:hover{background:var(--glass-fill,var(--theme-raised));border-color:transparent;color:var(--theme-text)}
+body .ghost-button,body .text-button,body.profile-page .text-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:9px 12px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--theme-secondary);font:inherit;font-size:12px;box-shadow:none;text-decoration:none}
+body .ghost-button:hover,body .text-button:hover,body.profile-page .text-button:hover{background:var(--glass-fill,var(--theme-raised));border-color:transparent;color:var(--theme-text)}
 body .link-button{padding:6px 0;min-height:44px;border:0;background:transparent;color:var(--theme-accent);font:inherit;font-size:12px;text-underline-offset:4px}
 body .link-button:hover{text-decoration:underline}
 body .danger-button{display:inline-flex;align-items:center;justify-content:center;padding:12px 16px;border:1px solid #c57b6980;background:#b65e4b12;color:var(--theme-text);font-size:12px}
