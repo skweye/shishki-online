@@ -4,7 +4,7 @@ export function renderProgress(root,state){
   if(!root)return;
   const p=state?.progression||progression(),cases=Object.values(state?.cases||{}).reduce((a,b)=>a+b,0);
   root.replaceChildren();
-  const title=document.createElement('h2');title.textContent=`${t('Уровень')} ${p.level}`;
+  const title=document.createElement('h2');title.textContent=t('Опыт аккаунта');
   const progress=document.createElement('progress');progress.max=p.required;progress.value=p.current;progress.setAttribute('aria-label',t('Опыт до следующего уровня'));
   const label=document.createElement('p');label.textContent=`${p.current} / ${p.required} XP · ${t('Всего опыта')}: ${p.xp}`;
   const reward=document.createElement('p');reward.textContent=`${t('Следующий кейс')}: ${t(caseById(milestoneCase(p.nextCaseLevel)).name)} · ${t('Уровень')} ${p.nextCaseLevel}`;

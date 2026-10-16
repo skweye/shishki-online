@@ -1,5 +1,21 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Опыт аккаунта|Account experience|Досвід акаунта
+Инвентарь|Inventory|Інвентар
+Инвентарь — Шашки|Inventory — Shishki|Інвентар — Шашки
+Кейсы и награды — Шашки|Cases and rewards — Shishki|Кейси та нагороди — Шашки
+Инвентарь ↗|Inventory ↗|Інвентар ↗
+Кейсы и награды ↗|Cases and rewards ↗|Кейси та нагороди ↗
+Ваш инвентарь|Your inventory|Ваш інвентар
+Все полученные предметы, предпросмотр и выбор оформления|All your items, previews and equipment|Усі отримані предмети, перегляд та вибір оформлення
+Открыть в инвентаре|Open in inventory|Відкрити в інвентарі
+ВАША КОЛЛЕКЦИЯ|YOUR COLLECTION|ВАША КОЛЕКЦІЯ
+Все ваши предметы|All your items|Усі ваші предмети
+Все ваши предметы в одном месте.|All your items in one place.|Усі ваші предмети в одному місці.
+Выберите оформление для следующей игры.|Choose your look for the next game.|Оберіть оформлення для наступної гри.
+Категории инвентаря|Inventory categories|Категорії інвентарю
+Открыть кейсы|Open cases|Відкрити кейси
+Каждый следующий уровень требует на 50 XP больше: 200, 250, 300…|Each next level needs 50 more XP: 200, 250, 300…|Кожен наступний рівень потребує на 50 XP більше: 200, 250, 300…
 Наблюдатель|Observer|Спостерігач
 Управляющий|Manager|Керівник
 Главный администратор|Head administrator|Головний адміністратор

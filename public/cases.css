@@ -6,3 +6,13 @@
 :root[data-low-performance=true] .case-chest.opening{animation:none}
 
 .case-prize{margin-top:20px;min-height:140px;border:1px solid currentColor;border-radius:18px}.case-prize .piece{position:relative;width:64px;height:64px}.case-prize svg:not(.piece-texture):not(.piece-engraving){max-height:160px}.case-prize[hidden]{display:none}
+
+
+.case-reel{position:relative;height:196px;margin:24px -10px;border-block:1px solid var(--glass-edge);overflow:hidden;background:radial-gradient(ellipse at center,#ffffff0b,transparent 70%),#090c1180;isolation:isolate}
+.case-reel[hidden]{display:none}.case-reel:before{content:'';position:absolute;z-index:2;inset:0;background:linear-gradient(90deg,#14161be6,transparent 20%,transparent 80%,#14161be6);pointer-events:none}
+.case-reel:after{content:'';position:absolute;z-index:3;left:50%;top:0;bottom:0;width:2px;transform:translateX(-50%);background:linear-gradient(#ffe0a8 0 12px,#ffe0a830 12px calc(100% - 12px),#ffe0a8 calc(100% - 12px));box-shadow:0 0 12px #ffcc7d70;pointer-events:none}
+.case-reel-track{position:absolute;left:50%;top:14px;display:flex;gap:12px;width:max-content;will-change:transform}
+.case-reel-card{flex:0 0 128px;width:128px;height:164px;box-sizing:border-box;border:1px solid currentColor;border-bottom-width:3px;border-radius:14px;background:#22252d;overflow:hidden;display:flex;flex-direction:column}
+.case-reel-card>.shop-art{height:110px;flex:none;gap:10px;background:radial-gradient(ellipse at bottom,#ffffff18,transparent)}.case-reel-card .piece{width:42px;height:42px}.case-reel-card .shop-art-symbol{font-size:48px}.case-reel-card svg:not(.piece-texture):not(.piece-engraving){max-height:92px;width:100%}.case-reel-card>span{padding:8px;font-size:11px;line-height:1.35;text-align:center;color:#f3f2ef;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.case-reel-card.reel-winner{background:#36302a;box-shadow:0 0 24px #ffdda52e}
+#case-dialog .delete-actions{display:flex;flex-wrap:wrap;gap:12px}#case-dialog .delete-actions button{flex:1;min-height:46px}#case-dialog details{margin:16px 0}#case-dialog summary,.case-card summary,.case-history summary{cursor:pointer;padding:10px 12px;border:1px solid var(--glass-edge);border-radius:10px;background:var(--glass-fill)}
+@media(prefers-reduced-motion:reduce){.case-reel-track{will-change:auto}}

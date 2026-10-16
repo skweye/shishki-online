@@ -11,7 +11,7 @@ test('every page mounts one complete account menu and working theme picker witho
     mountAccountShell(document);mountAccountShell(document);
     const ids=[...document.querySelectorAll('[id]')].map(node=>node.id);
     assert.equal(ids.length,new Set(ids).size,file+' duplicate IDs');
-    for(const id of ['account-button','menu-profile','menu-admin','menu-shop','menu-login','logout-button','appearance-menu','language-menu','settings-button','auth-dialog','settings-dialog','sound-pack'])assert.ok(document.getElementById(id),file+': '+id);
+    for(const id of ['account-button','menu-profile','menu-admin','menu-shop','menu-inventory','account-level','menu-login','logout-button','appearance-menu','language-menu','settings-button','auth-dialog','settings-dialog','sound-pack'])assert.ok(document.getElementById(id),file+': '+id);
     assert.ok(document.querySelector('.site-header #account-button'));
     assert.equal(document.querySelector('#menu-admin').hidden,true);
     assert.ok(document.querySelector('script[src="'+(file==='index.html'?'/app.js':'/account-page.js')+'"]'));
@@ -40,7 +40,7 @@ test('shared page menu handles account identity, Google return, sound preference
   Object.defineProperty($('sound-pack'),'value',{writable:true,value:'wood'});
   await import('../public/account-page.js');
   const {authReady,syncAccount}=await import('../public/auth.js');await authReady;
-  assert.equal(document.title,'Магазин и коллекция — Шашки');
+  assert.equal(document.title,'Кейсы и награды — Шашки');
   assert.equal($('menu-admin').hidden,true);assert.equal($('logout-button').hidden,true);
   $('account-button').click();assert.equal($('account-menu').hidden,false);
   const escape=new window.Event('keydown',{bubbles:true});escape.key='Escape';$('account-button').dispatchEvent(escape);
@@ -51,10 +51,12 @@ test('shared page menu handles account identity, Google return, sound preference
   $('settings-back').click();assert.equal($('settings-dialog').open,false);
   $('menu-login').click();assert.equal($('auth-dialog').open,true);
   $('google-signin').click();assert.equal(navigations.at(-1),'/api/auth/google?returnTo=%2Fshop');
-  syncAccount({id:'owner',name:'<b>Player</b>',email:'test@example.invalid',isAdmin:true,avatar:'/avatar.png'});
+  syncAccount({id:'owner',level:12,name:'<b>Player</b>',email:'test@example.invalid',isAdmin:true,avatar:'/avatar.png'});
   assert.equal($('menu-admin').hidden,false);assert.equal($('menu-login').hidden,true);
   assert.equal($('account-button-label').textContent,'<b>Player</b>');assert.equal($('account-button-label').children.length,0);
   assert.equal($('account-avatar').querySelector('img').getAttribute('src'),'/avatar.png');
+  assert.equal($('account-level').textContent,'12');assert.equal($('account-level').hidden,false);
+  $('menu-inventory').click();assert.equal(navigations.at(-1),'/inventory');
   $('menu-profile').click();assert.equal(navigations.at(-1),'/profile');
   document.dispatchEvent(new window.CustomEvent('accountchange',{detail:{id:'new-user'}}));assert.equal(reloads,1);
 });

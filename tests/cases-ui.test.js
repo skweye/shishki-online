@@ -3,7 +3,10 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {createCaseShop} from '../public/case-shop.js';
-import {progression} from '../public/cases.js';
+import {progression,levelThreshold} from '../public/cases.js';
+import {CASES} from '../public/cases.js';
+import {itemById} from '../public/shop-catalog.js';
+import {createCaseReel,reelItems,REEL_WINNER_INDEX} from '../public/case-reel.js';
 
 function setup(storage=new Map()){
   const {document,window}=parseHTML(readFileSync(new URL('../public/shop.html',import.meta.url),'utf8'));
@@ -35,8 +38,33 @@ test('pending requests restore after reload, reward cases cost no coins and low 
   const component=createCaseShop({getState:()=>state,update:next=>{state=next;},preview(){},request:async(path,body)=>{sent=body;throw Object.assign(new Error('Insufficient funds'),{status:409});}});
   component.render();assert.equal($('case-dialog').open,true);assert.match($('case-error').textContent,/незавершённый/);
   await $('case-confirm').onclick();assert.deepEqual(sent,old);$('case-close').click();
-  state={...state,balance:0,cases:{standard:1,premium:0,royal:0},progression:progression(1800)};component.render();
+  state={...state,balance:0,cases:{standard:1,premium:0,royal:0},progression:progression(levelThreshold(10))};component.render();
   const buttons=$('case-catalog').querySelectorAll('button');assert.equal(buttons[0].disabled,false);assert.equal(buttons[1].disabled,true);
-  buttons[0].click();assert.match($('case-cost').textContent,/бесплатно/);assert.match($('level-progress').textContent,/Уровень 10/);
+  buttons[0].click();assert.match($('case-cost').textContent,/бесплатно/);assert.match($('level-progress').textContent,/Уровень 20/);
   await $('case-confirm').onclick();assert.equal(sent.source,'reward');
+});
+
+test('reel stops at the server item and finishes immediately on hidden tab or reduced motion',async()=>{
+  const {document,window,$}=setup();let complete,frames,options,finished=0,cancelled=0;
+  const winner=itemById('skin-marble');
+  assert.equal(reelItems(CASES[0],winner,()=>0)[REEL_WINNER_INDEX],winner);
+  const originalRandom=Math.random;Math.random=()=>0;
+  window.HTMLElement.prototype.animate=function(keyframes,settings){
+    frames=keyframes;options=settings;
+    return {finished:new Promise(resolve=>{complete=resolve;}),finish(){finished++;complete();},cancel(){cancelled++;}};
+  };
+  globalThis.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});
+  try{
+    const reel=createCaseReel($('case-reel'));
+    const spin=reel.play(CASES[0],winner);
+    assert.equal($('case-reel').hidden,false);assert.equal(options.duration,4400);
+    assert.equal(frames.at(-1).transform,`translateX(-${REEL_WINNER_INDEX*140+64}px)`);
+    const card=$('case-reel').querySelectorAll('.case-reel-card')[REEL_WINNER_INDEX];
+    assert.equal(card.querySelector('[data-item]').dataset.item,winner.id);
+    document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));await spin;
+    assert.equal(finished,1);assert.equal(card.classList.contains('reel-winner'),true);
+    reel.reset();assert.equal(cancelled,1);assert.equal($('case-reel').hidden,true);
+    document.hidden=false;globalThis.matchMedia=()=>({matches:true});await reel.play(CASES[0],winner);
+    assert.equal($('case-reel').hidden,true);assert.equal($('case-reel').children.length,0);
+  }finally{Math.random=originalRandom;delete window.HTMLElement.prototype.animate;}
 });

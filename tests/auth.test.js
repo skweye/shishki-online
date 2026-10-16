@@ -23,6 +23,8 @@ test('registration validates all fields, normalizes email and preserves password
 test('OAuth return URL cannot redirect off site or to arbitrary paths', () => {
   assert.equal(safeReturnTo('/?room=AABBCCDDEEFF'), '/?room=AABBCCDDEEFF');
   assert.equal(safeReturnTo('/profile'), '/profile');
+  assert.equal(safeReturnTo('/inventory'), '/inventory');
+  assert.equal(safeReturnTo('/inventory?next=https://evil.example'), '/');
   assert.equal(safeReturnTo('/profile?next=https://evil.example'), '/');
   assert.equal(safeReturnTo('/admin'), '/admin');
   assert.equal(safeReturnTo('/privacy'), '/privacy');

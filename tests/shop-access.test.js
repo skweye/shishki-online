@@ -7,7 +7,7 @@ import { CATALOG, itemById } from '../public/shop-catalog.js';
 import { TEXTURES,pieceArt } from '../public/skin-art.js';
 import { CUE_SHAPES,animatedCue,validCueSkin } from '../public/pool-cue.js';
 import { translations } from '../public/locales.js';
-import { CASES,caseContents,selectCaseItem,rarityOf,progression,milestoneCase,matchXP } from '../public/cases.js';
+import { CASES,caseContents,selectCaseItem,rarityOf,progression,milestoneCase,matchXP,levelThreshold } from '../public/cases.js';
 
 test('case chances cover every collectible, sum to 100 and select the published rarity boundaries',()=>{
   for(const box of CASES){
@@ -57,12 +57,12 @@ test('XP, all ten-level milestones and free-case consumption agree in SQL and JS
     }
     assert.equal((await shopState(env,'other')).progression.xp,200);assert.equal(matchXP('win',3),0);
     for(let level=1;level<=300;level++){
-      const xp=(level-1)*200;db.prepare('UPDATE account_progress SET xp=? WHERE user_id=?').run(xp,'other');
+      const xp=levelThreshold(level);db.prepare('UPDATE account_progress SET xp=? WHERE user_id=?').run(xp,'other');
       const p=progression(xp),sql=db.prepare('SELECT * FROM earned_cases WHERE user_id=?').get('other');delete sql.user_id;
       assert.deepEqual({...sql},p.earned);assert.equal(Object.values(p.earned).reduce((a,b)=>a+b,0),Math.floor(level/10));
       if(level%10===0){const before=progression(xp-1);assert.equal(p.earned[milestoneCase(level)]-before.earned[milestoneCase(level)],1);}
     }
-    db.prepare('UPDATE account_progress SET xp=1800 WHERE user_id=?').run('other');
+    db.prepare('UPDATE account_progress SET xp=? WHERE user_id=?').run(levelThreshold(10),'other');
     assert.deepEqual((await shopState(env,'other')).cases,{standard:1,premium:0,royal:0});
     const request={caseId:'standard',source:'reward',requestId:crypto.randomUUID()};
     const first=await openCase(env,'other',request);assert.equal(first.cost,0);assert.deepEqual(await openCase(env,'other',request),first);
@@ -83,6 +83,34 @@ test('migration credits past results without changing balances or existing owner
     assert.equal(db.prepare('SELECT xp FROM account_progress').get().xp,100);assert.equal(db.prepare('SELECT balance FROM account_wallets').get().balance,balance);
     assert.equal(db.prepare('SELECT item_id FROM account_items').get().item_id,'skin-jade');
     db.exec("INSERT OR IGNORE INTO account_results VALUES('u','one','chess','win',4,1,30)");assert.equal(db.prepare('SELECT xp FROM account_progress').get().xp,100);
+  }finally{db.close();}
+});
+
+test('progressive XP preserves existing levels and consumed rewards, with increasing thresholds',async()=>{
+  const db=new DatabaseSync(':memory:');try{
+    for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')&&f<'0013').sort())db.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+    for(const [index,xp] of [0,199,200,1800,1999,3800,9800,19899,1000000].entries()){
+      db.prepare('INSERT INTO users(id,name,email,created_at) VALUES(?,?,?,1)').run(String(index),'Test',index+'@example.invalid');
+      db.prepare('INSERT INTO account_progress VALUES(?,?)').run(String(index),xp);
+    }
+    db.exec("INSERT INTO account_wallets VALUES('3',100); INSERT INTO case_openings(user_id,request_id,case_id,source,item_id,rarity,cost,compensation,opened_at) VALUES('3','legacy-reward','standard','reward','skin-jade','common',0,20,1)");
+    const before=db.prepare('SELECT * FROM account_progress').all();
+    db.exec(readFileSync(new URL('../migrations/0013_progressive_levels.sql',import.meta.url),'utf8'));
+    for(const old of before){
+      const p=progression(db.prepare('SELECT xp FROM account_progress WHERE user_id=?').get(old.user_id).xp);
+      assert.equal(p.level,1+Math.floor(old.xp/200));
+      assert.ok(Math.abs(p.current/p.required-(old.xp%200)/200)<1/p.required+.00001);
+      assert.equal(db.prepare('SELECT level FROM account_levels WHERE user_id=?').get(old.user_id).level,p.level);
+    }
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM case_openings WHERE user_id='3'").get().n,1);
+    assert.equal(db.prepare("SELECT standard FROM earned_cases WHERE user_id='3'").get().standard,1);
+    assert.equal(db.prepare("SELECT balance FROM account_wallets WHERE user_id='3'").get().balance,100);
+    assert.equal(db.prepare("SELECT item_id FROM account_items WHERE user_id='3'").get().item_id,'skin-jade');
+    for(let level=1;level<=1000;level++){
+      const start=levelThreshold(level),end=levelThreshold(level+1);
+      assert.equal(end-start,200+50*(level-1));assert.equal(progression(start).level,level);
+      assert.equal(progression(end-1).level,level);assert.equal(progression(end).level,level+1);
+    }
   }finally{db.close();}
 });
 
@@ -117,6 +145,7 @@ function database(verified = true) {
   db.exec(readFileSync(new URL('../migrations/0009_cue_skin.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0010_ship_skin.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0011_cases_levels.sql',import.meta.url),'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0013_progressive_levels.sql',import.meta.url),'utf8'));
   const env = { AUTH_DB: {
     prepare(sql) { return { bind(...args) { const statement = db.prepare(sql); return {
       first: async () => statement.get(...args),

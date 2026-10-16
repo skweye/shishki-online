@@ -50,6 +50,7 @@ export function createCaseShop({request,getState,update,preview}){
     if(state&&!recovered){recovered=true;try{const old=JSON.parse(localStorage.getItem(key()));if(old&&caseById(old.caseId))show(caseById(old.caseId),old.source,old);}catch{}}
   }
   $('case-close').onclick=()=>{if(!busy)dialog.close();};
+  dialog.addEventListener('close',()=>reel.reset());
   dialog.addEventListener('cancel',event=>{if(busy)event.preventDefault();});
   $('case-preview').onclick=()=>{if(result){dialog.close();preview(itemById(result.itemId));}};
   $('case-confirm').onclick=async()=>{

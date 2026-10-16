@@ -29,3 +29,12 @@
 @keyframes menu-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
 @media(max-width:560px) { .account-menu { width:min(260px,calc(100vw - 32px)); } .account-submenu { right:-1px; top:-1px; width:calc(100% + 2px); z-index:101; } .account-menu .submenu-back { display:flex; border-bottom:1px solid var(--theme-border); margin-bottom:4px; color:var(--theme-muted); } }
 @media(prefers-reduced-motion:reduce) { .account-menu { animation:none; } }
+
+
+.level-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:26px;height:26px;padding:0 7px;border:1px solid var(--theme-accent,#dfc491);border-radius:9px;color:var(--theme-accent,#dfc491);background:var(--theme-panel,#292724);box-shadow:inset 0 1px #fff2;font-size:12px;font-weight:750;line-height:1;vertical-align:middle;font-variant-numeric:tabular-nums}.level-badge[hidden]{display:none}.account-button{gap:10px}#account-button-label{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-name-line{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.profile-name-line .level-badge{height:34px;min-width:34px;font-size:16px}.profile-name-line h1{overflow-wrap:anywhere}
+@media(max-width:560px){#account-button-label{max-width:100px}.account-button{gap:7px}.level-badge{min-width:23px;height:23px;padding:0 5px;font-size:11px}}
+
+/* Compact outlined actions keep secondary controls recognizable on every page. */
+body .text-button{border:1px solid var(--glass-edge,var(--theme-border));border-radius:10px;background:var(--glass-fill,var(--theme-panel));padding:9px 13px;text-decoration:none;min-height:38px}
+body .text-button:hover{background:var(--glass-shine,var(--theme-raised));border-color:var(--theme-accent)}
+@media(max-width:560px){.profile-page .site-header{flex-wrap:wrap;height:auto;min-height:64px;gap:10px;padding-block:12px}.profile-page .site-header>.back-link{order:3;width:100%;justify-content:center}.profile-page .header-actions{margin-left:auto}.profile-page .header-caption{display:none}}

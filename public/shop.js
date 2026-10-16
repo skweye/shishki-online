@@ -45,8 +45,6 @@ function render() {
     const value = slot === 'victory' ? state?.user.victoryEffect : state?.user.finishEffect;
     $(slot + '-choice').textContent = CATALOG.find(item => item.type === 'effect' && item.value === value)?.name || 'Без эффекта';
   }
-  $('coin-balance').textContent = state ? state.balance.toLocaleString('ru-RU') : '—';
-  $('wallet-caption').textContent = state?.fullAccess ? 'Полный доступ · все предметы доступны всегда' : state ? 'Кошелёк вашего аккаунта' : '100 монет в подарок при первом входе';
   $('collection-count').textContent = state ? `${state.owned.length} из ${CATALOG.length} в коллекции` : '';
   const items = CATALOG.filter(item => isOwned(item) && (filter === 'all' || filter === item.type));
   $('shop-catalog').replaceChildren(...items.map(item => {
@@ -82,6 +80,11 @@ async function load() {
     if (error.status !== 401) notice(error.message, true);
   }
   render();
+  if(inventory&&state&&!linkedItemOpened){
+    linkedItemOpened=true;
+    const item=itemById(new URL(location.href).searchParams.get('item'));
+    if(item&&isOwned(item))openPreview(item);
+  }
 }
 async function equip(item) {
   if (busy) return; busy = true; render(); notice('Выбираем оформление…');
