@@ -70,6 +70,7 @@ function toast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').hidden = true; }, 6500);
 }
 function confirm(title, message, action, label = 'Продолжить') {
+  matchUI.close();
   $('confirm-title').textContent = title; $('confirm-text').textContent = message;
   $('confirm-yes').className=['Сдаться','Начать заново'].includes(label)?'danger-button':'primary-button';
   $('confirm-yes').textContent = label; confirmAction = action; $('confirm-dialog').showModal();
@@ -207,7 +208,7 @@ function renderHistory() {
 }
 function render() {
   updateBackdrop();
-  renderBoard(); renderHistory();
+  renderBoard(); rocketEffect.refresh(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
   document.querySelector('.rule-chip .mini-board').textContent=({pool8:'⑧',narde:'⚄',chess:'♞',domino:'◈',battleship:'⚓',chapaev:'↗'})[variantOf(game)]||'▦';
@@ -566,7 +567,7 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
   const rect = dialog.getBoundingClientRect();
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
 }));
-$('confirm-yes').onclick = () => { $('confirm-dialog').close(); confirmAction?.(); };
+$('confirm-yes').onclick = () => { const action = confirmAction; confirmAction = null; $('confirm-dialog').close(); action?.(); };
 $('join-form').onsubmit = async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
   try { await join(extractCode($('join-code').value)); $('join-dialog').close(); }
@@ -577,7 +578,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { dominoBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { rocketEffect.cancel(); dominoBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) goHome();
   else if (game.history.length || game.path.length || game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');
@@ -598,10 +599,16 @@ function confirmMatch(title, text, action, label) {
     action();
   }, label);
 }
-$('resign-button').onclick = () => confirmMatch('Сдаться в этой партии?', 'Победа достанется ' + ((room?.role || game.turn) === 'white' ? 'чёрным.' : 'белым.'), () => {
-  if (mode === 'online') send({ type: 'resign' });
-  else finishLocal(opposite(game.turn), 'resign');
-}, 'Сдаться');
+$('resign-button').onclick = () => {
+  if ($('resign-button').disabled || game.winner) return;
+  const side = room?.role || game.turn, code = room?.code, playingMode = mode;
+  confirm('Сдаться в этой партии?', 'Победа достанется ' + (side === 'white' ? 'чёрным.' : 'белым.'), () => {
+    // An opponent's move does not invalidate surrender: use the latest revision.
+    if (game.winner || mode !== playingMode || room?.code !== code || (room && room.role !== side)) return toast('Позиция изменилась. Повторите действие.');
+    if (mode === 'online') send({ type: 'resign' });
+    else finishLocal(opposite(side), 'resign');
+  }, 'Сдаться');
+};
 function rematch() {
   if (!game.winner || animating) return;
   if (mode === 'online') send({ type: 'rematch' });

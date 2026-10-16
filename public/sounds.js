@@ -29,12 +29,16 @@ export function transitionSounds(previous, next, role = null) {
 
 // UI producers do not create extra audio contexts or overwrite settings handlers.
 export function actionSound(kind) {
-  document.dispatchEvent(new CustomEvent('actionsound', {detail: kind}));
+  const event = new CustomEvent('actionsound', {detail: kind});
+  document.dispatchEvent(event);
+  return event.stopSound;
 }
 export const ACTION_NOTES = Object.freeze({
   'case-open': [196, 294, 392], 'case-common': [392, 494],
   'case-rare': [392, 494, 587], 'case-epic': [330, 494, 659, 784],
   'case-legendary': [392, 494, 587, 784, 988],
+  confetti: [523, 659, 784, 1047], laurel: [392, 523, 659, 784],
+  fireworks: [523, 784, 1047], portal: [196, 247, 294, 392], eclipse: [220, 165, 110],
   blizzard: [196, 294, 440], petals: [659, 784, 988],
   reward: [523, 659], equip: [440, 660], saved: [392, 523],
   duplicate: [587, 784, 659], error: [294, 247], preview: [440]
@@ -103,14 +107,21 @@ export function createSounds() {
   }
   function play(kind, delay = 0) {
     if (!preferences.enabled || !preferences.volume || document.hidden || context?.state !== 'running') return;
+    const existing = new Set(activeSources), pack = SOUND_PACKS[preferences.pack];
     const time = context.currentTime + .01 + delay;
-    if (kind === 'case-tick') { tone(740 * SOUND_PACKS[preferences.pack].notes, time, .035, .025); }
+    const fx = (frequency,start,duration,gain,end=frequency) => tone(frequency*pack.notes,start,duration,gain*Math.min(1,pack.body),end*pack.notes);
+    if (kind === 'comet') { fx(170,time,.6,.07,1050); fx(350,time+.12,.45,.035,1500); }
+    else if (kind === 'lightning') { tap(time,1400,.14); tap(time+.13,1800,.1); fx(95,time+.18,.5,.08,48); }
+    else if (kind === 'portal') { fx(130,time,1.5,.06,390); fx(196,time+.2,1.3,.035,490); }
+    else if (kind === 'fireworks') { [0,.45,.95].forEach((delay,i)=>{tap(time+delay,380+i*140,.13);fx(660+i*130,time+delay+.08,.4,.04);}); }
+    else if (kind === 'blizzard') { fx(240,time,1.2,.035,360); fx(420,time+.2,1.4,.025,210); }
+    else if (kind === 'case-tick') { tone(740 * SOUND_PACKS[preferences.pack].notes, time, .035, .025); }
     else if (kind === 'select') { tone(420 * SOUND_PACKS[preferences.pack].notes, time, .06, .025, 500); }
     else if (ACTION_NOTES[kind]) {
       const pack = SOUND_PACKS[preferences.pack];
       ACTION_NOTES[kind].forEach((note,i) => tone(note * pack.notes, time + i * .09, kind === 'case-legendary' ? .45 : .22, .055 * Math.min(1,pack.body)));
     }
-    else if (kind === 'rocket') { tone(130, time, .85, .07, 700); tone(80, time + .08, 1, .04, 240); }
+    else if (kind === 'rocket') { fx(130, time, .85, .07, 700); fx(80, time + .08, 1, .04, 240); }
     else if (kind === 'move') tap(time);
     else if (kind === 'impact') tap(time, 460, .11);
     else if (kind === 'capture') { tap(time, 410, .22); tap(time + .095, 620, .17); }
@@ -119,14 +130,16 @@ export function createSounds() {
       const pack = SOUND_PACKS[preferences.pack];
       notes?.forEach((note, i) => tone(note * pack.notes, time + i * .15, .32, (kind === 'defeat' ? .065 : .085) * Math.min(1, pack.body)));
     }
+    const started = [...activeSources].filter(source => !existing.has(source));
+    return () => { for(const source of started) if(activeSources.has(source)){try{source.stop();}catch{}activeSources.delete(source);} };
   }
   let lastAction = -Infinity;
   document.addEventListener('actionsound', event => {
     const kind = event.detail;
-    if (!Object.hasOwn(ACTION_NOTES, kind) && !['case-tick','select'].includes(kind)) return;
+    if (!Object.hasOwn(ACTION_NOTES, kind) && !['case-tick','select','rocket','comet','lightning','impact'].includes(kind)) return;
     const now = context?.currentTime || 0;
     if (['case-tick','select'].includes(kind) && now - lastAction < .035) return;
-    lastAction = now; play(kind);
+    lastAction = now; event.stopSound = play(kind);
   });
   document.addEventListener('visibilitychange', () => {
     // Silence already scheduled notes too; they must not resume on returning.

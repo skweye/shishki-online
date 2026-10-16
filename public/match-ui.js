@@ -20,7 +20,7 @@ export function createMatchUI(doc=document){
   function open(){menu.hidden=false;trigger.setAttribute('aria-expanded','true');items()[0]?.focus();}
   trigger.onclick=()=>menu.hidden?open():close(true);
   trigger.addEventListener('keydown',event=>{if(['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();open();if(event.key==='ArrowUp')items().at(-1)?.focus();}});
-  menu.addEventListener('click',event=>{if(event.target.closest('button'))close(true);},true);
+  menu.addEventListener('click',event=>{if(event.target.closest('button'))close(!doc.querySelector('dialog[open]'));});
   doc.addEventListener('pointerdown',event=>{if(!menu.hidden&&!event.target.closest('.match-menu-anchor'))close();});
   doc.addEventListener('keydown',event=>{
     if(menu.hidden)return;

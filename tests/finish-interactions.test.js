@@ -27,7 +27,7 @@ test('every finish effect mounts a square stage on a rectangular board and clean
     assert.equal(frame.querySelectorAll('.rocket-effect').length,1);effect.cancel();assert.equal(frame.querySelectorAll('.rocket-effect').length,0);
   }
   effect.launch(false,()=>completed++,'portal');Object.defineProperty(document,'hidden',{value:true,configurable:true});document.dispatchEvent(new window.Event('visibilitychange'));
-  assert.equal(completed,1);assert.equal(frame.querySelectorAll('.rocket-effect,.finish-pieces').length,0);
+  assert.equal(completed,1);assert.equal(frame.querySelectorAll('.rocket-effect').length,0);assert.equal(frame.querySelectorAll('.finish-pieces').length,1);effect.cancel();assert.equal(frame.querySelectorAll('.finish-pieces').length,0);
 });
 
 const options = { winner: 'white', fromTop: false };
@@ -41,7 +41,7 @@ test('all effects leave board positions untouched and return finite, bounded pre
         assert.ok(result.opacity >= 0 && result.opacity <= 1); assert.ok(result.scale > 0 && result.scale < 1.5);
       }
       const final = pieceReaction(item.value, piece, FINISH_DURATION, options);
-      assert.equal(final.x, 0); assert.equal(final.y, 0); assert.equal(final.scale, 1); assert.equal(final.opacity, 1); assert.equal(final.rotation, 0);
+      assert.deepEqual(pieceReaction(item.value, piece, FINISH_DURATION + 10000, options), final);
     }
   }
 });
@@ -54,9 +54,9 @@ test('rocket wave reaches nearby pieces first and pushes the losing side more st
 });
 test('comet contacts follow its diagonal and mirror correctly when the board direction reverses', () => {
   const piece = { x: .3, y: .7, side: 'black' };
-  const before = pieceReaction('comet', piece, 500, options), hit = pieceReaction('comet', piece, 1200, options);
+  const before = pieceReaction('comet', piece, 250, options), hit = pieceReaction('comet', piece, 600, options);
   assert.equal(before.x, 0); assert.ok(hit.x > 0); assert.ok(hit.y < 0);
-  const mirror = pieceReaction('comet', { x: .7, y: .3, side: 'black' }, 1200, { ...options, fromTop: true });
+  const mirror = pieceReaction('comet', { x: .7, y: .3, side: 'black' }, 600, { ...options, fromTop: true });
   assert.ok(Math.abs(hit.x + mirror.x) < .00001);
 });
 test('portal absorbs opponents and reduced motion keeps all pieces stationary and visible', () => {
@@ -90,4 +90,26 @@ test('sakura and blizzard cover wide fields without stretching particles and can
     }
     reduced=true;effect.launch(false,()=>{},'petals');assert.equal(frame.querySelectorAll('.weather-petal').length,0);effect.cancel();
   }finally{delete window.HTMLElement.prototype.animate;effect.cancel();}
+});
+
+
+test('finished effects retain DOM and canvas poses across rerenders until explicit reset',()=>{
+  const {document,window}=parseHTML('<html><body><div id="frame"><div id="board"><span class="piece black"></span></div></div></body></html>');
+  const updates=[],played=[],stopped=[];let completed=0;
+  Object.assign(globalThis,{document,window,matchMedia:()=>({matches:false}),requestAnimationFrame:()=>1,cancelAnimationFrame(){},getComputedStyle:()=>({})});
+  const frame=document.getElementById('frame');Object.assign(frame,{clientWidth:600,clientHeight:600,clientLeft:0,clientTop:0,offsetWidth:600,offsetHeight:600});
+  frame.getBoundingClientRect=()=>({left:0,top:0,width:600,height:600});
+  document.getElementById('board').getBoundingClientRect=()=>({left:0,top:0,width:600,height:600});
+  window.HTMLElement.prototype.getBoundingClientRect=function(){return {left:120,top:300,width:50,height:50};};
+  const effect=createRocketEffect(frame,{play(kind){played.push(kind);return ()=>stopped.push(kind);}});
+  try{
+    effect.launch(false,()=>completed++,'portal',{winner:'white',canvasBoard:{setFinishInteraction:value=>updates.push(value)}});
+    document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));
+    assert.equal(completed,1);assert.equal(frame.querySelector('.rocket-effect'),null);
+    const proxy=frame.querySelector('.finish-piece-proxy');assert.equal(Number(proxy.style.opacity),0);
+    assert.equal(updates.at(-1).elapsed,FINISH_DURATION);assert.equal(frame.classList.contains('finish-interacting'),true);
+    effect.refresh();assert.equal(Number(frame.querySelector('.finish-piece-proxy').style.opacity),0);
+    assert.equal(updates.at(-1).elapsed,FINISH_DURATION);assert.deepEqual(played,['portal']);assert.deepEqual(stopped,['portal']);
+    effect.cancel();assert.equal(frame.querySelector('.finish-pieces'),null);assert.equal(updates.at(-1),null);assert.equal(frame.classList.contains('finish-interacting'),false);
+  }finally{effect.cancel();delete window.HTMLElement.prototype.getBoundingClientRect;}
 });

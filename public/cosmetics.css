@@ -1,7 +1,7 @@
 .piece.skin-jade.white{--skin-light:#f5ffe4;--skin-dark:#accb8e;--skin-edge:#71935d}.piece.skin-jade.black{--skin-light:#66ab90;--skin-dark:#154737;--skin-edge:#94d4b4}.piece.skin-ice.white{--skin-light:#f4fdff;--skin-dark:#a1d6e9;--skin-edge:#5792bb}.piece.skin-ice.black{--skin-light:#538cba;--skin-dark:#193850;--skin-edge:#91d8f3}.piece.skin-amber.white{--skin-light:#fff0b4;--skin-dark:#dba346;--skin-edge:#946426}.piece.skin-amber.black{--skin-light:#b67e35;--skin-dark:#4e2f16;--skin-edge:#e7b85f}.piece.skin-neon.white{--skin-light:#ffe9f6;--skin-dark:#db87bd;--skin-edge:#ffb8e4}.piece.skin-neon.black{--skin-light:#426579;--skin-dark:#192c38;--skin-edge:#78ede1}
 
 /* One board-sized moving layer keeps the comet head and tail on the same path. */
-.comet-flight{position:absolute;inset:0;animation:comet-flight 2.2s linear both}
+.comet-flight{position:absolute;inset:0;animation:comet-flight 1.1s linear both}
 .comet-body{position:absolute;left:50%;top:50%;width:0;height:0;rotate:-45deg}
 .comet-core{position:absolute;left:0;top:0;translate:-50% -50%;font-size:clamp(28px,16cqw,100px);line-height:1;color:#fff4ff;text-shadow:0 0 14px #e0c7ff,0 0 35px #a786f5}
 .comet-tail{position:absolute;right:0;top:-12px;width:clamp(70px,38cqw,220px);height:24px;border-radius:100% 20% 20% 100%;background:linear-gradient(90deg,transparent,#9674dd80,#f4e3ff);filter:blur(5px)}

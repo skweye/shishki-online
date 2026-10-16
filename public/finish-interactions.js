@@ -5,10 +5,10 @@ export const FINISH_DURATION = 2600;
 // Pure visual offsets in board-relative units. Never writes to a game position.
 export function pieceReaction(effect, piece, elapsed, { winner = 'white', fromTop = false, reduced = false } = {}) {
   const out = { x: 0, y: 0, scale: 1, rotation: 0, opacity: 1, brightness: 1, hue: 0, glow: 0, color: '#ffdf9c' };
-  if (elapsed < 0 || elapsed >= FINISH_DURATION || effect === 'none') return out;
+  if (elapsed < 0 || effect === 'none') return out;
   const winning = piece.side === winner, x = piece.x, y = piece.y;
   if (reduced) return { ...out, brightness: winning ? 1.15 : .9, glow: winning ? 5 : 0 };
-  const t = elapsed, restore = 1 - smooth((t - 2250) / 350), strength = winning ? .35 : 1;
+  const t = Math.min(elapsed, 2250), strength = winning ? .35 : 1;
   if (effect === 'rocket') {
     const dx = x - .5, dy = y - (fromTop ? .76 : .24), distance = Math.hypot(dx, dy);
     const wave = smooth((t - 1230 - distance * 260) / 400);
@@ -17,14 +17,14 @@ export function pieceReaction(effect, piece, elapsed, { winner = 'white', fromTo
     out.rotation = (dx >= 0 ? 1 : -1) * wave * 65 * strength;
     out.opacity = 1 - wave * (winning ? 0 : .55); out.glow = wave * 15; out.brightness = 1 + wave * .6;
   } else if (effect === 'comet') {
-    const along = (x - y + 1) / 2, crossing = ((fromTop ? 1 - along : along) + .15) / 1.3 * 2200;
-    const distance = Math.abs(x + y - 1) / Math.SQRT2, wave = smooth((t - crossing) / 320);
+    const along = (x - y + 1) / 2, crossing = ((fromTop ? 1 - along : along) + .15) / 1.3 * 1100;
+    const distance = Math.abs(x + y - 1) / Math.SQRT2, wave = smooth((t - crossing) / 220);
     const force = Math.exp(-distance * 5) * wave * strength, direction = fromTop ? -1 : 1;
     out.x = direction * force * .17; out.y = -direction * force * .17 - Math.sin(wave * Math.PI) * .035;
     out.rotation = direction * force * 75; out.glow = Math.exp(-distance * 4) * wave * 18; out.color = '#d6b6ff'; out.brightness = 1 + wave * .45;
   } else if (effect === 'lightning') {
     const phase = clamp((t - 350 - Math.hypot(x - .5, y - .55) * 350) / 750), pulse = Math.sin(phase * Math.PI);
-    out.x = Math.sin(phase * 45) * pulse * .018 * strength; out.y = -pulse * .035;
+    out.x = Math.sin(phase * 45) * pulse * .018 * strength + (x < .5 ? -.025 : .025) * phase * strength; out.y = -pulse * .035;
     out.rotation = Math.sin(phase * 35) * pulse * 9 * strength; out.brightness = 1 + pulse * 1.4; out.glow = pulse * 22;
   } else if (effect === 'portal') {
     const pull = smooth((t - 450) / 1300), dx = x - .5, dy = y - .5, angle = pull * Math.PI * 1.7;
@@ -39,35 +39,39 @@ export function pieceReaction(effect, piece, elapsed, { winner = 'white', fromTo
     const direction = fromTop ? -1 : 1, arrival = (fromTop ? 1-x : x)*450;
     const gust = Math.sin(clamp((t-arrival)/2000)*Math.PI);
     const freeze = smooth((t-arrival)/650) * (1-smooth((t-1850)/650));
-    out.x = direction*.055*gust*strength; out.y = .016*gust*strength;
-    out.rotation = direction*gust*18*strength; out.brightness = 1+freeze*.3;
+    const settled = smooth((t-arrival)/1500);
+    out.x = direction*.07*settled*strength; out.y = .025*settled*strength;
+    out.rotation = direction*settled*18*strength; out.brightness = 1+freeze*.3;
     out.glow = freeze*12; out.color = '#bdeeff';
   } else if (effect === 'petals') {
     const direction = fromTop ? -1 : 1, breeze = Math.sin(clamp((t-(x+y)*120)/2200)*Math.PI);
-    out.x = direction*.025*breeze + Math.sin(t/450+y*4)*.012*breeze;
-    out.y = -Math.sin(clamp(t/2200)*Math.PI)*.025*breeze;
+    const drift = smooth((t-(x+y)*120)/1900);
+    out.x = direction*.045*drift + Math.sin(t/450+y*4)*.012*breeze;
+    out.y = -.02*drift - Math.sin(clamp(t/2200)*Math.PI)*.025*breeze;
     out.rotation = Math.sin(t/550+x*3)*7*breeze; out.color = '#ffc0d6';
     out.glow = breeze*(winning?12:5); out.brightness = 1+breeze*.12;
   } else if (effect === 'eclipse') {
-    const shadow = Math.sin(clamp(t / 2250) * Math.PI);
+    const shadow = smooth(t / 1400);
     out.brightness = winning ? 1 + shadow * .25 : 1 - shadow * .8;
     out.scale = 1 + shadow * (winning ? .1 : -.15); out.glow = winning ? shadow * 20 : 0;
   } else if (['confetti', 'laurel', 'fireworks'].includes(effect)) {
     const delay = (x + y) * 140, progress = clamp((t - delay - 150) / 1700);
     const bounce = Math.abs(Math.sin(progress * Math.PI * (effect === 'fireworks' ? 3 : 2))) * Math.sin(progress * Math.PI);
-    out.y = -bounce * (winning ? .09 : .018); out.rotation = Math.sin(progress * Math.PI * 4) * (winning ? 9 : 3);
-    out.scale = 1 + bounce * (winning ? .14 : -.04); out.glow = bounce * (winning ? 20 : 4);
+    out.y = -bounce * (winning ? .09 : .018) - smooth((t-delay-500)/1300)*(winning?.025:.008); out.rotation = Math.sin(progress * Math.PI * 4) * (winning ? 9 : 3);
+    out.scale = 1 + bounce * (winning ? .14 : -.04) + smooth((t-delay-500)/1300)*(winning?.035:0); out.glow = bounce * (winning ? 20 : 4);
     out.brightness = 1 + bounce * .25;
   }
-  for (const key of ['x', 'y', 'rotation', 'hue', 'glow']) out[key] *= restore;
-  for (const key of ['scale', 'opacity', 'brightness']) out[key] = 1 + (out[key] - 1) * restore;
+  // Keep the final presentation until an explicit reset or rematch.
+  const fade = 1-smooth((t-1950)/300);
+  out.glow *= fade;
   return out;
 }
 
 export function createPieceInteractions(frame) {
-  let layer, raf = 0, canvasBoard;
+  let layer, raf = 0, canvasBoard, paint;
   function cancel() {
     cancelAnimationFrame(raf); raf = 0; layer?.remove(); layer = null;
+    paint = null;
     frame.classList.remove('finish-interacting'); canvasBoard?.setFinishInteraction(null); canvasBoard = null;
   }
   function launch(effect, options) {
@@ -88,8 +92,7 @@ export function createPieceInteractions(frame) {
     });
     frame.append(layer); frame.classList.add('finish-interacting');
     const started = performance.now();
-    function tick(now) {
-      const elapsed = now - started;
+    function draw(elapsed) {
       for (const piece of pieces) {
         const reaction = pieceReaction(effect, piece, elapsed, options);
         piece.proxy.style.transform = `translate(${reaction.x * viewport.width}px,${reaction.y * viewport.height}px) rotate(${reaction.rotation}deg) scale(${reaction.scale})`;
@@ -97,9 +100,13 @@ export function createPieceInteractions(frame) {
         piece.proxy.style.filter = `brightness(${reaction.brightness}) hue-rotate(${reaction.hue}deg) drop-shadow(0 0 ${reaction.glow}px ${reaction.color})`;
       }
       canvasBoard?.setFinishInteraction({ effect, elapsed, options });
+    }
+    paint = draw;
+    function tick(now) {
+      const elapsed = now - started; draw(elapsed);
       if (elapsed < (options.reduced ? 350 : FINISH_DURATION)) raf = requestAnimationFrame(tick);
     }
-    tick(started);
+    if(options.settled)draw(FINISH_DURATION);else tick(started);
   }
-  return { launch, cancel };
+  return { launch, cancel, settle() { cancelAnimationFrame(raf); raf = 0; paint?.(FINISH_DURATION); } };
 }

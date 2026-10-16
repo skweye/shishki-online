@@ -14,7 +14,7 @@ const $ = id => document.getElementById(id);
 const inventory=!!document.querySelector('.inventory-page');
 let linkedItemOpened=false;
 let state = null, filter = 'all', effectSlot = 'victory', busy = false, previewItem = null;
-const preview = createRocketEffect($('preview-board'), { play(kind) { if(['petals','blizzard'].includes(kind)) actionSound(kind); } });
+const preview = createRocketEffect($('preview-board'), { play(kind) { return actionSound(kind); } });
 function paintCue(canvas,time=cosmeticTime()){
   const ctx=canvas.getContext('2d');ctx.clearRect(0,0,400,140);ctx.save();ctx.translate(365,70);drawCue(ctx,canvas.dataset.cue,0,time);ctx.restore();
 }

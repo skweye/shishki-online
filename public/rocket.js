@@ -8,21 +8,29 @@ export function isFinishTransition(previous, next, live = true) {
 }
 
 export function createRocketEffect(frame, sounds) {
-  let overlay, timer, impactTimer, complete, resizeObserver, weatherAnimations = [];
+  let overlay, timer, impactTimer, complete, resizeObserver, weatherAnimations = [], soundStops = [], settled = null;
   const interactions = createPieceInteractions(frame);
-  function cancel() {
+  function clearVisuals() {
     complete = null;
     clearTimeout(timer); clearTimeout(impactTimer);
-    resizeObserver?.disconnect(); resizeObserver=null;
+    soundStops.forEach(stop => stop?.()); soundStops = [];
     weatherAnimations.forEach(animation => animation.cancel()); weatherAnimations = [];
-    interactions.cancel();
     overlay?.remove(); overlay = null; frame.classList.remove('rocket-impact');
+  }
+  function cancel() {
+    clearVisuals(); settled = null;
+    resizeObserver?.disconnect(); resizeObserver = null;
+    interactions.cancel();
+  }
+  function refresh() {
+    if (!settled || complete) return;
+    interactions.launch(settled.effect, {...settled.options, viewport:measureFinishLayout(frame), settled:true});
   }
   document.addEventListener('performancechange', () => { if(lowPerformance()) complete?.(); });
   document.addEventListener('visibilitychange', () => { if(document.hidden) complete?.(); });
   function launch(fromTop, finished, effect = 'rocket', options = {}) {
     cancel();
-    complete = () => { cancel(); finished(); };
+    complete = () => { clearVisuals(); interactions.settle(); finished(); };
     if(lowPerformance()){complete();return;}
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     overlay = document.createElement('div'); overlay.className = 'rocket-effect finish-' + validEffect(effect);
@@ -48,17 +56,18 @@ export function createRocketEffect(frame, sounds) {
     Object.assign(stage.style,{width:viewport.size+'px',height:viewport.size+'px'});
     frame.append(overlay);
     weatherAnimations = animateFinishWeather(stage, viewport, effect, reduced);
-    interactions.launch(effect, { ...options, fromTop, reduced, viewport });
+    settled = {effect, options:{...options,fromTop,reduced,viewport}};
+    interactions.launch(effect, settled.options);
     // End a short effect cleanly on a resize rather than distorting its live proxies.
     if(typeof ResizeObserver!=='undefined'){
       const width=frame.clientWidth,height=frame.clientHeight;
-      resizeObserver=new ResizeObserver(()=>{if(frame.clientWidth!==width||frame.clientHeight!==height)complete?.();});resizeObserver.observe(frame);
+      resizeObserver=new ResizeObserver(()=>{if(frame.clientWidth!==width||frame.clientHeight!==height){if(complete)complete();else refresh();}});resizeObserver.observe(frame);
     }
-    sounds.play(effect === 'rocket' || effect === 'comet' ? 'rocket' : ['petals','blizzard'].includes(effect) ? effect : 'promotion');
-    if (['rocket', 'lightning', 'comet'].includes(effect)) impactTimer = setTimeout(() => { if (!reduced) frame.classList.add('rocket-impact'); sounds.play('impact'); }, reduced ? 100 : 1250);
-    timer = setTimeout(() => complete?.(), reduced ? 350 : FINISH_DURATION);
+    soundStops.push(sounds.play(effect));
+    if (['rocket', 'lightning', 'comet'].includes(effect)) impactTimer = setTimeout(() => { if (!reduced) frame.classList.add('rocket-impact'); soundStops.push(sounds.play('impact')); }, reduced ? 100 : effect === 'comet' ? 550 : effect === 'lightning' ? 450 : 1250);
+    timer = setTimeout(() => complete?.(), reduced ? 350 : effect === 'comet' ? 1600 : FINISH_DURATION);
   }
-  return { launch, cancel };
+  return { launch, cancel, refresh };
 }
 
 // The weather spans the playing surface, while individual particles keep their

@@ -65,6 +65,12 @@ test('complete app starts every local mode with one menu and state-specific cont
         assert.equal($('round-actions').hidden,true);$('result-dialog').close();assert.equal($('round-actions').hidden,false);
         $('rematch-button').click();assert.equal($('round-actions').hidden,true);assert.equal($('resign-button').hidden,false);
       }
+      if(name!=='russian'){
+        $('match-menu-button').click();$('resign-button').click();assert.equal($('confirm-dialog').open,true,name);
+        $('confirm-yes').click();assert.equal($('result-dialog').open,true,name);
+        assert.match($('result-text').textContent,/сдались/,name);
+        $('result-rematch').click();assert.equal($('resign-button').disabled,false,name);assert.equal($('result-dialog').open,false,name);
+      }
       $('home-button').click();assert.equal($('home-screen').hidden,false);
     }
     playMode.value='online';variant.value='chapaev';await $('start-form').onsubmit({preventDefault(){}});
@@ -77,6 +83,13 @@ test('complete app starts every local mode with one menu and state-specific cont
     roomData.game.turn='black';roomData.game.revision++;snapshot();assert.equal($('shot-controls').hidden,true);
     $('draw-button').click();assert.equal(JSON.parse(channel.lastMessage).type,'draw');
     roomData.drawOffer='white';snapshot();assert.equal($('draw-button').hidden,true);assert.equal($('draw-offer-status').hidden,false);
+    // An opponent can move while surrender confirmation is open.
+    roomData.drawOffer=null;snapshot();$('match-menu-button').click();$('resign-button').click();
+    assert.equal($('confirm-dialog').open,true);assert.equal($('match-menu').hidden,true);
+    roomData.game.revision++;roomData.game.turn='white';snapshot();
+    $('confirm-yes').click();assert.equal(JSON.parse(channel.lastMessage).type,'resign');
+    assert.equal(JSON.parse(channel.lastMessage).revision,roomData.game.revision);
+    snapshot(); // Server state clears pending for the following disconnection check.
     channel.close();assert.equal($('resign-button').disabled,true);assert.equal($('chat-input').disabled,true);
     $('home-button').click();$('confirm-yes').click();assert.equal($('home-screen').hidden,false);
   }finally{intervals.forEach(clearInterval);globalThis.setInterval=realInterval;}
