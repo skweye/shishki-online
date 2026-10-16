@@ -1,3 +1,4 @@
+import { simulatePoolSweep } from './pool-sweep.js';
 import { lowPerformance } from './performance.js';
 import { TABLE, POCKETS, pocketGeometry, simulatePool, validCuePosition } from './pool.js';
 import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter } from './pool-visuals.js';
@@ -140,8 +141,9 @@ export function createPoolBoard({shoot,place,sound}) {
   function animate(before,next,done){
     cancel();
     shotBefore=before;
-    const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
-    sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
+    const sweep=next.lastShot.kind==='sweep';
+    const sim=sweep?simulatePoolSweep(before,true):simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
+    if(!sweep)sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
     finish=()=>{cancel();state=next;draw();done();};
     if(document.hidden||matchMedia('(prefers-reduced-motion: reduce)').matches){finish();return;}
     shown=sim.frames[0];controls();draw();const tick=now=>{

@@ -1,0 +1,19 @@
+/* Keep the existing palette readable before color-mix support (older Safari). */
+.home-hero h1 em { -webkit-background-clip: text; }
+@supports not (color: color-mix(in srgb, black, white)) {
+  :root {
+    --glass-fill: var(--theme-raised);
+    --glass-edge: var(--theme-border);
+    --glass-shine: #ffffff18;
+    --design-line: var(--theme-border);
+    --design-wash: var(--theme-raised);
+  }
+  .ambient-scene { background: radial-gradient(ellipse at 65% 60%, var(--theme-raised), transparent 65%), var(--theme-bg); }
+  .site-header, .account-menu, .match-menu, dialog { background-color: var(--theme-panel); }
+  input, select { background-color: var(--theme-raised); }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  .site-header { -webkit-backdrop-filter: blur(22px); }
+  .account-menu, .match-menu, dialog { -webkit-backdrop-filter: blur(18px); }
+  dialog::backdrop { -webkit-backdrop-filter: blur(5px); }
+}

@@ -1,3 +1,5 @@
+import { simulatePoolSweep } from './pool-sweep.js';
+import { ballGroup } from './pool.js';
 import { newChess } from './chess-game.js';
 import { rollNarde } from './narde.js';
 import { chapaevLineup } from './chapaev.js';
@@ -11,12 +13,12 @@ export const PRANKS=Object.freeze({
   chess:{name:'Королевская минута',description:'Добавляет минуту к вашим часам.',symbol:'♚'},
   narde:{name:'Счастливые шестёрки',description:'Вместо следующего броска выпадает дубль 6–6.',symbol:'⚅'},
   chapaev:{name:'Подкрепление',description:'Возвращает одну вашу выбитую шашку на свободное место в начальном ряду.',symbol:'◉'},
-  pool8:{name:'Карманная луза',description:'Один шар вашей группы исчезает в лузе. Биток и восьмёрка остаются.',symbol:'⑧'},
+  pool8:{name:'Биток на автопилоте',description:'Биток забивает все шары, оставляя восьмёрку напоследок.',symbol:'⑧'},
   domino:{name:'Карманный базар',description:'Меняет вашу самую тяжёлую кость на самую лёгкую из базара.',symbol:'⚁'},
   battleship:{name:'Точная торпеда',description:'Автоматически поражает одну ещё не подбитую клетку корабля соперника.',symbol:'⚓'}
 });
 export function applyOwnerPrank(state,side){
-  if(!PRANKS[state.variant]||!['white','black'].includes(side)||state.turn!==side||state.winner||state.roundResult||state.prankUsed?.[side])throw Error('Шалость сейчас недоступна.');
+  if(!PRANKS[state.variant]||!['white','black'].includes(side)||state.turn!==side||state.winner||state.roundResult)throw Error('Шалость сейчас недоступна.');
   let next=structuredClone(state);const sign=side==='white'?1:-1,enemy=side==='white'?'black':'white';
   if(['russian','russian12'].includes(state.variant)){
     if(state.forced!==null)throw Error('Сначала завершите взятие.');
@@ -35,9 +37,10 @@ export function applyOwnerPrank(state,side){
     if(!absent||!slot)throw Error('Нет выбитой шашки или свободного места для подкрепления.');
     next.pieces.push({...slot,id:absent.id});next.lastShot=null;
   }else if(state.variant==='pool8'){
-    const group=state.groups[side];const ball=state.balls.find(b=>b.id!==0&&b.id!==8&&(b.id<8?'solid':'stripe')===group);
-    if(!group||!ball)throw Error('Сначала выберите группу обычным ударом.');
-    next.balls=next.balls.filter(b=>b.id!==ball.id);next.lastShot=null;
+    const result=simulatePoolSweep(state);
+    next.balls=result.balls;next.breaking=false;next.foul=null;next.ballInHand=null;next.winner=side;next.reason='eight-ball';
+    if(!next.groups[side]){next.groups[side]=ballGroup(result.potted.find(b=>ballGroup(b.id))?.id)||'solid';next.groups[enemy]=next.groups[side]==='solid'?'stripe':'solid';}
+    next.lastShot={kind:'sweep',revision:state.revision+1,potted:result.potted,foul:null};
   }else if(state.variant==='domino'){
     if(!state.chain.length||!state.stock.length)throw Error('Нужны начатая цепочка и непустой базар.');
     const weight=id=>DOMINOES[id][0]+DOMINOES[id][1],hand=next.hands[side];
@@ -49,10 +52,10 @@ export function applyOwnerPrank(state,side){
     if(cell===undefined)throw Error('Шалость сейчас недоступна.');
     next=actBattleship(state,side,{type:'sea-fire',cell});
   }
-  next.revision=state.revision+1;next.prankUsed={...state.prankUsed,[side]:true};next.unranked=true;
+  next.revision=state.revision+1;delete next.prankUsed;next.unranked=true;
   next.lastPrank={variant:state.variant,side,revision:next.revision};
   // Keep one explicit history entry; never expose the exchanged domino or hidden fleet.
-  const entry={side,from:0,to:0,capture:null,round:next.round,notation:'✦ '+PRANKS[state.variant].symbol};
+  const entry={side,from:0,to:0,capture:null,round:next.round,notation:state.variant==='pool8'?'↗ · '+next.lastShot.potted.map(b=>b.id).join(','):PRANKS[state.variant].symbol};
   next.history=[...state.history,entry];
   return next;
 }

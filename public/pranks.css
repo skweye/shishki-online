@@ -1,9 +1,0 @@
-.prank-effect{position:absolute;inset:0;z-index:15;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--theme-panel) 94%,transparent),transparent 75%);color:var(--theme-text);text-align:center;padding:20px;animation:prank-enter .35s ease-out}
-.prank-symbol{display:grid;place-items:center;font-size:clamp(70px,14vw,150px);line-height:1.1;color:var(--theme-accent);filter:drop-shadow(0 8px 12px #0006);animation:prank-hop .7s ease-in-out 3}
-.prank-effect strong{font-size:clamp(18px,3vw,28px);text-shadow:0 2px 12px #0009}.prank-effect small{font-size:12px;padding:6px 12px;border-radius:4px;background:var(--theme-panel)}
-.prank-pool8 .prank-symbol{border-radius:50%;background:#171e24;color:#fff3d5;width:1.3em;height:1.3em;animation:prank-roll 1.7s ease-in-out}
-.prank-battleship .prank-symbol{color:#91e6f6;animation:prank-roll 1.7s ease-in-out}.prank-narde .prank-symbol{animation:prank-roll 1.7s ease-in-out}.prank-domino .prank-symbol{animation:prank-roll 1.7s ease-in-out}
-.prank-session-note{color:var(--theme-accent);font-size:12px;line-height:1.6;padding:10px 0;margin:0;border-bottom:1px solid var(--design-line,var(--theme-border))}
-@keyframes prank-enter{from{opacity:0}to{opacity:1}}@keyframes prank-hop{50%{transform:translateY(-20px) rotate(-12deg)}}@keyframes prank-roll{0%{transform:translateX(-70px) rotate(-180deg) scale(.5)}70%{transform:translateX(12px) rotate(15deg)}100%{transform:none}}
-@media(prefers-reduced-motion:reduce){.prank-effect,.prank-symbol{animation:none!important}}
-:root[data-low-performance=true] .prank-effect,:root[data-low-performance=true] .prank-symbol{animation:none}

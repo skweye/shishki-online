@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {newGame} from '../public/game.js';
+import {applyOwnerPrank} from '../public/pranks.js';
 import {applyPoolShot} from '../public/pool.js';
 
 test('complete app starts every local mode with one menu and state-specific controls',async()=>{
@@ -69,9 +70,12 @@ test('complete app starts every local mode with one menu and state-specific cont
       $('match-menu-button').click();assert.equal($('match-menu').hidden,false);
       await menuClick('rules-button');assert.equal($('rules-dialog').open,true);$('rules-dialog').close();
       if(name==='chess'){
-        assert.equal($('prank-button').hidden,false);await menuClick('prank-button');assert.equal($('prank-dialog').open,true);
-        $('prank-launch').click();assert.equal($('prank-dialog').open,false);assert.equal($('prank-session-note').hidden,false);assert.equal($('prank-button').disabled,true);
-        assert.ok(document.querySelector('.prank-chess'));
+        assert.equal($('prank-button').hidden,false);
+        const clockBefore=Number($('clock-white').textContent.split(':')[0]);
+        await menuClick('prank-button');await menuClick('prank-button');
+        assert.equal(Number($('clock-white').textContent.split(':')[0]),clockBefore+2);
+        assert.equal($('prank-button').disabled,false);
+        assert.equal(document.querySelector('#prank-dialog,#prank-session-note,.prank-effect'),null);
       }
       if(name==='narde'){
         assert.equal(document.querySelector('.narde-off').hidden,true);
@@ -145,6 +149,17 @@ test('complete app starts every local mode with one menu and state-specific cont
     assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: На столе"]'));assert.match($('bottom-player').querySelector('.piece-count').textContent,/2/);
     document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));
     assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));assert.match($('bottom-player').querySelector('.piece-count').textContent,/1/);
-    document.hidden=false;await menuClick('home-button');$('confirm-yes').click();
+    document.hidden=false;
+    // The sweep uses the shot lifecycle: no notice, premature rack or victory.
+    roomData.game={...newGame('pool8'),revision:20,breaking:false,ballInHand:null,groups:{white:'solid',black:'stripe'},balls:[{id:0,x:4,y:5},{id:1,x:8,y:3},{id:8,x:14,y:6},{id:9,x:18,y:4}]};snapshot();
+    await menuClick('prank-button');assert.equal(JSON.parse(channel.lastMessage).type,'owner-prank');
+    roomData.game=applyOwnerPrank(roomData.game,'white');snapshot();
+    assert.equal($('status-title').textContent,'Шары в движении');assert.equal($('result-dialog').open,false);
+    assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: На столе"]'));
+    assert.equal(document.querySelector('#prank-dialog,#prank-session-note,.prank-effect'),null);
+    snapshot();runFrame(0);runFrame(200);assert.equal($('result-dialog').open,false);
+    runFrame(60000);assert.equal($('result-dialog').open,true);assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));
+    $('result-dialog').close();await menuClick('home-button');
+
   }finally{intervals.forEach(clearInterval);globalThis.setInterval=realInterval;}
 });

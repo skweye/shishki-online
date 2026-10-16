@@ -1,9 +1,6 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
 Шалость владельца|Owner prank|Витівка власника
-Шалость владельца · Без опыта и монет|Owner prank · No XP or coins|Витівка власника · Без досвіду та монет
-Применить шалость|Use prank|Застосувати витівку
-Один раз за партию. Соперник увидит вмешательство. Эта партия не войдёт в статистику и не принесёт опыт или монеты.|Once per match. Your opponent will see the intervention. This match will not count toward statistics or award XP or coins.|Один раз за партію. Суперник побачить втручання. Ця партія не ввійде до статистики й не дасть досвіду чи монет.
 Внезапная корона|Surprise crown|Раптова корона
 Большая корона|Grand crown|Велика корона
 Одна ваша простая шашка становится дамкой.|One of your regular pieces becomes a king.|Одна ваша проста шашка стає дамкою.
@@ -13,8 +10,9 @@ const rows = `
 Вместо следующего броска выпадает дубль 6–6.|Your next roll becomes double sixes.|Замість наступного кидка випадає дубль 6–6.
 Подкрепление|Reinforcements|Підкріплення
 Возвращает одну вашу выбитую шашку на свободное место в начальном ряду.|Returns one of your knocked-out pieces to a free spot in your starting row.|Повертає одну вашу вибиту шашку на вільне місце в початковому ряду.
-Карманная луза|Pocket magic|Кишенькова луза
-Один шар вашей группы исчезает в лузе. Биток и восьмёрка остаются.|Pockets one ball from your group. The cue ball and eight stay on the table.|Одна куля вашої групи зникає в лузі. Биток і вісімка залишаються.
+Биток на автопилоте|Cue ball on autopilot|Биток на автопілоті
+Биток забивает все шары, оставляя восьмёрку напоследок.|The cue ball pockets every ball, leaving the eight until last.|Биток забиває всі кулі, залишаючи вісімку наостанок.
+Не удалось проложить путь битка. Сделайте обычный удар.|No route for the cue ball. Take a normal shot.|Не вдалося прокласти шлях битка. Зробіть звичайний удар.
 Карманный базар|Pocket boneyard|Кишеньковий базар
 Меняет вашу самую тяжёлую кость на самую лёгкую из базара.|Swaps your highest-value tile for the lowest-value tile in the boneyard.|Міняє вашу найважчу кістку на найлегшу з базару.
 Точная торпеда|Guided torpedo|Точна торпеда
@@ -25,7 +23,6 @@ const rows = `
 Нет простой шашки для короны.|No regular piece to crown.|Немає простої шашки для корони.
 Дождитесь своего следующего броска.|Wait for your next roll.|Дочекайтеся свого наступного кидка.
 Нет выбитой шашки или свободного места для подкрепления.|No knocked-out piece or free reinforcement spot.|Немає вибитої шашки або вільного місця для підкріплення.
-Сначала выберите группу обычным ударом.|First establish your group with a normal shot.|Спочатку визначте групу звичайним ударом.
 Нужны начатая цепочка и непустой базар.|The chain must be started and the boneyard must not be empty.|Потрібні розпочатий ланцюжок і непорожній базар.
 Сначала оба игрока должны расставить корабли.|Both players must deploy their fleets first.|Спочатку обидва гравці мають розставити кораблі.
 Поиск истёк. Начните снова.|Search expired. Start again.|Пошук завершився. Почніть знову.

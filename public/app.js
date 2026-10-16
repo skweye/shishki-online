@@ -30,7 +30,7 @@ const $ = id => document.getElementById(id);
 const matchUI=createMatchUI();
 const names = { white: 'Белые', black: 'Чёрные' };
 const sounds = createSounds();
-const prankEffect=createPrankEffect(document.querySelector('.board-frame'),kind=>sounds.play(kind));
+const prankEffect=createPrankEffect(kind=>sounds.play(kind));
 const searchGame = createMatchmaking({request:api,sound:kind=>sounds.play(kind),owner:()=>currentUser?.id||null,
   onMatch:async(result,ack)=>{
     const data=await api('/api/rooms/'+result.code+'/join',{token:result.token});
@@ -170,6 +170,7 @@ function renderBoard(keepDrag = false) {
 }
 function status() {
   if (mode === 'online' && !room) return ['Играйте на расстоянии', 'Создайте комнату или войдите по приглашению.', '↗'];
+  if (animating && isPool() && poolBoard.presentationState()) return ['Шары в движении', 'Дождитесь завершения удара.', '↗'];
   if (animating && isNarde() && !game.winner) return ['Кости в движении…', 'Дождитесь результата броска.', '⚄'];
   if (animating) return game.winner && game.reason !== 'round' ? ['Красивый финал', 'Показываем анимацию победителя.', '✦'] : [isPool() ? 'Шары в движении' : 'Шашки в движении', 'Дождитесь завершения удара.', '↗'];
   if (game.winner) { const result = matchResult(game, room?.role); return [result.title, result.text, result.symbol]; }
@@ -219,8 +220,8 @@ function renderHistory() {
 function render() {
   updateBackdrop();
   $('prank-button').hidden=!ownerPranks(currentUser)||!PRANKS[game.variant];
-  $('prank-button').disabled=!canPlay()||!!game.prankUsed?.[mode==='local'?game.turn:room?.role];
-  $('prank-session-note').hidden=!game.unranked;
+  $('prank-button').disabled=!canPlay();
+  $('prank-button').title=PRANKS[game.variant]?.description||'';
   renderBoard(); rocketEffect.refresh(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
@@ -566,15 +567,8 @@ $('start-form').onsubmit = async event => {
   finally { $('start-button').disabled = false; $('home-join-button').disabled = false; updateStart(); }
 };
 $('flip-button').onclick = () => { flipped = !flipped; render(); };
-let prankRevision;
 $('prank-button').onclick=()=>{
   if(!ownerPranks(currentUser)||!canPlay())return;
-  const prank=PRANKS[game.variant];prankRevision=game.revision;
-  $('prank-title').textContent=prank.name;$('prank-description').textContent=prank.description;$('prank-dialog').showModal();
-};
-$('prank-launch').onclick=()=>{
-  if(!ownerPranks(currentUser)||!canPlay()||game.revision!==prankRevision){$('prank-dialog').close();return;}
-  $('prank-dialog').close();
   if(mode==='online'){send({type:'owner-prank'});return;}
   try{const side=game.turn,next=applyOwnerPrank(game,side);if(game.variant==='chess'&&next.clock)next.clock[side]+=60000;acceptGame(next);localSave();render();}catch(error){toast(error.message);sounds.play('error');}
 };

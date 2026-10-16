@@ -301,7 +301,7 @@ test('owner pranks validate server identity, reject forged admins, preserve cloc
   await send();assert.equal(room.room.game.revision,0);assert.match(ws.messages[0].message,/владельцу/);
   allowed=true;t.mock.timers.tick(100);await send();assert.equal(room.room.game.revision,1);assert.equal(room.room.game.unranked,true);assert.equal(room.room.game.winner,null);assert.equal(room.room.clock.white,300000,'prank must not award a move increment');
   assert.equal(values.get('room').game.unranked,true);
-  t.mock.timers.tick(100);await send();assert.equal(room.room.game.revision,1,'one use only');
+  t.mock.timers.tick(100);await send();assert.equal(room.room.game.revision,2,'repeated uses are accepted');
   room.room.game.winner='white';room.room.game.reason='resign';await room.save();assert.equal(resultWrites,0);assert.equal(room.room.resultRecorded,undefined);
   room.room.game=newGame('chess');room.room.clock=createClock('chess',Date.now());
   t.mock.timers.tick(100);await send();assert.equal(room.room.clock.white,360000);assert.equal(room.room.game.board.filter(p=>p!==0).length,32);
