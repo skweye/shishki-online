@@ -2,11 +2,11 @@ import { CASES, caseById, caseContents, RARITIES } from './cases.js';
 import { itemById } from './shop-catalog.js';
 import { renderProgress } from './progression-ui.js';
 import { t } from './i18n.js';
-import { pieceArt } from './skin-art.js';
-import { drawCue } from './pool-cue.js';
-import { fleetPreview } from './battleship-art.js';
+import { renderItemArt } from './item-art.js';
+import { createCaseReel } from './case-reel.js';
 export function createCaseShop({request,getState,update,preview}){
   const $=id=>document.getElementById(id),dialog=$('case-dialog');
+  const reel=createCaseReel($('case-reel'));
   let pending=null,busy=false,result=null,recovered=false;
   const key=()=>`shishki-case-pending-${getState()?.user.id}`;
   function remember(value){try{if(value)localStorage.setItem(key(),JSON.stringify(value));else localStorage.removeItem(key());}catch{}}
@@ -14,6 +14,7 @@ export function createCaseShop({request,getState,update,preview}){
   const number=n=>n.toLocaleString(undefined,{maximumFractionDigits:3});
   function odds(box){const root=el('div','','case-odds');for(const [rarity,chance] of Object.entries(box.odds)){const badge=el('span',`${t(RARITIES[rarity].name)} ${chance}%`);badge.dataset.rarity=rarity;root.append(badge);}return root;}
   function show(box,source,restore){
+    reel.reset();$('case-chest').hidden=false;
     pending=restore||{caseId:box.id,source,requestId:crypto.randomUUID()};result=null;
     $('case-title').textContent=t(box.name);$('case-chest').dataset.case=box.id;
     $('case-chest').classList.remove('opening');$('case-result').textContent='';$('case-error').textContent='';
@@ -55,16 +56,11 @@ export function createCaseShop({request,getState,update,preview}){
     if(busy||!pending)return;busy=true;$('case-confirm').disabled=true;$('case-close').disabled=true;$('case-error').textContent='';remember(pending);
     try{
       const next=await request('/open',pending);result=next.opening;remember(null);update(next);
-      // The server has already awarded the item; animation never chooses a prize.
-      if(!document.hidden&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&document.documentElement.dataset.lowPerformance!=='true'){
-        $('case-chest').classList.add('opening');await new Promise(resolve=>setTimeout(resolve,900));
-      }
-      $('case-chest').classList.remove('opening');$('case-chest').dataset.rarity=result.rarity;
+      // A visual failure must never turn a successful award into another purchase.
+      $('case-chest').hidden=true;
+      try{await reel.play(caseById(result.caseId),itemById(result.itemId));}catch{reel.reset();}
       const prize=$('case-prize'),item=itemById(result.itemId);prize.hidden=false;prize.dataset.rarity=result.rarity;
-      if(item.type==='skin')for(const side of ['white','black']){const piece=el('span','',`piece ${side} skin-${item.value}`);piece.innerHTML=pieceArt(item.value);prize.append(piece);}
-      else if(item.type==='ship')prize.innerHTML=fleetPreview(item.value);
-      else if(item.type==='cue'){const canvas=document.createElement('canvas');canvas.width=400;canvas.height=140;canvas.className='shop-cue-preview';canvas.dataset.cue=item.value;const ctx=canvas.getContext('2d');ctx.translate(365,70);drawCue(ctx,item.value);prize.append(canvas);}
-      else prize.append(el('span',item.symbol,'shop-art-symbol'));
+      renderItemArt(prize,item);
       $('case-result').textContent=`${t(itemById(result.itemId).name)} · ${t(RARITIES[result.rarity].name)} · ${result.duplicate?t('Повтор')+' +'+result.compensation+' ◈':t('Добавлено в коллекцию')}`;
       $('case-preview').hidden=false;$('case-confirm').hidden=true;pending=null;
     }catch(error){

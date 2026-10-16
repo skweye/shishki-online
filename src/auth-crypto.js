@@ -35,6 +35,7 @@ export function validateRegistration(data) {
 }
 export function safeReturnTo(value) {
   if (value === '/profile') return '/profile';
+  if (value === '/inventory') return '/inventory';
   if (value === '/shop') return '/shop';
   if (value === '/admin') return '/admin';
   if (value === '/privacy') return '/privacy';

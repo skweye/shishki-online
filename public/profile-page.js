@@ -37,6 +37,8 @@ function showUser(value) {
   syncAccount(value);
   user = value; draftAvatar = value.avatar;
   $('hero-name').textContent = user.name;
+  $('hero-level').textContent = String(user.level || 1);
+  $('hero-level').setAttribute('aria-label', 'Уровень ' + (user.level || 1));
   $('admin-link').hidden = !user.isAdmin;
   $('member-since').textContent = 'За доской с ' + new Date(user.createdAt * 1000).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   $('nickname').value = user.name;

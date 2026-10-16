@@ -1,13 +1,17 @@
 import { CATALOG } from './shop-catalog.js';
 import { rarityOf, RARITIES } from './cases.js';
 import { createCaseShop } from './case-shop.js';
-import './i18n.js';
+import { t } from './i18n.js';
+import { syncAccount } from './auth.js';
+import { itemById } from './shop-catalog.js';
 import { drawCue, animatedCue } from './pool-cue.js';
 import { createCosmeticAnimation, canvasVisible, cosmeticTime } from './cosmetic-animation.js';
 import { pieceArt } from './skin-art.js';
 import { fleetPreview } from './battleship-art.js';
 import { createRocketEffect } from './rocket.js';
 const $ = id => document.getElementById(id);
+const inventory=!!document.querySelector('.inventory-page');
+let linkedItemOpened=false;
 let state = null, filter = 'all', effectSlot = 'victory', busy = false, previewItem = null;
 const preview = createRocketEffect($('preview-board'), { play() {} });
 function paintCue(canvas,time=cosmeticTime()){
@@ -27,12 +31,16 @@ async function request(path = '', data) {
   if (!response.ok) throw Object.assign(new Error(result.error || 'Не удалось выполнить запрос.'), { status: response.status });
   return result;
 }
-const caseShop=createCaseShop({request,getState:()=>state,update:value=>{state=value;render();},preview:openPreview});
+const caseShop=$('case-dialog')?createCaseShop({request,getState:()=>state,update:value=>{state=value;render();},preview:item=>location.assign('/inventory?item='+encodeURIComponent(item.id))}):null;
 function notice(text, error = false) { $('shop-status').textContent = text; $('shop-status').dataset.error = String(error); }
 function isOwned(item) { return !!state?.owned.includes(item.id); }
 function isEquipped(item) { return !!state && (item.type === 'skin' ? state.user.pieceSkin : item.type === 'cue' ? state.user.cueSkin : item.type === 'ship' ? state.user.shipSkin : effectSlot === 'victory' ? state.user.victoryEffect : state.user.finishEffect) === item.value; }
 function render() {
-  caseShop.render();
+  caseShop?.render();
+  if(state)syncAccount(state.user);
+  $('coin-balance').textContent = state ? state.balance.toLocaleString() : '—';
+  $('wallet-caption').textContent = state?.fullAccess ? t('Полный доступ · все предметы доступны всегда') : t(state ? 'Кошелёк вашего аккаунта' : '100 монет в подарок при первом входе');
+  if(!inventory)return;
   for (const slot of ['victory', 'resign']) {
     const value = slot === 'victory' ? state?.user.victoryEffect : state?.user.finishEffect;
     $(slot + '-choice').textContent = CATALOG.find(item => item.type === 'effect' && item.value === value)?.name || 'Без эффекта';
@@ -40,7 +48,7 @@ function render() {
   $('coin-balance').textContent = state ? state.balance.toLocaleString('ru-RU') : '—';
   $('wallet-caption').textContent = state?.fullAccess ? 'Полный доступ · все предметы доступны всегда' : state ? 'Кошелёк вашего аккаунта' : '100 монет в подарок при первом входе';
   $('collection-count').textContent = state ? `${state.owned.length} из ${CATALOG.length} в коллекции` : '';
-  const items = CATALOG.filter(item => filter === 'all' || filter === item.type || filter === 'owned' && isOwned(item));
+  const items = CATALOG.filter(item => isOwned(item) && (filter === 'all' || filter === item.type));
   $('shop-catalog').replaceChildren(...items.map(item => {
     const owned = isOwned(item), equipped = isEquipped(item);
     const card = el('article', '', 'shop-item'); card.dataset.equipped = String(equipped);
@@ -55,12 +63,13 @@ function render() {
     const rarity=rarityOf(item);card.dataset.rarity=rarity;
     heading.append(el('h3', item.name), el('span', RARITIES[rarity]?.name || 'Базовый', 'item-price rarity-label'));
     const actions = el('div', '', 'shop-item-actions');
-    const view = el('button', 'Посмотреть', 'secondary-button'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => openPreview(item);
+    const view = el('button', '', 'secondary-button'); view.append(el('span','◉','action-icon'),el('span','Посмотреть')); view.firstChild.setAttribute('aria-hidden','true'); view.setAttribute('aria-label', 'Посмотреть: ' + item.name); view.onclick = () => openPreview(item);
     const action = el('button', equipped ? '✓ Выбрано' : owned ? 'Выбрать' : state ? 'Из кейсов' : 'Войти', 'primary-button');
     action.disabled = busy || equipped || !!state && !owned;
     action.setAttribute('aria-label', (owned ? 'Выбрать: ' : 'Из кейсов: ') + item.name);
     action.onclick = () => {if (!state) location.assign('/?login=1&returnTo=shop');else if(owned) equip(item);};
-    actions.append(view, action); body.append(heading, el('p', item.description, 'item-description'), actions); card.append(art, body); return card;
+    if(owned&&!equipped){action.replaceChildren(el('span','✓','action-icon'),el('span','Выбрать'));action.firstChild.setAttribute('aria-hidden','true');}
+    actions.append(view);if(!equipped&&owned)actions.append(action); body.append(heading, el('p', item.description, 'item-description'), actions); card.append(art, body); return card;
   }));
   if (!items.length) $('shop-catalog').append(el('p', state ? 'В этой категории пока нет предметов.' : 'Войдите, чтобы увидеть свою коллекцию.', 'subtle'));
   cueAnimation.refresh();
@@ -115,5 +124,5 @@ document.querySelectorAll('[data-slot]').forEach(button => { button.onclick = ()
   $('slot-description').textContent = effectSlot === 'victory' ? 'Выбираете анимацию обычной победы: мат, взятие последней шашки или победа по времени.' : 'Выбираете анимацию, которая появится, когда ваш соперник сдастся.';
   render();
 }; });
-window.addEventListener('focus', () => { if (!busy && !$('case-dialog').open) load(); });
+window.addEventListener('focus', () => { if (!busy && !$('case-dialog')?.open && !$('preview-dialog').open) load(); });
 render(); await load();

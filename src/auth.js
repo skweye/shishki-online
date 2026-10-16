@@ -1,6 +1,7 @@
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
+import { progression } from '../public/cases.js';
 import { shopState, buyItem, equipItem, openCase } from './shop.js';
 import { adminOverview, changeShopAccess, grantAdmin, setAdminLevel, grantCoins } from './admin.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
@@ -9,7 +10,7 @@ const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
+const publicUser = row => row ? { id: row.id, level: progression(row.xp || 0).level, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -34,7 +35,7 @@ export async function authenticatedUser(request, env) {
   const token = readCookie(request, 'session');
   if (!/^[\w-]{43}$/.test(token)) return null;
   const hash = digest(token);
-  const row = await env.AUTH_DB.prepare('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?').bind(hash, now()).first();
+  const row = await env.AUTH_DB.prepare('SELECT u.*, COALESCE(p.xp,0) AS xp FROM sessions s JOIN users u ON u.id = s.user_id LEFT JOIN account_progress p ON p.user_id=u.id WHERE s.token_hash = ? AND s.expires_at > ?').bind(hash, now()).first();
   return row ? { ...publicUser(row), sessionHash: hash } : null;
 }
 export async function sessionActive(env, hash, userId) {
@@ -233,7 +234,7 @@ export async function handleAuth(request, env, ctx, readBody) {
       const row = await env.AUTH_DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
       return json({ user: publicUser(row) }, 201, { 'Set-Cookie': await startSession(request, env, id) });
     }
-    const user = await env.AUTH_DB.prepare('SELECT * FROM users WHERE email = ?').bind(fields.email).first();
+    const user = await env.AUTH_DB.prepare('SELECT u.*, COALESCE(p.xp,0) AS xp FROM users u LEFT JOIN account_progress p ON p.user_id=u.id WHERE u.email = ?').bind(fields.email).first();
     if (!await passwords.verify(fields.password, user?.password_hash || null)) return error('Неверная почта или пароль.', 401);
     return json({ user: publicUser(user) }, 200, { 'Set-Cookie': await startSession(request, env, user.id) });
   } catch { if (path.includes('/admin')) return error('Админ-панель временно недоступна.', 503); if (path.includes('/shop')) return error('Магазин временно недоступен. Попробуйте ещё раз.', 503); return error(path.includes('profile') || path.includes('account') ? 'Сервис профиля временно недоступен. Попробуйте ещё раз.' : 'Не удалось выполнить вход. Попробуйте ещё раз.', 503); }

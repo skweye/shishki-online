@@ -1,9 +1,10 @@
 // Shared account controls for every page. Markup contains no user data.
-export const accountMarkup = `<div class="account-anchor"><button class="account-button" id="account-button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="Войти или зарегистрироваться"><span class="account-avatar" id="account-avatar" aria-hidden="true">↗</span><span id="account-button-label" data-no-translate>Войти</span></button><div class="account-menu" id="account-menu" hidden role="menu" aria-label="Меню аккаунта">
+export const accountMarkup = `<div class="account-anchor"><button class="account-button" id="account-button" aria-haspopup="menu" aria-expanded="false" aria-controls="account-menu" aria-label="Войти или зарегистрироваться"><span class="account-avatar" id="account-avatar" aria-hidden="true">↗</span><span id="account-button-label" data-no-translate>Войти</span><span id="account-level" class="level-badge" hidden></span></button><div class="account-menu" id="account-menu" hidden role="menu" aria-label="Меню аккаунта">
   <div class="menu-identity" id="menu-identity" data-no-translate>Гость</div>
   <button role="menuitem" id="menu-profile">Профиль</button>
   <button role="menuitem" id="menu-admin" hidden>Админ-панель</button>
-  <button role="menuitem" id="menu-shop">Магазин и коллекция</button>
+  <button role="menuitem" id="menu-shop">Кейсы и награды</button>
+  <button role="menuitem" id="menu-inventory">Инвентарь</button>
   <div class="submenu-row"><button role="menuitem" id="appearance-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="appearance-menu">Оформление <span aria-hidden="true">›</span></button>
     <div class="account-submenu" id="appearance-menu" hidden role="menu" aria-label="Оформление"><button class="submenu-back" role="menuitem">← Назад</button><div id="theme-options"></div></div></div>
   <div class="submenu-row"><button role="menuitem" id="language-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="language-menu">Язык <span aria-hidden="true">›</span></button>
