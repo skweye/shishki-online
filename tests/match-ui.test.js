@@ -62,3 +62,24 @@ test('rematch appears once the result dialog closes and clocks follow board orie
   assert.equal($('clock-black').parentElement.parentElement.firstElementChild,$('clock-black').parentElement);
   state.flipped=true;ui.update(state);assert.equal($('clock-white').parentElement.parentElement.firstElementChild,$('clock-white').parentElement);
 });
+
+
+test('pointer focus transition cannot dismiss the menu before a menu item receives its click',async()=>{
+  const {document,window,$,ui}=setup();$('game-screen').hidden=false;
+  const state=base();state.game.revision=2;ui.update(state);
+  for(const id of ['resign-button','draw-button','flip-button','new-button','rules-button','home-button']){
+    $('match-menu-button').click();let calls=0;const target=$(id);target.onclick=()=>calls++;
+    target.dispatchEvent(new window.Event('pointerdown',{bubbles:true}));
+    const previous=document.activeElement;
+    // During native blur/focusout the active element may temporarily be body.
+    document.body.focus();
+    const blur=new window.Event('focusout',{bubbles:true});blur.relatedTarget=target;previous.dispatchEvent(blur);
+    await Promise.resolve();
+    assert.equal($('match-menu').hidden,false,id+' vanished between pointerdown and click');
+    target.focus();target.dispatchEvent(new window.Event('focusin',{bubbles:true}));
+    target.dispatchEvent(new window.Event('pointerup',{bubbles:true}));target.click();
+    assert.equal(calls,1,id);assert.equal($('match-menu').hidden,true,id);
+  }
+  $('match-menu-button').click();document.body.focus();document.body.dispatchEvent(new window.Event('focusin',{bubbles:true}));
+  assert.equal($('match-menu').hidden,true,'focus outside dismisses the menu');
+});

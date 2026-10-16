@@ -32,7 +32,12 @@ export function createMatchUI(doc=document){
       event.preventDefault();buttons[event.key==='Home'?0:event.key==='End'?buttons.length-1:(index+(event.key==='ArrowUp'?-1:1)+buttons.length)%buttons.length]?.focus();
     }
   });
-  menu.addEventListener('focusout',()=>queueMicrotask(()=>{if(!menu.contains(doc.activeElement)&&doc.activeElement!==trigger)close();}));
+  // Native focusout can temporarily leave activeElement at body before the
+  // clicked button receives focus. Wait for focusin's actual destination;
+  // closing on that transient state hides the button before its click fires.
+  doc.addEventListener('focusin',event=>{
+    if(!menu.hidden&&!menu.contains(event.target)&&event.target!==trigger)close();
+  });
   function tabs(){
     const wasHidden=$('chat-panel').hidden;
     const online=!!context?.room;if(!online)tab='history';

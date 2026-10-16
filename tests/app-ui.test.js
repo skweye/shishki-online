@@ -39,6 +39,16 @@ test('complete app starts every local mode with one menu and state-specific cont
   window.scrollTo=()=>{};
   for(const dialog of document.querySelectorAll('dialog')){dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{if(dialog.open){dialog.open=false;dialog.dispatchEvent(new window.Event('close'));}};}
   const variant={value:'russian'},playMode={value:'local'};Object.defineProperty($('start-form'),'elements',{value:{variant,'play-mode':playMode}});
+  async function menuClick(id){
+    if($('match-menu').hidden)$('match-menu-button').click();
+    const target=$(id),previous=document.activeElement;
+    assert.equal(target.hidden,false,id);assert.equal(target.disabled,false,id);
+    target.dispatchEvent(new window.Event('pointerdown',{bubbles:true}));
+    document.body.focus();const blur=new window.Event('focusout',{bubbles:true});blur.relatedTarget=target;previous?.dispatchEvent(blur);
+    await Promise.resolve();assert.equal($('match-menu').hidden,false,id+' hidden before click');
+    target.focus();target.dispatchEvent(new window.Event('focusin',{bubbles:true}));
+    target.dispatchEvent(new window.Event('pointerup',{bubbles:true}));target.click();
+  }
   // The shell is mounted by auth dependencies before the app starts.
   try{
     await import('../public/app.js');
@@ -50,28 +60,30 @@ test('complete app starts every local mode with one menu and state-specific cont
       assert.equal($('shot-controls').hidden,name!=='chapaev');
       assert.equal($('flip-button').hidden,['domino','battleship'].includes(name));
       $('match-menu-button').click();assert.equal($('match-menu').hidden,false);
-      $('rules-button').click();assert.equal($('rules-dialog').open,true);$('rules-dialog').close();
+      await menuClick('rules-button');assert.equal($('rules-dialog').open,true);$('rules-dialog').close();
       if(name==='narde'){
         assert.equal(document.querySelector('.narde-off').hidden,true);
         assert.equal(document.querySelector('.narde-deselect').hidden,true);
         assert.equal(document.querySelector('.narde-roll').hidden,false);
       }
+      if(!['domino','battleship'].includes(name)){const first=$('clock-white').parentElement.parentElement.firstElementChild;await menuClick('flip-button');assert.notEqual($('clock-white').parentElement.parentElement.firstElementChild,first,name);await menuClick('flip-button');}
       if(name==='pool8')assert.equal($('pool-shoot').hidden,false);
       if(name==='russian'){
         $('board').querySelector('.available').click();$('board').querySelector('.legal').click();
-        assert.equal($('new-button').hidden,false);$('new-button').click();assert.equal($('confirm-dialog').open,true);
+        assert.equal($('new-button').hidden,false);await menuClick('new-button');assert.equal($('confirm-dialog').open,true);
         $('confirm-yes').click();assert.equal($('new-button').hidden,true);
-        $('resign-button').click();$('confirm-yes').click();assert.equal($('result-dialog').open,true);
+        await menuClick('resign-button');$('confirm-yes').click();assert.equal($('result-dialog').open,true);
         assert.equal($('round-actions').hidden,true);$('result-dialog').close();assert.equal($('round-actions').hidden,false);
         $('rematch-button').click();assert.equal($('round-actions').hidden,true);assert.equal($('resign-button').hidden,false);
       }
+      await menuClick('draw-button');assert.equal($('confirm-dialog').open,true,name);$('confirm-dialog').close();
       if(name!=='russian'){
-        $('match-menu-button').click();$('resign-button').click();assert.equal($('confirm-dialog').open,true,name);
+        $('match-menu-button').click();await menuClick('resign-button');assert.equal($('confirm-dialog').open,true,name);
         $('confirm-yes').click();assert.equal($('result-dialog').open,true,name);
         assert.match($('result-text').textContent,/сдались/,name);
         $('result-rematch').click();assert.equal($('resign-button').disabled,false,name);assert.equal($('result-dialog').open,false,name);
       }
-      $('home-button').click();assert.equal($('home-screen').hidden,false);
+      await menuClick('home-button');assert.equal($('home-screen').hidden,false);
     }
     playMode.value='online';variant.value='chapaev';await $('start-form').onsubmit({preventDefault(){}});
     assert.equal(creations,1);assert.equal($('room-controls').open,true);assert.equal($('resign-button').hidden,true);assert.equal($('shot-controls').hidden,true);
@@ -81,16 +93,16 @@ test('complete app starts every local mode with one menu and state-specific cont
     $('history-tab').click();channel.onmessage({data:JSON.stringify({type:'chat',message:{id:'first',side:'black',name:'Friend',text:'Hello',sentAt:Date.now()}})});
     assert.equal($('chat-unread').textContent,'1');
     roomData.game.turn='black';roomData.game.revision++;snapshot();assert.equal($('shot-controls').hidden,true);
-    $('draw-button').click();assert.equal(JSON.parse(channel.lastMessage).type,'draw');
+    await menuClick('draw-button');assert.equal(JSON.parse(channel.lastMessage).type,'draw');
     roomData.drawOffer='white';snapshot();assert.equal($('draw-button').hidden,true);assert.equal($('draw-offer-status').hidden,false);
     // An opponent can move while surrender confirmation is open.
-    roomData.drawOffer=null;snapshot();$('match-menu-button').click();$('resign-button').click();
+    roomData.drawOffer=null;snapshot();$('match-menu-button').click();await menuClick('resign-button');
     assert.equal($('confirm-dialog').open,true);assert.equal($('match-menu').hidden,true);
     roomData.game.revision++;roomData.game.turn='white';snapshot();
     $('confirm-yes').click();assert.equal(JSON.parse(channel.lastMessage).type,'resign');
     assert.equal(JSON.parse(channel.lastMessage).revision,roomData.game.revision);
     snapshot(); // Server state clears pending for the following disconnection check.
     channel.close();assert.equal($('resign-button').disabled,true);assert.equal($('chat-input').disabled,true);
-    $('home-button').click();$('confirm-yes').click();assert.equal($('home-screen').hidden,false);
+    await menuClick('home-button');$('confirm-yes').click();assert.equal($('home-screen').hidden,false);
   }finally{intervals.forEach(clearInterval);globalThis.setInterval=realInterval;}
 });
