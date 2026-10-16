@@ -1,5 +1,28 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Анимированный|Animated|Анімований
+Каррарский мрамор|Carrara marble|Каррарський мармур
+Молочный и графитовый камень с тонкими золотыми прожилками.|Ivory and graphite stone with fine gold veins.|Молочний і графітовий камінь із тонкими золотими прожилками.
+Ореховый кап|Burl walnut|Горіховий кап
+Продольные волокна, древесные кольца и полированный обод.|Wood grain, growth rings and a polished rim.|Поздовжні волокна, деревні кільця й полірований обід.
+Дамасская сталь|Damascus steel|Дамаська сталь
+Волнистые слои кованого металла и чеканный кант.|Flowing forged-metal layers and a chased rim.|Хвилясті шари кованого металу й карбований кант.
+Кобальтовый фарфор|Cobalt porcelain|Кобальтовий фарфор
+Глазурь, синие лепестки и тонкая цветочная роспись.|Glaze, blue petals and delicate floral ornament.|Глазур, сині пелюстки й тонкий квітковий розпис.
+Золотой разлом|Golden fracture|Золотий розлом
+Гранёный камень с сетью золотых трещин.|Faceted stone threaded with golden cracks.|Гранований камінь із мережею золотих тріщин.
+Звёздный опал|Stellar opal|Зоряний опал
+Перламутровые слои, созвездия и россыпь звёзд.|Pearlescent layers, constellations and scattered stars.|Перламутрові шари, сузір’я й розсип зірок.
+Кий · Бамбук|Cue · Bamboo|Кий · Бамбук
+Узловатый ствол, резная рукоять и обмотка из ротанга.|A jointed shaft, carved grip and rattan wrapping.|Вузлуватий стовбур, різьблене руків’я й обмотка з ротанга.
+Кий · Сабля|Cue · Sabre|Кий · Шабля
+Широкий гранёный корпус с серебряными рёбрами.|A broad faceted body with silver ribs.|Широкий гранований корпус зі срібними ребрами.
+Кий · Дракон|Cue · Dragon|Кий · Дракон
+Резные гребни, чешуя и тлеющие искры вдоль кия.|Carved fins, scales and smouldering sparks along the cue.|Різьблені гребені, луска й тліючі іскри вздовж кия.
+Кий · Плазма|Cue · Plasma|Кий · Плазма
+Раздвоенная рукоять и бегущие импульсы в энергетическом канале.|A split grip and moving pulses inside an energy channel.|Роздвоєне руків’я й рухомі імпульси в енергетичному каналі.
+Кий · Северное сияние|Cue · Aurora|Кий · Північне сяйво
+Кристальные грани и переливающаяся лента полярного света.|Crystal facets and a flowing ribbon of polar light.|Кришталеві грані й мінлива стрічка полярного сяйва.
 Отменить выбор|Clear selection|Скасувати вибір
 Отклонить|Decline|Відхилити
 Модели кораблей|Ship models|Моделі кораблів

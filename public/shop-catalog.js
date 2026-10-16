@@ -1,4 +1,15 @@
 export const CATALOG = Object.freeze([
+  {"id":"skin-marble","type":"skin","value":"marble","name":"Каррарский мрамор","description":"Молочный и графитовый камень с тонкими золотыми прожилками.","price":160,"symbol":"◈"},
+  {"id":"skin-walnut","type":"skin","value":"walnut","name":"Ореховый кап","description":"Продольные волокна, древесные кольца и полированный обод.","price":140,"symbol":"◈"},
+  {"id":"skin-damascus","type":"skin","value":"damascus","name":"Дамасская сталь","description":"Волнистые слои кованого металла и чеканный кант.","price":220,"symbol":"◈"},
+  {"id":"skin-porcelain","type":"skin","value":"porcelain","name":"Кобальтовый фарфор","description":"Глазурь, синие лепестки и тонкая цветочная роспись.","price":200,"symbol":"◈"},
+  {"id":"skin-obsidian","type":"skin","value":"obsidian","name":"Золотой разлом","description":"Гранёный камень с сетью золотых трещин.","price":280,"symbol":"◈"},
+  {"id":"skin-cosmic","type":"skin","value":"cosmic","name":"Звёздный опал","description":"Перламутровые слои, созвездия и россыпь звёзд.","price":340,"symbol":"◈"},
+  {"id":"cue-bamboo","type":"cue","value":"bamboo","name":"Кий · Бамбук","description":"Узловатый ствол, резная рукоять и обмотка из ротанга.","price":180,"symbol":"╱"},
+  {"id":"cue-sabre","type":"cue","value":"sabre","name":"Кий · Сабля","description":"Широкий гранёный корпус с серебряными рёбрами.","price":240,"symbol":"╱"},
+  {"id":"cue-dragon","type":"cue","value":"dragon","name":"Кий · Дракон","description":"Резные гребни, чешуя и тлеющие искры вдоль кия.","price":480,"symbol":"╱"},
+  {"id":"cue-plasma","type":"cue","value":"plasma","name":"Кий · Плазма","description":"Раздвоенная рукоять и бегущие импульсы в энергетическом канале.","price":600,"symbol":"╱"},
+  {"id":"cue-aurora","type":"cue","value":"aurora","name":"Кий · Северное сияние","description":"Кристальные грани и переливающаяся лента полярного света.","price":750,"symbol":"╱"},
   { id: 'ship-classic', type: 'ship', value: 'classic', name: 'Флот · Эскадра', description: 'Броневые корпуса, башни и палубные орудия.', price: 0, symbol: '⚓' },
   { id: 'ship-submarine', type: 'ship', value: 'submarine', name: 'Флот · Подлодки', description: 'Обтекаемый корпус, рубка, перископ и хвостовые рули.', price: 80, symbol: '⚓' },
   { id: 'ship-carrier', type: 'ship', value: 'carrier', name: 'Флот · Авианосцы', description: 'Широкая полётная палуба с самолётами и посадочной полосой.', price: 150, symbol: '⚓' },
@@ -37,6 +48,12 @@ export function matchCoins(result, moves) {
   return Number.isInteger(moves) && moves >= 4 ? ({ win: 30, draw: 15, loss: 10 }[result] || 0) : 0;
 }
 export const SKIN_COLORS = Object.freeze({
+  marble: {"white":["#fffdf0","#d9d7ce","#99855e"],"black":["#59616b","#242833","#e4c98c"]},
+  walnut: {"white":["#f4dbac","#bf8d54","#785132"],"black":["#916240","#39271f","#d9ac73"]},
+  damascus: {"white":["#eef2f3","#aab5bd","#66737e"],"black":["#65717f","#252e3b","#b7c9d6"]},
+  porcelain: {"white":["#fffff8","#d2dbe8","#355b9a"],"black":["#4669a0","#162b58","#e4ecff"]},
+  obsidian: {"white":["#f3e7d0","#beb29a","#a57730"],"black":["#494451","#16151e","#edc264"]},
+  cosmic: {"white":["#f9ecff","#bebbe0","#75649c"],"black":["#62548f","#24203f","#c5bbff"]},
   fox: { white: ['#fff4de', '#e4cdb5', '#7b4b37'], black: ['#555165', '#24212f', '#ecd59b'] },
   compass: { white: ['#f7f1d9', '#cec7ae', '#385a6a'], black: ['#3f5360', '#152b39', '#ecd59b'] },
   jade: { white: ['#f5ffe4', '#accb8e', '#71935d'], black: ['#66ab90', '#154737', '#94d4b4'] },

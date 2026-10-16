@@ -2,7 +2,8 @@ import { lowPerformance } from './performance.js';
 import { TABLE, POCKETS, pocketGeometry, simulatePool, validCuePosition } from './pool.js';
 import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter } from './pool-visuals.js';
 import { t } from './i18n.js';
-import { drawCue, validCueSkin } from './pool-cue.js';
+import { drawCue, validCueSkin, animatedCue } from './pool-cue.js';
+import { createCosmeticAnimation, canvasVisible, cosmeticTime } from './cosmetic-animation.js';
 import { pieceReaction } from './finish-interactions.js';
 import { attachPoolInput } from './pool-input.js';
 import { validPoolAim, angleDelta } from './pool-aim.js';
@@ -14,6 +15,8 @@ export function createPoolBoard({shoot,place,sound}) {
   let state,flipped=false,playable=false,placing=false,shown=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
   let cueSkin='classic',finishInteraction=null,remote=null,remoteFrame=0,remoteTimer;
   const orientations=new Map();
+  const cueAnimation=createCosmeticAnimation(()=>draw(),()=>canvasVisible(canvas)&&animatedCue(cueSkin)&&!shown&&!finishInteraction&&
+    (playable&&!placing||!playable&&remote&&!remote.placing&&validPoolAim(remote,state,remote.role)));
   const portrait=()=>matchMedia('(max-width:600px)').matches;
   const point=(x,y)=>({x:60+(flipped?20-x:x)*54,y:60+(flipped?10-y:y)*54});
   function ball(b,scale=1,opacity=1) {
@@ -63,7 +66,7 @@ export function createPoolBoard({shoot,place,sound}) {
     }
     ctx.translate(q.x,q.y);ctx.rotate(Math.atan2(dy,dx));const gap=23+aimPower*28;
     if(opponent)ctx.globalAlpha=.85;
-    drawCue(ctx,cueSkin,gap);ctx.restore();
+    drawCue(ctx,cueSkin,gap,cosmeticTime());ctx.restore();
   }
   function draw() {
     if(!state)return;const theme=getComputedStyle(document.documentElement),accent=theme.getPropertyValue('--theme-accent').trim()||'#cfae90';
@@ -85,6 +88,7 @@ export function createPoolBoard({shoot,place,sound}) {
     balls.forEach(b=>ball(b));
     for(const b of sinking)ball(b,1-b.progress*.88,1-b.progress);
     ctx.setTransform(1,0,0,1,0,0);
+    cueAnimation.refresh();
   }
   function readings(){
     $('angle-value').textContent=Math.round(angle)+'°';$('power-value').textContent=Math.round(power*100)+'%';

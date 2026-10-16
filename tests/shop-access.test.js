@@ -4,6 +4,30 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { shopState, buyItem, equipItem } from '../src/shop.js';
 import { CATALOG } from '../public/shop-catalog.js';
+import { TEXTURES,pieceArt } from '../public/skin-art.js';
+import { CUE_SHAPES,animatedCue,validCueSkin } from '../public/pool-cue.js';
+import { translations } from '../public/locales.js';
+
+test('material skins and premium cues are translated, purchased once and retain their own equipment slot',async()=>{
+  const {db,env}=database();try{
+    await shopState(env,'other');db.prepare('UPDATE account_wallets SET balance=10000 WHERE user_id=?').run('other');
+    let balance=10000;
+    const items=CATALOG.filter(item=>item.type==='skin'&&Object.hasOwn(TEXTURES,item.value)||item.type==='cue'&&Object.hasOwn(CUE_SHAPES,item.value));
+    assert.equal(items.length,11);assert.equal(items.filter(item=>item.type==='cue'&&animatedCue(item.value)).length,3);
+    for(const item of items){
+      for(const text of [item.name,item.description])for(const language of ['en','uk'])assert.ok(translations[text]?.[language],text);
+      if(item.type==='skin'){const svg=pieceArt(item.value);assert.match(svg,/piece-texture/);assert.doesNotMatch(svg,/style=|<script/);}
+      else assert.equal(validCueSkin(item.value),item.value);
+      await assert.rejects(equipItem(env,'other',item.id),{status:403});
+      const before=db.prepare('SELECT cue_skin,piece_skin FROM users WHERE id=?').get('other');
+      await buyItem(env,'other',item.id);await buyItem(env,'other',item.id);await equipItem(env,'other',item.id);
+      balance-=item.price;assert.equal((await shopState(env,'other')).balance,balance);
+      const after=db.prepare('SELECT cue_skin,piece_skin FROM users WHERE id=?').get('other');
+      const changed=item.type==='skin'?'piece_skin':'cue_skin',same=item.type==='skin'?'cue_skin':'piece_skin';
+      assert.equal(after[changed],item.value);assert.equal(after[same],before[same]);
+    }
+  }finally{db.close();}
+});
 
 function database(verified = true) {
   const db = new DatabaseSync(':memory:'); db.exec('PRAGMA foreign_keys=ON');

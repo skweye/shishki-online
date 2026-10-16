@@ -38,3 +38,21 @@
 .piece.skin-fox.white{--skin-light:#fff4de;--skin-dark:#e4cdb5;--skin-edge:#7b4b37}.piece.skin-fox.black{--skin-light:#555165;--skin-dark:#24212f;--skin-edge:#ecd59b}.piece.skin-compass.white{--skin-light:#f7f1d9;--skin-dark:#cec7ae;--skin-edge:#385a6a}.piece.skin-compass.black{--skin-light:#3f5360;--skin-dark:#152b39;--skin-edge:#ecd59b}
 .piece:is(.skin-fox,.skin-compass){background:radial-gradient(circle at 30% 23%,var(--skin-light),var(--skin-dark) 85%);border-color:var(--skin-edge);box-shadow:inset 0 2px 3px #fff6,0 3px 0 color-mix(in srgb,var(--skin-dark) 65%,#000),0 5px 8px #0006;color:var(--skin-edge)}
 .piece:is(.skin-fox,.skin-compass):before{inset:6%;border-color:var(--skin-edge);opacity:.5}.piece:is(.skin-fox,.skin-compass):after{display:none}.piece-engraving{position:absolute;inset:9%;width:82%;height:82%;fill:currentColor;stroke:currentColor;stroke-width:.5;overflow:visible}.piece-engraving circle{fill:none;stroke-width:1}.skin-fox .engraving-1,.skin-compass .engraving-0{fill:none;stroke-width:2}.piece:is(.skin-fox,.skin-compass).king .crown{inset:auto -6% -8% auto;width:38%;height:38%;font-size:clamp(10px,1.5vw,17px);background:var(--skin-dark);border:1px solid var(--skin-edge);border-radius:50%;color:var(--skin-edge)}
+
+/* Material skins keep the two sides distinct under the shared surface texture. */
+.cue-motion-badge{position:absolute;bottom:12px;left:12px;padding:4px 9px;border:1px solid #b6e7df55;border-radius:20px;background:#182d35cc;color:#c2f4ec;font-size:10px;letter-spacing:.06em}
+.piece.skin-marble.white{--skin-light:#fffdf0;--skin-dark:#d9d7ce;--skin-edge:#99855e}
+.piece.skin-marble.black{--skin-light:#59616b;--skin-dark:#242833;--skin-edge:#e4c98c}
+.piece.skin-walnut.white{--skin-light:#f4dbac;--skin-dark:#bf8d54;--skin-edge:#785132}
+.piece.skin-walnut.black{--skin-light:#916240;--skin-dark:#39271f;--skin-edge:#d9ac73}
+.piece.skin-damascus.white{--skin-light:#eef2f3;--skin-dark:#aab5bd;--skin-edge:#66737e}
+.piece.skin-damascus.black{--skin-light:#65717f;--skin-dark:#252e3b;--skin-edge:#b7c9d6}
+.piece.skin-porcelain.white{--skin-light:#fffff8;--skin-dark:#d2dbe8;--skin-edge:#355b9a}
+.piece.skin-porcelain.black{--skin-light:#4669a0;--skin-dark:#162b58;--skin-edge:#e4ecff}
+.piece.skin-obsidian.white{--skin-light:#f3e7d0;--skin-dark:#beb29a;--skin-edge:#a57730}
+.piece.skin-obsidian.black{--skin-light:#494451;--skin-dark:#16151e;--skin-edge:#edc264}
+.piece.skin-cosmic.white{--skin-light:#f9ecff;--skin-dark:#bebbe0;--skin-edge:#75649c}
+.piece.skin-cosmic.black{--skin-light:#62548f;--skin-dark:#24203f;--skin-edge:#c5bbff}
+.piece:is(.skin-marble,.skin-walnut,.skin-damascus,.skin-porcelain,.skin-obsidian,.skin-cosmic){background:radial-gradient(circle at 28% 22%,var(--skin-light),var(--skin-dark) 88%);color:var(--skin-edge);border-color:var(--skin-edge);box-shadow:inset 0 2px 3px #fff7,0 4px 0 color-mix(in srgb,var(--skin-dark) 65%,#000),0 7px 10px #0006}
+.piece:is(.skin-marble,.skin-walnut,.skin-damascus,.skin-porcelain,.skin-obsidian,.skin-cosmic):after{border-color:var(--skin-edge);opacity:.5}
+.piece-texture{position:absolute;inset:3%;width:94%;height:94%;border-radius:50%;overflow:hidden;pointer-events:none}.piece-texture path{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round}.piece-texture .texture-soft{opacity:.28;stroke-width:3}.piece-texture .texture-fine{opacity:.65;stroke-width:.8}.piece-texture .texture-detail{opacity:.9;stroke-width:1.3}.piece:is(.skin-marble,.skin-walnut,.skin-damascus,.skin-porcelain,.skin-obsidian,.skin-cosmic) .crown{z-index:2;text-shadow:0 1px 3px var(--skin-dark)}

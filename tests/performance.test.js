@@ -5,6 +5,28 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {initPerformance,PERFORMANCE_KEY} from '../public/performance.js';
 import {mountAccountShell} from '../public/account-shell.js';
+import {createCosmeticAnimation} from '../public/cosmetic-animation.js';
+
+test('cosmetic loops stop while hidden, offscreen or reduced and never stack animation frames',()=>{
+  const {document,window}=parseHTML('<html><body></body></html>');
+  const media=new window.EventTarget();media.matches=false;
+  const frames=new Map(),painted=[];let id=0,visible=true;
+  Object.assign(globalThis,{document,window,matchMedia:()=>media,
+    requestAnimationFrame:callback=>{frames.set(++id,callback);return id;},cancelAnimationFrame:id=>frames.delete(id)});
+  const loop=createCosmeticAnimation(t=>painted.push(t),()=>visible);
+  loop.refresh();loop.refresh();assert.equal(frames.size,1);
+  const step=now=>{const [key,fn]=frames.entries().next().value;frames.delete(key);fn(now);};
+  step(40);assert.deepEqual(painted,[40]);assert.equal(frames.size,1);
+  step(50);assert.equal(painted.length,1);
+  document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));assert.equal(frames.size,0);assert.equal(painted.at(-1),0);
+  document.hidden=false;document.dispatchEvent(new window.Event('visibilitychange'));assert.equal(frames.size,1);
+  media.matches=true;media.dispatchEvent(new window.Event('change'));assert.equal(frames.size,0);assert.equal(painted.at(-1),0);
+  media.matches=false;media.dispatchEvent(new window.Event('change'));assert.equal(frames.size,1);
+  document.documentElement.dataset.lowPerformance='true';document.dispatchEvent(new window.Event('performancechange'));assert.equal(frames.size,0);
+  document.documentElement.dataset.lowPerformance='false';visible=false;loop.refresh();assert.equal(frames.size,0);
+  visible=true;window.dispatchEvent(new window.Event('scroll'));assert.equal(frames.size,1);
+  visible=false;step(100);assert.equal(frames.size,0);
+});
 
 test('performance setting persists, restores across pages and remains usable without storage',()=>{
   const store=new Map(),storage={getItem:key=>store.get(key),setItem:(key,value)=>store.set(key,value)};
