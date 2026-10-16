@@ -8,6 +8,8 @@ import {applyPoolShot} from '../public/pool.js';
 
 test('complete app starts every local mode with one menu and state-specific controls',async()=>{
   const {document,window}=parseHTML(readFileSync(new URL('../public/index.html',import.meta.url),'utf8'));
+  assert.equal(document.querySelectorAll('.ambient-mode.is-active').length,1,'background is visible before game modules start');
+  assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,'russian');
   const $=id=>document.getElementById(id),store=new Map();let focused;
   Object.defineProperty(document,'activeElement',{get:()=>focused});
   window.HTMLElement.prototype.focus=function(){focused=this;};
@@ -61,7 +63,15 @@ test('complete app starts every local mode with one menu and state-specific cont
   try{
     await import('../public/app.js');
     for(const name of ['russian','russian12','chess','narde','pool8','chapaev','domino','battleship']){
-      variant.value=name;$('start-form').onchange();await $('start-form').onsubmit({preventDefault(){}});
+      variant.value=name;$('start-form').onchange();
+      assert.equal(document.querySelectorAll('.ambient-mode.is-active').length,1);
+      assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,name,'home background follows selected game');
+      await $('start-form').onsubmit({preventDefault(){}});
+      assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,name,'match keeps the selected background');
+      document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));
+      assert.equal(document.body.classList.contains('ambient-paused'),true);
+      document.hidden=false;document.dispatchEvent(new window.Event('visibilitychange'));
+      assert.equal(document.body.classList.contains('ambient-paused'),false);
       assert.equal($('game-screen').hidden,false,name);
       assert.equal($('status-title').textContent.length>0,true,name);
       assert.equal(document.querySelectorAll('#match-menu').length,1);

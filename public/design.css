@@ -7,8 +7,8 @@
   --design-wash: color-mix(in srgb, var(--theme-accent) 7%, transparent);
 }
 body { background:var(--theme-bg); }
-.ambient-scene { opacity:.28; }
-body.in-match .ambient-scene { opacity:.18; }
+.ambient-scene { opacity:.75; }
+body.in-match .ambient-scene { opacity:.65; }
 body .site-header {
   width:calc(100% - var(--layout-gutter)*2); max-width:var(--layout-width);
   height:88px; min-height:88px; margin:0 auto; padding:0; border:0;
@@ -295,7 +295,8 @@ body.info-page > main { max-width:780px; padding:32px 0 50px; }
   .shop-grid .shop-item-actions { grid-template-columns:1fr 1fr; }
 }
 @media(prefers-reduced-transparency:reduce) {
-  .ambient-scene { display:none; }
+  /* Keep the mode artwork on an opaque base when Windows disables transparency. */
+  .ambient-scene,body.in-match .ambient-scene { opacity:1; }
   body dialog::backdrop { backdrop-filter:none; }
 }
 @media(forced-colors:active) {

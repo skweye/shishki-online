@@ -3,8 +3,11 @@
 .ambient-mode {
   --mode-color:#a5b881;
   position:absolute; inset:0; opacity:0; animation-play-state:paused;
-  background:radial-gradient(ellipse at 88% 12%,color-mix(in srgb,var(--mode-color) 28%,transparent),transparent 52%),radial-gradient(ellipse at 10% 92%,color-mix(in srgb,var(--theme-accent) 28%,transparent),transparent 48%),radial-gradient(ellipse at 58% 60%,var(--theme-raised),transparent 60%);
+  background:radial-gradient(ellipse at 88% 12%,#ffffff12,transparent 52%),radial-gradient(ellipse at 58% 60%,var(--theme-raised),transparent 60%);
   transition:opacity 850ms ease;
+}
+@supports (color:color-mix(in srgb,black,white)) {
+  .ambient-mode { background:radial-gradient(ellipse at 88% 12%,color-mix(in srgb,var(--mode-color) 28%,transparent),transparent 52%),radial-gradient(ellipse at 10% 92%,color-mix(in srgb,var(--theme-accent) 28%,transparent),transparent 48%),radial-gradient(ellipse at 58% 60%,var(--theme-raised),transparent 60%); }
 }
 .ambient-mode.is-active { opacity:1; animation-play-state:running; }
 .ambient-mode>i { animation-play-state:paused; }
