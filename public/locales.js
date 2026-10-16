@@ -1,5 +1,25 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Поиск истёк. Начните снова.|Search expired. Start again.|Пошук завершився. Почніть знову.
+Найти соперника|Find opponent|Знайти суперника
+Подберём игрока для выбранного режима.|We'll find a player for your selected mode.|Підберемо гравця для вибраного режиму.
+ОНЛАЙН · АВТОМАТИЧЕСКИЙ ПОИСК|ONLINE · AUTOMATIC MATCHMAKING|ОНЛАЙН · АВТОМАТИЧНИЙ ПОШУК
+Подберём соперника в выбранном режиме. Поиск можно отменить.|Find an opponent in your chosen mode. You can cancel the search.|Підберемо суперника у вибраному режимі. Пошук можна скасувати.
+Поиск игры|Matchmaking|Пошук гри
+Ищем соперника…|Finding an opponent…|Шукаємо суперника…
+Соперник найден. Подключаемся…|Opponent found. Connecting…|Суперника знайдено. Підключаємося…
+Оставьте страницу открытой. Когда найдём игрока, партия начнётся автоматически.|Keep this page open. The game starts automatically when an opponent is found.|Залиште сторінку відкритою. Коли знайдемо гравця, партія почнеться автоматично.
+Время поиска|Search time|Час пошуку
+Отменить поиск|Cancel search|Скасувати пошук
+Отменяем поиск…|Cancelling search…|Скасовуємо пошук…
+Повторить поиск|Retry search|Повторити пошук
+Не удалось обновить поиск|Couldn't update the search|Не вдалося оновити пошук
+Не удалось подготовить партию. Поиск сохранён, повторяем подключение.|Couldn't prepare the game. Your search is saved; retry the connection.|Не вдалося підготувати партію. Пошук збережено; повторіть підключення.
+Очередь заполнена. Попробуйте чуть позже.|The queue is full. Try again shortly.|Черга заповнена. Спробуйте трохи пізніше.
+Некорректный запрос поиска.|Invalid matchmaking request.|Некоректний запит пошуку.
+Поиск принадлежит другому игроку.|This search belongs to another player.|Цей пошук належить іншому гравцеві.
+Не удалось подтвердить поиск.|Couldn't verify the search.|Не вдалося підтвердити пошук.
+Соперник ещё не найден.|No opponent found yet.|Суперника ще не знайдено.
 Звуки игры и интерфейса|Game and interface sounds|Звуки гри та інтерфейсу
 Ходы, кейсы, награды и выбор оформления|Moves, cases, rewards and appearance selection|Ходи, кейси, нагороди та вибір оформлення
 К игре|Play|До гри

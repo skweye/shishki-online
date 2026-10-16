@@ -15,7 +15,7 @@ test('complete app starts every local mode with one menu and state-specific cont
   const context=new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),getImageData:(x,y,w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createLinearGradient:()=>gradient,createRadialGradient:()=>gradient,measureText:()=>({width:30})},{get:(target,key)=>key in target?target[key]:()=>{}});
   window.HTMLCanvasElement.prototype.getContext=()=>context;
   const intervals=[],realInterval=globalThis.setInterval;
-  let channel,roomData,creations=0;
+  let channel,roomData,creations=0;const searches=[];
   class Channel{
     static OPEN=1;
     constructor(){channel=this;this.readyState=1;queueMicrotask(()=>this.onopen?.());}
@@ -23,11 +23,17 @@ test('complete app starts every local mode with one menu and state-specific cont
     close(){this.readyState=3;this.onclose?.({code:1000});}
   }
   Object.assign(globalThis,{document,window,Node:window.Node,NodeFilter:{SHOW_ELEMENT:1,SHOW_TEXT:4},MutationObserver:window.MutationObserver,CustomEvent:window.CustomEvent,
-    localStorage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value)},
+    localStorage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)},
     matchMedia:()=>({matches:true,addEventListener(){},removeEventListener(){}}),requestAnimationFrame:()=>1,cancelAnimationFrame(){},
     getComputedStyle:()=>({getPropertyValue:()=>'',position:'relative'}),ResizeObserver:class{observe(){}disconnect(){}},
     history:{replaceState(){}},location:{href:'https://game.test/',origin:'https://game.test',pathname:'/',host:'game.test',protocol:'https:',assign(){}},WebSocket:Channel,
     fetch:async(path,options)=>{
+      if(path==='/api/matchmaking'){
+        const data=JSON.parse(options.body);searches.push(data);
+        roomData={code:'112233445566',token:'found-seat',role:'black',game:newGame(data.variant||'chess'),ready:true,online:{white:true,black:true},rematch:[],drawOffer:null,chat:[]};
+        return {ok:true,json:async()=>({status:'matched',ticket:data.ticket,code:roomData.code,token:roomData.token})};
+      }
+      if(path==='/api/rooms/112233445566/join')return {ok:true,json:async()=>structuredClone(roomData)};
       if(path==='/api/rooms'){
         creations++;roomData={code:'AABBCCDDEEFF',token:'test',role:'white',game:newGame(JSON.parse(options.body).variant),ready:false,online:{white:true,black:false},rematch:[],drawOffer:null,chat:[]};
         return {ok:true,json:async()=>structuredClone(roomData)};
@@ -104,5 +110,12 @@ test('complete app starts every local mode with one menu and state-specific cont
     snapshot(); // Server state clears pending for the following disconnection check.
     channel.close();assert.equal($('resign-button').disabled,true);assert.equal($('chat-input').disabled,true);
     await menuClick('home-button');$('confirm-yes').click();assert.equal($('home-screen').hidden,false);
+    playMode.value='search';variant.value='chess';$('start-form').onchange();
+    assert.match($('start-button').textContent,/Найти соперника/);
+    await $('start-form').onsubmit({preventDefault(){}});
+    assert.deepEqual(searches.map(s=>s.action),['join','ack']);assert.equal(creations,1);
+    assert.equal($('game-screen').hidden,false);assert.equal($('search-dialog').open,false);assert.equal($('room-controls').open,false);
+    assert.equal(store.has('shishki-search-v1'),false);assert.equal(store.get('shashki-room-112233445566'),'found-seat');
+    await menuClick('home-button');$('confirm-yes').click();
   }finally{intervals.forEach(clearInterval);globalThis.setInterval=realInterval;}
 });

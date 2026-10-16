@@ -1,3 +1,5 @@
+import { handleMatchmaking } from './matchmaking.js';
+export { Matchmaker } from './matchmaking.js';
 import { DurableObject } from 'cloudflare:workers';
 import { validPoolAim } from '../public/pool-aim.js';
 import { actBattleship, battleshipView } from '../public/battleship.js';
@@ -44,7 +46,7 @@ export default {
       const identity = await authenticatedUser(request, env);
       const headers = new Headers(request.headers);
       // Identity is supplied only by this Worker, never by a browser header.
-      headers.delete('X-Auth-User');
+      headers.delete('X-Auth-User'); headers.delete('X-Match-Actor');
       if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, cueSkin: identity.cueSkin, shipSkin: identity.shipSkin, finishEffect: identity.finishEffect, victoryEffect: identity.victoryEffect })));
       request = new Request(request, { headers });
       if (request.method === 'POST') {
@@ -52,6 +54,7 @@ export default {
         try { data = await bodyOf(request); } catch { return fail('Некорректный запрос.'); }
         request = new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(data) });
       }
+      if (url.pathname === '/api/matchmaking') return await handleMatchmaking(request,env,identity);
       if (url.pathname === '/api/rooms' && request.method === 'POST') {
         const data = await request.json();
         const variant = data?.variant ?? 'russian';
@@ -181,6 +184,22 @@ export class GameRoom extends DurableObject {
       // An overdue alarm must not let a late join revive an expired room.
       if (this.expired()) await this.removeRoom();
       await this.expireClock();
+      if (url.pathname === '/match-create' && request.method === 'POST') {
+        const pair=await request.json();
+        if(!validVariant(pair.variant)||!pair.players?.white?.token||!pair.players?.black?.token)return fail('Некорректная пара игроков.');
+        if(this.room){
+          if(this.room.reservation!==pair.reservation)return fail('Комната уже существует.',409);
+          await this.save(false);return json({ok:true});
+        }
+        const room={code:pair.code,reservation:pair.reservation,players:{},accounts:{},names:{},cosmetics:{},game:newGame(pair.variant),rematch:[],drawOffer:null,chat:[],clock:createClock(pair.variant,Date.now())};
+        for(const side of ['white','black']){
+          const player=pair.players[side],user=player.identity;
+          room.players[side]=player.token;room.accounts[side]=user?.id||null;room.names[side]=user?.name||null;
+          room.cosmetics[side]={skin:user?.pieceSkin||'classic',cue:user?.cueSkin||'classic',ship:user?.shipSkin||'classic',effect:user?.finishEffect||'none',victory:user?.victoryEffect||'none'};
+          if(user)await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(user.id,room.code).run();
+        }
+        this.room=room;await this.save();return json({ok:true},201);
+      }
       if (url.pathname === '/create' && request.method === 'POST') {
         if (this.room) return fail('Комната уже существует.', 409);
         const variant = url.searchParams.get('variant') || 'russian';

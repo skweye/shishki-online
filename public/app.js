@@ -1,3 +1,4 @@
+import { createMatchmaking } from './matchmaking.js';
 import { actBattleship, validateFleet } from './battleship.js';
 import { createBattleshipBoard } from './battleship-board.js';
 import { createMatchUI } from './match-ui.js';
@@ -27,6 +28,12 @@ const $ = id => document.getElementById(id);
 const matchUI=createMatchUI();
 const names = { white: 'Белые', black: 'Чёрные' };
 const sounds = createSounds();
+const searchGame = createMatchmaking({request:api,sound:kind=>sounds.play(kind),owner:()=>currentUser?.id||null,
+  onMatch:async(result,ack)=>{
+    const data=await api('/api/rooms/'+result.code+'/join',{token:result.token});
+    await ack();enterRoom(result.code,data);
+  }
+});
 const rocketEffect = createRocketEffect(document.querySelector('.board-frame'), sounds);
 const escapeHTML = text => String(text).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]));
 let mode = 'local', game = newGame(), selected = null, flipped = false;
@@ -392,7 +399,7 @@ $('board').addEventListener('keydown', event => {
 async function api(path, data = {}) {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), signal: AbortSignal.timeout(15000) });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'Не удалось подключиться.');
+  if (!response.ok) throw Object.assign(new Error(result.error || 'Не удалось подключиться.'),{status:response.status});
   return result;
 }
 function disconnect() {
@@ -518,11 +525,12 @@ document.addEventListener('visibilitychange', pauseAmbient);
 pauseAmbient();
 function updateStart() {
   updateBackdrop();
+  const search = $('start-form').elements['play-mode'].value === 'search';
   const local = $('start-form').elements['play-mode'].value === 'local';
   const saved = localGames[$('start-form').elements.variant.value];
   const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || ['narde','battleship'].includes(saved.variant) && saved.revision > 0);
-  $('start-button').innerHTML = `${local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
-  $('start-hint').textContent = local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : $('start-form').elements.variant.value==='domino' ? 'Первый ход — старший дубль. Если дублей нет — старшая кость.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
+  $('start-button').innerHTML = `${search ? 'Найти соперника' : local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
+  $('start-hint').textContent = search ? 'Подберём соперника в выбранном режиме. Поиск можно отменить.' : local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : $('start-form').elements.variant.value==='domino' ? 'Первый ход — старший дубль. Если дублей нет — старшая кость.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
 }
 $('home-button').onclick = goHome;
 $('menu-home').onclick = () => { closeAccountMenu(); goHome(); };
@@ -532,6 +540,7 @@ $('start-form').onsubmit = async event => {
   event.preventDefault();
   if ($('start-button').disabled) return;
   const variant = $('start-form').elements.variant.value;
+  if ($('start-form').elements['play-mode'].value === 'search') { await searchGame.start(variant); return; }
   if ($('start-form').elements['play-mode'].value === 'local') {
     mode = 'local'; game = localGames[variant]; savedLocal = game;
     if (game.winner && game.reason !== 'round') { game = newGame(variant); localSave(); }
@@ -563,7 +572,7 @@ $('settings-button').onclick = () => { closeAccountMenu(); $('settings-dialog').
 $('settings-back').onclick = () => $('settings-dialog').close();
 document.querySelectorAll('[data-close]').forEach(button => { button.onclick = () => $(button.dataset.close).close(); });
 document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('click', event => {
-  if (event.target !== dialog) return;
+  if (event.target !== dialog || dialog.id === 'search-dialog') return;
   const rect = dialog.getBoundingClientRect();
   if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
 }));
@@ -640,6 +649,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && !$
 await authReady;
 render();
 const invite = new URL(location.href).searchParams.get('room');
+if(!invite)await searchGame.resume();
 if (invite) {
   mode = 'online'; showScreen('game'); render(); $('status-title').textContent = 'Открываем комнату…';
   try { await join(extractCode(invite)); }
