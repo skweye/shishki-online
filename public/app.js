@@ -1,3 +1,5 @@
+import {PRANKS,applyOwnerPrank,ownerPranks} from './pranks.js';
+import {createPrankEffect} from './prank-effect.js';
 import { createMatchmaking } from './matchmaking.js';
 import { actBattleship, validateFleet } from './battleship.js';
 import { createBattleshipBoard } from './battleship-board.js';
@@ -28,6 +30,7 @@ const $ = id => document.getElementById(id);
 const matchUI=createMatchUI();
 const names = { white: 'Белые', black: 'Чёрные' };
 const sounds = createSounds();
+const prankEffect=createPrankEffect(document.querySelector('.board-frame'),kind=>sounds.play(kind));
 const searchGame = createMatchmaking({request:api,sound:kind=>sounds.play(kind),owner:()=>currentUser?.id||null,
   onMatch:async(result,ack)=>{
     const data=await api('/api/rooms/'+result.code+'/join',{token:result.token});
@@ -105,15 +108,14 @@ function pieceHTML(piece, captured = false) {
   return `<span class="piece ${sideOf(piece)} skin-${skin} ${Math.abs(piece) === 2 ? 'king' : ''} ${captured ? 'captured' : ''}">${pieceArt(skin)}${Math.abs(piece) === 2 ? '<span class="crown">♛</span>' : ''}</span>`;
 }
 function skinFor(side) { return validSkin(mode === 'local' ? currentUser?.pieceSkin : room?.cosmetics?.[side]?.skin); }
-function poolPlayerRack(side) {
-  return poolRackMarkup(game,side);
-}
+function poolPresentation() { return isPool() ? poolBoard.presentationState() || game : game; }
 function playerHTML(side) {
+  const view = poolPresentation();
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
-  const count = isSea() ? 20-game.shots[opposite(side)].filter(shot=>shot.result!=='miss').length : isDomino() ? game.handCounts?.[side] ?? game.hands[side].length : isPool() ? remainingPool(game,side) : isNarde() ? 15-game.off[side] : isChapaev() ? game.pieces.filter(p => p.side === side).length : game.board.filter((p, i) => sideOf(p) === side && !game.captured.includes(i)).length;
-  return `<div class="player-avatar">${isSea() ? '<span aria-hidden="true">⚓</span>' : isDomino() ? '<span aria-hidden="true">◈</span>' : isPool() ? '<span class="pool-player-ball '+side+'">'+(game.groups[side]==='solid'?'1':game.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (game.groups[side] === 'solid' ? 'Сплошные' : game.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolPlayerRack(side):''}</div>${!game.winner && game.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  const count = isSea() ? 20-view.shots[opposite(side)].filter(shot=>shot.result!=='miss').length : isDomino() ? view.handCounts?.[side] ?? view.hands[side].length : isPool() ? remainingPool(view,side) : isNarde() ? 15-view.off[side] : isChapaev() ? view.pieces.filter(p => p.side === side).length : view.board.filter((p, i) => sideOf(p) === side && !view.captured.includes(i)).length;
+  return `<div class="player-avatar">${isSea() ? '<span aria-hidden="true">⚓</span>' : isDomino() ? '<span aria-hidden="true">◈</span>' : isPool() ? '<span class="pool-player-ball '+side+'">'+(view.groups[side]==='solid'?'1':view.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (view.groups[side] === 'solid' ? 'Сплошные' : view.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolRackMarkup(view,side):''}</div>${!view.winner && view.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
@@ -187,15 +189,16 @@ function status() {
   return [mode === 'online' ? 'Ваш ход' : 'Ход ' + (game.turn === 'white' ? 'белых' : 'чёрных'), legalMoves(game).some(m => m.capture !== null) ? 'Есть взятие — нужно бить.' : 'Перетащите шашку или выберите её и клетку кликом.', '↗'];
 }
 function renderHistory() {
-  const count = game.history.length;
+  const view = poolPresentation();
+  const count = view.history.length;
   const shotsLabel = count % 10 === 1 && count % 100 !== 11 ? 'удар' : count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'удара' : 'ударов';
   $('move-count').textContent = count + ' ' + (isChapaev() || isPool() ? shotsLabel : 'полуходов');
-  if (!game.history.length) {
+  if (!view.history.length) {
     $('history').innerHTML = '<div class="empty-history"><span aria-hidden="true">↗</span><p>У каждой партии есть начало.<br>Сделайте первый ход.</p></div>'; return;
   }
   const rows = [];
   if (isChapaev() || isNarde() || isPool() || isDomino() || isSea()) {
-    game.history.forEach((move, i) => {
+    view.history.forEach((move, i) => {
       const row = document.createElement('div'); row.className = 'history-row';
       for (const text of [isDomino() ? `${move.round} · ${i+1}` : isNarde() || isPool() || isSea() ? String(i+1) : `Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
         const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
@@ -204,9 +207,9 @@ function renderHistory() {
     });
     $('history').replaceChildren(...rows); $('history').scrollTop = $('history').scrollHeight; return;
   }
-  for (let i = 0; i < game.history.length; i += 2) {
+  for (let i = 0; i < view.history.length; i += 2) {
     const row = document.createElement('div'); row.className = 'history-row';
-    for (const text of [String(i / 2 + 1).padStart(2, '0'), game.history[i].notation, game.history[i + 1]?.notation || '—']) {
+    for (const text of [String(i / 2 + 1).padStart(2, '0'), view.history[i].notation, view.history[i + 1]?.notation || '—']) {
       const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
     }
     rows.push(row);
@@ -215,6 +218,9 @@ function renderHistory() {
 }
 function render() {
   updateBackdrop();
+  $('prank-button').hidden=!ownerPranks(currentUser)||!PRANKS[game.variant];
+  $('prank-button').disabled=!canPlay()||!!game.prankUsed?.[mode==='local'?game.turn:room?.role];
+  $('prank-session-note').hidden=!game.unranked;
   renderBoard(); rocketEffect.refresh(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
@@ -335,6 +341,8 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
+  if(previous.revision!==next.revision||previous.variant!==next.variant)prankEffect.cancel();
+  if(audible&&next.revision===previous.revision+1&&next.lastPrank?.revision===next.revision)prankEffect.play(next.variant);
   if (isNardeRoll(previous,next,audible)) {
     animating=true;
     nardeBoard.animateRoll(next,()=>{animating=false;render();});
@@ -403,6 +411,7 @@ async function api(path, data = {}) {
   return result;
 }
 function disconnect() {
+  prankEffect.cancel();
   rocketEffect.cancel();
   chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
   clearTimeout(reconnectTimer); clearInterval(heartbeat);
@@ -557,6 +566,18 @@ $('start-form').onsubmit = async event => {
   finally { $('start-button').disabled = false; $('home-join-button').disabled = false; updateStart(); }
 };
 $('flip-button').onclick = () => { flipped = !flipped; render(); };
+let prankRevision;
+$('prank-button').onclick=()=>{
+  if(!ownerPranks(currentUser)||!canPlay())return;
+  const prank=PRANKS[game.variant];prankRevision=game.revision;
+  $('prank-title').textContent=prank.name;$('prank-description').textContent=prank.description;$('prank-dialog').showModal();
+};
+$('prank-launch').onclick=()=>{
+  if(!ownerPranks(currentUser)||!canPlay()||game.revision!==prankRevision){$('prank-dialog').close();return;}
+  $('prank-dialog').close();
+  if(mode==='online'){send({type:'owner-prank'});return;}
+  try{const side=game.turn,next=applyOwnerPrank(game,side);if(game.variant==='chess'&&next.clock)next.clock[side]+=60000;acceptGame(next);localSave();render();}catch(error){toast(error.message);sounds.play('error');}
+};
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
   $('battleship-rules').hidden=variant!=='battleship';
@@ -587,7 +608,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { rocketEffect.cancel(); dominoBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { prankEffect.cancel(); rocketEffect.cancel(); dominoBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) goHome();
   else if (game.history.length || game.path.length || game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');

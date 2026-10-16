@@ -37,6 +37,7 @@ export const ACTION_NOTES = Object.freeze({
   'case-open': [196, 294, 392], 'case-common': [392, 494],
   'case-rare': [392, 494, 587], 'case-epic': [330, 494, 659, 784],
   'case-legendary': [392, 494, 587, 784, 988],
+  'prank-russian':[392,784,523], 'prank-russian12':[330,660,440], 'prank-chess':[262,330,523], 'prank-narde':[440,554,440,880], 'prank-chapaev':[196,392,588], 'prank-pool8':[220,440,330], 'prank-domino':[294,392,494], 'prank-battleship':[165,220,440],
   'search-start': [294, 440], 'search-cancel': [392, 330], 'match-found': [392, 523, 659, 784],
   confetti: [523, 659, 784, 1047], laurel: [392, 523, 659, 784],
   fireworks: [523, 784, 1047], portal: [196, 247, 294, 392], eclipse: [220, 165, 110],

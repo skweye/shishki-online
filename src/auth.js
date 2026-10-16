@@ -10,7 +10,7 @@ const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, level: progression(row.xp || 0).level, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
+const publicUser = row => row ? { id: row.id, ownerPranks: row.owner_pranks === 1 && row.email === 'kkoallqq@gmail.com' && !!row.email_verified, level: progression(row.xp || 0).level, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,

@@ -1,3 +1,4 @@
+import {applyOwnerPrank,OWNER_EMAIL} from '../public/pranks.js';
 import { handleMatchmaking } from './matchmaking.js';
 export { Matchmaker } from './matchmaking.js';
 import { DurableObject } from 'cloudflare:workers';
@@ -41,7 +42,11 @@ export default {
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
     if (url.pathname.startsWith('/api/auth/')) return handleAuth(request, env, ctx, bodyOf);
     const origin = request.headers.get('Origin');
-    if (origin && origin !== url.origin) { await request.body?.cancel(); return fail('Запрос с другого сайта запрещён.', 403); }
+    if (origin && origin !== url.origin) {
+      // Drain small rejected bodies without cancelling the reusable HTTP stream.
+      try { await bodyOf(request); } catch {}
+      return fail('Запрос с другого сайта запрещён.', 403);
+    }
     try {
       const identity = await authenticatedUser(request, env);
       const headers = new Headers(request.headers);
@@ -125,7 +130,7 @@ export class GameRoom extends DurableObject {
         } catch { game.finishEffect = validEffect(this.room.cosmetics?.[game.winner]?.victory); }
       }
     }
-    if (game.winner && game.reason !== 'round' && !this.room.resultRecorded && this.room.players.black) {
+    if (game.winner && !game.unranked && game.reason !== 'round' && !this.room.resultRecorded && this.room.players.black) {
       this.room.pendingResults ||= [];
       for (const side of ['white', 'black']) if (this.room.accounts?.[side]) this.room.pendingResults.push({
         userId: this.room.accounts[side], matchId: this.room.matchId, variant: variantOf(game),
@@ -300,7 +305,13 @@ export class GameRoom extends DurableObject {
         const parallelFleet = data.type === 'fleet-ready' && game.variant === 'battleship' && game.phase === 'setup' && !game.ready[role] && Number.isInteger(data.revision) && data.revision >= game.revision - Number(game.ready.white) - Number(game.ready.black) && data.revision <= game.revision;
         if (data.revision !== game.revision && !parallelFleet) throw new Error('Позиция уже изменилась. Повторите действие.');
         const previous = structuredClone(this.room.game);
-        if (['fleet-ready','sea-fire'].includes(data.type)) {
+        if(data.type==='owner-prank'){
+          const owner=accountId&&await this.env.AUTH_DB.prepare('SELECT owner_pranks,email,email_verified FROM users WHERE id=?').bind(accountId).first();
+          if(!owner||owner.owner_pranks!==1||owner.email!==OWNER_EMAIL||!owner.email_verified)throw Error('Шалости доступны только владельцу.');
+          this.room.game=applyOwnerPrank(game,role);
+          if(game.variant==='chess'&&this.room.clock)this.room.clock[role]+=60000;
+          this.room.drawOffer=null;
+        }else if (['fleet-ready','sea-fire'].includes(data.type)) {
           this.room.game = actBattleship(this.room.game, role, data); this.room.drawOffer = null;
         } else if (data.type === 'domino-ready') {
           this.room.game = readyDominoRound(this.room.game, role); this.room.drawOffer = null;
@@ -343,7 +354,7 @@ export class GameRoom extends DurableObject {
             this.room.rematch = []; this.room.drawOffer = null;
           }
         } else throw new Error('Действие сейчас недоступно.');
-        if (!previous.winner && this.room.game.revision !== previous.revision) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, actionNow);
+        if (data.type!=='owner-prank' && !previous.winner && this.room.game.revision !== previous.revision) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, actionNow);
         await this.save(); this.broadcast();
       } catch (error) {
         ws.send(JSON.stringify({ type: 'error', context: messageType === 'chat' ? 'chat' : 'game', message: error instanceof SyntaxError ? 'Некорректное сообщение.' : error.message }));

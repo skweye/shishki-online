@@ -286,3 +286,24 @@ test('late requests cannot revive a room when its alarm is delayed', async t => 
   const restored = await roomWith(fixture(START));
   assert.equal(restored.room.room, null); assert.equal(restored.values.size, 0);
 });
+
+test('owner pranks validate server identity, reject forged admins, preserve clocks and exclude rewards',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  let allowed=false,revoked=false,resultWrites=0;
+  const env={AUTH_DB:{prepare(sql){return {bind(){return {async first(){
+    if(sql.startsWith('SELECT 1 FROM sessions'))return revoked?null:{ok:1};
+    if(sql.includes('owner_pranks'))return {owner_pranks:allowed?1:0,email:'kkoallqq@gmail.com',email_verified:1,admin_level:3};
+    return {};
+  },async run(){}};} };},async batch(){resultWrites++;}}};
+  const initial=fixture();initial.accounts={white:'owner',black:'peer'};initial.clock=createClock('russian',START);
+  const {room,ws,values}=await roomWith(initial,env);ws.session.sessionHash='valid-session';
+  const send=()=>room.webSocketMessage(ws,JSON.stringify({type:'owner-prank',revision:room.room.game.revision,ownerPranks:true,email:'kkoallqq@gmail.com',winner:'white'}));
+  await send();assert.equal(room.room.game.revision,0);assert.match(ws.messages[0].message,/владельцу/);
+  allowed=true;t.mock.timers.tick(100);await send();assert.equal(room.room.game.revision,1);assert.equal(room.room.game.unranked,true);assert.equal(room.room.game.winner,null);assert.equal(room.room.clock.white,300000,'prank must not award a move increment');
+  assert.equal(values.get('room').game.unranked,true);
+  t.mock.timers.tick(100);await send();assert.equal(room.room.game.revision,1,'one use only');
+  room.room.game.winner='white';room.room.game.reason='resign';await room.save();assert.equal(resultWrites,0);assert.equal(room.room.resultRecorded,undefined);
+  room.room.game=newGame('chess');room.room.clock=createClock('chess',Date.now());
+  t.mock.timers.tick(100);await send();assert.equal(room.room.clock.white,360000);assert.equal(room.room.game.board.filter(p=>p!==0).length,32);
+  revoked=true;t.mock.timers.tick(100);await send();assert.equal(ws.closeCode,4003);
+});

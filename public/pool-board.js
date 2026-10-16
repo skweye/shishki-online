@@ -12,7 +12,7 @@ export function createPoolBoard({shoot,place,sound}) {
   const root=document.getElementById('pool-board');
   root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
   const $=id=>document.getElementById('pool-'+id),canvas=$('canvas'),ctx=canvas.getContext('2d'),paintBall=createBallPainter();
-  let state,flipped=false,playable=false,placing=false,shown=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
+  let state,flipped=false,playable=false,placing=false,shown=null,shotBefore=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
   let cueSkin='classic',finishInteraction=null,remote=null,remoteFrame=0,remoteTimer;
   const orientations=new Map();
   const cueAnimation=createCosmeticAnimation(()=>draw(),()=>canvasVisible(canvas)&&animatedCue(cueSkin)&&!shown&&!finishInteraction&&
@@ -102,7 +102,7 @@ export function createPoolBoard({shoot,place,sound}) {
     $('place').textContent=t(placing?'Отменить размещение':'Переставить биток');
     $('place').hidden=!playable||!state.ballInHand;$('placement').hidden=!playable||!placing;$('shoot').disabled=!playable||!!shown||placing||!state.balls.some(b=>b.id===0);
     readings();
-    $('notice').textContent=[state.foul?t(foulText[state.foul]):'',state.winner?'':state.breaking?t('Разбейте пирамиду.'):state.ballInHand?t(state.ballInHand==='kitchen'?'Биток с руки в доме: X меньше 5.':'Биток с руки в любой свободной точке.'):t('Прицельтесь и выберите силу удара. Заказы не нужны.')].filter(Boolean).join(' ');
+    $('notice').textContent=shown?'':[state.foul?t(foulText[state.foul]):'',state.winner?'':state.breaking?t('Разбейте пирамиду.'):state.ballInHand?t(state.ballInHand==='kitchen'?'Биток с руки в доме: X меньше 5.':'Биток с руки в любой свободной точке.'):t('Прицельтесь и выберите силу удара. Заказы не нужны.')].filter(Boolean).join(' ');
     canvas.style.cursor=playable&&!shown?'crosshair':'default';
   }
   $('angle').oninput=()=>{angle=Number($('angle').value);readings();draw();};
@@ -136,9 +136,10 @@ export function createPoolBoard({shoot,place,sound}) {
     }
     remoteFrame=requestAnimationFrame(tick);
   }
-  function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;sinking=[];finish=null;input.cancel();clearRemoteAim();}
+  function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;shotBefore=null;sinking=[];finish=null;input.cancel();clearRemoteAim();}
   function animate(before,next,done){
     cancel();
+    shotBefore=before;
     const sim=simulatePool(before,next.lastShot.dx,next.lastShot.dy,true);let started=null,soundIndex=0,last=sim.frames[0];
     sound('cue',Math.hypot(next.lastShot.dx,next.lastShot.dy));
     finish=()=>{cancel();state=next;draw();done();};
@@ -164,5 +165,5 @@ export function createPoolBoard({shoot,place,sound}) {
   window.addEventListener('resize',draw);
   new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   document.addEventListener('languagechange',()=>{canvas.setAttribute('aria-label',t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.'));controls();});
-  return {receiveAim,getAim(){return{angle,power,placing};},setFinishInteraction(value){finishInteraction=value;draw();},render(next,flip,canPlay,skin){cueSkin=validCueSkin(skin);const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){clearRemoteAim();placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
+  return {presentationState(){return shotBefore;},receiveAim,getAim(){return{angle,power,placing};},setFinishInteraction(value){finishInteraction=value;draw();},render(next,flip,canPlay,skin){cueSkin=validCueSkin(skin);const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){clearRemoteAim();placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
 }

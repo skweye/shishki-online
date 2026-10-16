@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import WebSocket from 'ws';
 import { once } from 'node:events';
+import { setTimeout as delay } from 'node:timers/promises';
 import { legalMoves } from '../public/game.js';
 import { itemById } from '../public/shop-catalog.js';
 
@@ -41,11 +42,12 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   assert.equal(invalid.response.status, 400);
   const csrf = await post('/api/auth/register', { name: 'Tester', email, password, confirmPassword: password }, '', 'https://evil.example');
   assert.equal(csrf.response.status, 403);
-  const registered = await post('/api/auth/register', { name: 'Тестовый игрок', email, password, confirmPassword: password, isAdmin: true, is_admin: 1, shop_access: 1 });
+  const registered = await post('/api/auth/register', { name: 'Тестовый игрок', email, password, confirmPassword: password, isAdmin: true, is_admin: 1, shop_access: 1, ownerPranks: true, owner_pranks: 1 });
   assert.equal(registered.response.status, 201, registered.data.error);
   assert.equal(registered.data.user.name, 'Тестовый игрок');
   assert.equal(registered.data.user.emailVerified, false);
   assert.equal(registered.data.user.isAdmin, false);
+  assert.equal(registered.data.user.ownerPranks, false);
   assert.equal((await fetch(base + '/api/auth/admin', { headers: { Cookie: registered.cookie } })).status, 403);
   assert.equal('password_hash' in registered.data.user, false);
   assert.ok(registered.response.headers.get('Set-Cookie').includes('HttpOnly'));
@@ -62,10 +64,11 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   assert.equal((await post('/api/auth/profile',{name:'<script>',avatar},registered.cookie)).response.status,400);
   assert.equal((await post('/api/auth/profile',{name:'New',avatar:'data:image/svg+xml;base64,PHN2Zz4='},registered.cookie)).response.status,400);
   assert.equal((await post('/api/auth/profile',{name:'New',avatar:'x'.repeat(106000)},registered.cookie)).response.status,400);
-  const edited=await post('/api/auth/profile',{name:'Новое имя',avatar,id:'someone-else',email:'fake@example.invalid',isAdmin:true,is_admin:1,shop_access:1},registered.cookie);
+  const edited=await post('/api/auth/profile',{name:'Новое имя',avatar,id:'someone-else',email:'fake@example.invalid',isAdmin:true,is_admin:1,shop_access:1,ownerPranks:true,owner_pranks:1},registered.cookie);
   assert.equal(edited.response.status,200,edited.data.error); assert.equal(edited.data.user.id,registered.data.user.id);
   assert.equal(edited.data.user.email,email); assert.equal(edited.data.user.name,'Новое имя');
   assert.equal(edited.data.user.isAdmin,false);
+  assert.equal(edited.data.user.ownerPranks,false);
   const denied=await post('/api/auth/admin/shop-access',{userId:registered.data.user.id,enabled:true,expected:false},registered.cookie);
   assert.equal(denied.response.status,403);
   assert.equal((await (await fetch(base + '/api/auth/shop', { headers: { Cookie: registered.cookie } })).json()).fullAccess,false);
@@ -76,6 +79,7 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   assert.equal(room.response.status, 201);
   assert.equal(room.data.names.white, 'Тестовый игрок');
   assert.equal(room.data.accountBound.white, true);
+  assert.equal((await post(`/api/rooms/${room.data.code}/join`, {})).response.status, 200);
   const loggedIn = await post('/api/auth/login', { email, password });
   const restored = await post(`/api/rooms/${room.data.code}/join`, {}, loggedIn.cookie);
   assert.equal(restored.data.role, 'white');
@@ -91,6 +95,11 @@ test('registration, session, sign-out, credential login, duplicate and CSRF prot
   assert.equal(JSON.parse((await state)[0]).type, 'state');
   const sync = once(socket, 'message'); socket.send(JSON.stringify({ type: 'sync' }));
   assert.equal(JSON.parse((await sync)[0]).type, 'state');
+  await delay(100);
+  const prankDenied=once(socket, 'message');
+  socket.send(JSON.stringify({type:'owner-prank',revision:0,ownerPranks:true,owner_pranks:1,email:'kkoallqq@gmail.com',admin_level:3}));
+  const deniedPrank=JSON.parse((await prankDenied)[0]);assert.equal(deniedPrank.type,'error');assert.match(deniedPrank.message,/владельцу/);
+  const unchanged=await post(`/api/rooms/${room.data.code}/join`,{},registered.cookie);assert.equal(unchanged.data.game.revision,0);assert.equal(unchanged.data.game.unranked,undefined);
   await post('/api/auth/logout', {}, registered.cookie);
   const closed = once(socket, 'close'); socket.send(JSON.stringify({ type: 'sync' }));
   assert.equal((await closed)[0], 4003);

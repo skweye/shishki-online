@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {newGame} from '../public/game.js';
+import {applyPoolShot} from '../public/pool.js';
 
 test('complete app starts every local mode with one menu and state-specific controls',async()=>{
   const {document,window}=parseHTML(readFileSync(new URL('../public/index.html',import.meta.url),'utf8'));
@@ -38,7 +39,7 @@ test('complete app starts every local mode with one menu and state-specific cont
         creations++;roomData={code:'AABBCCDDEEFF',token:'test',role:'white',game:newGame(JSON.parse(options.body).variant),ready:false,online:{white:true,black:false},rematch:[],drawOffer:null,chat:[]};
         return {ok:true,json:async()=>structuredClone(roomData)};
       }
-      return {ok:true,json:async()=>({user:null,googleEnabled:false})};
+      return {ok:true,json:async()=>({user:{id:'owner',name:'Owner',email:'kkoallqq@gmail.com',emailVerified:true,ownerPranks:true},googleEnabled:false})};
     },
     setInterval:(...args)=>{const id=realInterval(...args);id.unref();intervals.push(id);return id;}
   });
@@ -67,6 +68,11 @@ test('complete app starts every local mode with one menu and state-specific cont
       assert.equal($('flip-button').hidden,['domino','battleship'].includes(name));
       $('match-menu-button').click();assert.equal($('match-menu').hidden,false);
       await menuClick('rules-button');assert.equal($('rules-dialog').open,true);$('rules-dialog').close();
+      if(name==='chess'){
+        assert.equal($('prank-button').hidden,false);await menuClick('prank-button');assert.equal($('prank-dialog').open,true);
+        $('prank-launch').click();assert.equal($('prank-dialog').open,false);assert.equal($('prank-session-note').hidden,false);assert.equal($('prank-button').disabled,true);
+        assert.ok(document.querySelector('.prank-chess'));
+      }
       if(name==='narde'){
         assert.equal(document.querySelector('.narde-off').hidden,true);
         assert.equal(document.querySelector('.narde-deselect').hidden,true);
@@ -117,5 +123,28 @@ test('complete app starts every local mode with one menu and state-specific cont
     assert.equal($('game-screen').hidden,false);assert.equal($('search-dialog').open,false);assert.equal($('room-controls').open,false);
     assert.equal(store.has('shishki-search-v1'),false);assert.equal(store.get('shashki-room-112233445566'),'found-seat');
     await menuClick('home-button');$('confirm-yes').click();
+    // Shot outcomes remain hidden through repeat snapshots until the canvas finishes.
+    playMode.value='online';variant.value='pool8';await $('start-form').onsubmit({preventDefault(){}});
+    roomData.ready=true;roomData.online.black=true;
+    roomData.game={...newGame('pool8'),breaking:false,ballInHand:null,balls:[{id:0,x:10,y:3},{id:1,x:10,y:.8},{id:2,x:3,y:5},{id:8,x:15,y:6},{id:9,x:18,y:6}]};snapshot();
+    const frames=new Map();let frameId=0;
+    globalThis.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});
+    globalThis.requestAnimationFrame=fn=>{frames.set(++frameId,fn);return frameId;};globalThis.cancelAnimationFrame=id=>frames.delete(id);
+    document.documentElement.dataset.lowPerformance='true';
+    roomData.game=applyPoolShot(roomData.game,{dx:0,dy:-.2});snapshot();
+    assert.equal($('status-title').textContent,'Шары в движении');assert.equal(document.querySelectorAll('.pool-rack').length,0);
+    assert.equal($('move-count').textContent,'0 ударов');assert.equal($('pool-notice').textContent,'');
+    snapshot();assert.equal(document.querySelectorAll('.pool-rack').length,0,'duplicate snapshots cannot reveal the assigned group');
+    const runFrame=time=>{const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn(time));};
+    runFrame(0);runFrame(60000);
+    assert.equal(document.querySelectorAll('.pool-rack').length,2);assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));
+    assert.equal($('move-count').textContent,'1 удар');
+    // Existing groups and their remaining counts also wait; hiding the tab completes cleanly.
+    roomData.game={...newGame('pool8'),revision:10,breaking:false,ballInHand:null,groups:{white:'solid',black:'stripe'},balls:[{id:0,x:10,y:3},{id:1,x:10,y:.8},{id:2,x:3,y:5},{id:8,x:15,y:6},{id:9,x:18,y:6}]};snapshot();
+    roomData.game=applyPoolShot(roomData.game,{dx:0,dy:-.2});snapshot();
+    assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: На столе"]'));assert.match($('bottom-player').querySelector('.piece-count').textContent,/2/);
+    document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));
+    assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));assert.match($('bottom-player').querySelector('.piece-count').textContent,/1/);
+    document.hidden=false;await menuClick('home-button');$('confirm-yes').click();
   }finally{intervals.forEach(clearInterval);globalThis.setInterval=realInterval;}
 });
