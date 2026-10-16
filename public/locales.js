@@ -1,5 +1,33 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
 const rows = `
+Наблюдатель|Observer|Спостерігач
+Управляющий|Manager|Керівник
+Главный администратор|Head administrator|Головний адміністратор
+Ваш уровень|Your level|Ваш рівень
+Выдать монеты|Grant coins|Видати монети
+Изменить уровень|Change level|Змінити рівень
+Только просмотр|Read only|Лише перегляд
+Новый уровень|New level|Новий рівень
+Количество монет|Number of coins|Кількість монет
+Регистрация|Registered|Реєстрація
+Монеты|Coins|Монети
+Изменён уровень|Level changed|Рівень змінено
+Выданы монеты|Coins granted|Монети видано
+Выберите другой уровень.|Choose a different level.|Виберіть інший рівень.
+Укажите от 1 до 1000000 целых монет.|Enter a whole number from 1 to 1,000,000 coins.|Укажіть від 1 до 1000000 цілих монет.
+Изменения сохранены.|Changes saved.|Зміни збережено.
+Недостаточно прав, аккаунт удалён или данные изменились. Обновите список.|Insufficient permissions, deleted account or changed data. Refresh the list.|Недостатньо прав, акаунт видалено або дані змінилися. Оновіть список.
+Нельзя управлять этим аккаунтом с вашим уровнем.|Your level cannot manage this account.|Ваш рівень не дозволяє керувати цим акаунтом.
+Достигнут предел баланса аккаунта.|Account balance limit reached.|Досягнуто ліміту балансу акаунта.
+Некорректный уровень администратора.|Invalid administrator level.|Некоректний рівень адміністратора.
+Управляйте уровнями, доступом к магазину и игровыми монетами.|Manage levels, shop access and game coins.|Керуйте рівнями, доступом до магазину й ігровими монетами.
+Доступ, уровни и выдача монет. Последние 20 действий.|Access, levels and coin grants. Last 20 actions.|Доступ, рівні й видача монет. Останні 20 дій.
+1 — наблюдатель: просмотр. 2 — управляющий: монеты и магазин младших аккаунтов. 3 — главный: уровни, младшие аккаунты и свой аккаунт. Чужие равные и старшие уровни защищены.|1 — observer: read only. 2 — manager: coins and shop access for lower accounts. 3 — head: levels, lower accounts and own account. Other equal and higher levels are protected.|1 — спостерігач: перегляд. 2 — керівник: монети й магазин молодших акаунтів. 3 — головний: рівні, молодші акаунти й власний акаунт. Чужі рівні та старші рівні захищено.
+Монеты добавятся к текущему балансу. Повтор запроса не начисляет их повторно.|Coins are added to the current balance. Retrying will not award them twice.|Монети додаються до поточного балансу. Повтор запиту не нараховує їх повторно.
+Главный администратор управляет младшими уровнями и собой. Понижение своего уровня сразу ограничит ваши права. Уровень 0 снимает админские права и полный доступ; коллекция сохраняется.|The head administrator manages lower levels and their own account. Lowering your level immediately restricts your permissions. Level 0 removes admin rights and full access; the collection is kept.|Головний адміністратор керує молодшими рівнями й собою. Зниження власного рівня одразу обмежить ваші права. Рівень 0 знімає адмінські права й повний доступ; колекція зберігається.
+Предметы коллекции сохранятся. Оформление по привилегии вернётся к стандартному. Монеты не изменятся.|Collection items are kept. Privileged cosmetics revert to defaults. Coins are unchanged.|Предмети колекції зберігаються. Привілейоване оформлення повернеться до стандартного. Монети не зміняться.
+Игрок сможет выбирать все предметы магазина бесплатно. Админские права не выдаются.|The player can select every shop item for free. No admin rights are granted.|Гравець зможе вибирати всі предмети магазину безкоштовно. Адмінські права не надаються.
+Есть незавершённая выдача. Повторите запрос для получения результата без повторного начисления.|An unfinished grant was found. Retry to retrieve the result without granting twice.|Є незавершена видача. Повторіть запит, щоб отримати результат без повторного нарахування.
 Обычный|Common|Звичайний
 Редкий|Rare|Рідкісний
 Эпический|Epic|Епічний

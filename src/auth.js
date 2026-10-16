@@ -2,14 +2,14 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
 import { shopState, buyItem, equipItem, openCase } from './shop.js';
-import { adminOverview, changeShopAccess, grantAdmin } from './admin.js';
+import { adminOverview, changeShopAccess, grantAdmin, setAdminLevel, grantCoins } from './admin.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
 const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.is_admin === 1 } : null;
+const publicUser = row => row ? { id: row.id, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -138,13 +138,14 @@ export async function handleAuth(request, env, ctx, readBody) {
       if (!await limit(env, 'admin:' + user.id, 120, 600)) return error('Слишком много запросов. Попробуйте позже.', 429);
       try {
         if (request.method === 'GET' && path === '/api/auth/admin') return json(await adminOverview(env, user.id, url.searchParams.get('q') || '', Number(url.searchParams.get('offset') || 0)));
-        if (request.method !== 'POST' || !['/api/auth/admin/shop-access', '/api/auth/admin/grant-admin'].includes(path)) return error('Запрос не найден.', 404);
+        if (request.method !== 'POST' || !['/api/auth/admin/shop-access', '/api/auth/admin/grant-admin', '/api/auth/admin/level', '/api/auth/admin/coins'].includes(path)) return error('Запрос не найден.', 404);
         if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
         if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
         let data;
         try { data = await readBody(request, 2048); } catch { return error('Некорректный запрос.'); }
         if (!data || typeof data !== 'object' || Array.isArray(data)) return error('Некорректный запрос.');
-        return json(await (path === '/api/auth/admin/grant-admin' ? grantAdmin(env, user.id, data) : changeShopAccess(env, user.id, data)));
+        const result=await (path.endsWith('/level') ? setAdminLevel(env,user.id,data) : path.endsWith('/coins') ? grantCoins(env,user.id,data) : path.endsWith('/grant-admin') ? grantAdmin(env,user.id,data) : changeShopAccess(env,user.id,data));
+        return json({...result,user:cleanUser(await authenticatedUser(request,env))});
       } catch (cause) { if (cause.status) return error(cause.message, cause.status); throw cause; }
     }
     if (request.method === 'GET' && path === '/api/auth/account') {
