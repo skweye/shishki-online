@@ -126,6 +126,7 @@ function renderBoard(keepDrag = false) {
   $('board').hidden = isCards() || isChapaev() || isNarde() || isPool() || isDomino() || isSea();
   $('durak-board').hidden=!isCards();
   document.querySelector('.board-frame').classList.toggle('durak-frame',isCards());
+  document.querySelector('.game-layout').classList.toggle('durak-layout',isCards());
   $('battleship-board').hidden=!isSea();
   document.querySelector('.board-frame').classList.toggle('sea-frame',isSea());
   document.querySelector('.game-layout').classList.toggle('sea-layout',isSea());

@@ -2,13 +2,24 @@ import { durakActions, cardName, SUITS, suit } from './durak.js';
 import { cardArt } from './card-art.js';
 import { t } from './i18n.js';
 import { lowPerformance } from './performance.js';
+import { attachDurakDrag } from './durak-drag.js';
 
 export function createDurakBoard(root, act, sound = () => {}) {
   let game, context, selected = null, revealed = null, previousTurn, previousRevision, roomKey;
   const animations = new Set();
   const media = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion:reduce)') : null;
   const staticMode = () => document.hidden || lowPerformance() || media?.matches;
-  function cancel() { for (const animation of animations) animation.cancel(); animations.clear(); }
+  function cancelAnimations() { for (const animation of animations) animation.cancel(); animations.clear(); }
+  function cancel() { drag.cancel(); cancelAnimations(); }
+  function availableActions() {
+    if (!game || !context.enabled || document.hidden || (context.mode === 'local' && revealed !== game.turn)) return [];
+    return durakActions(game, context.mode === 'local' ? game.turn : context.role);
+  }
+  const drag = attachDurakDrag(root, {
+    actions: availableActions,
+    select(card) { cancelAnimations(); selected = card; sound('select'); paint(); },
+    submit: act, sound,
+  });
   function animate(element, frames, duration = 280) {
     if (!element?.animate || staticMode()) return;
     const animation = element.animate(frames, { duration, easing: 'cubic-bezier(.2,.7,.25,1)' });
@@ -42,16 +53,17 @@ export function createDurakBoard(root, act, sound = () => {}) {
     }
   }
   function paint() {
-    const { mode, role, enabled, skins = {} } = context, viewer = mode === 'local' ? game.turn : role;
+    const { mode, role, skins = {} } = context, viewer = mode === 'local' ? game.turn : role;
     const skin = skins[viewer] || 'classic', enemy = viewer === 'white' ? 'black' : 'white';
     const hidden = mode === 'local' && revealed !== viewer;
-    const actions = enabled && !hidden ? durakActions(game, viewer) : [], hand = hidden ? [] : game.hands[viewer] || [];
+    const actions = availableActions(), hand = hidden ? [] : game.hands[viewer] || [];
+    const play = actions.find(a => a.card === selected && (a.type === 'durak-attack' || a.type === 'durak-transfer'));
     const count = game.stockCount ?? game.stock?.length ?? 0;
     const card = (id, extra = '', back = false, owner = viewer) => `<span class="durak-card" ${extra}>${cardArt(back ? null : id, skins[owner] || skin)}</span>`;
     root.innerHTML = `<div class="durak-info"><span>${t('Козырь')} <b data-no-translate>${SUITS[suit(game.trump)]}</b></span><span>${t('Колода')}: <b data-no-translate>${count}</b></span><span>${t('Бито')}: <b data-no-translate>${game.discard.length}</b></span></div>
       <div class="durak-opponent" aria-label="${t('Карты соперника')}">${Array.from({ length: Math.min(10, game.handCounts?.[enemy] ?? game.hands[enemy]?.length ?? 0) }, () => card(null, '', true, enemy)).join('')}<b data-no-translate>${game.handCounts?.[enemy] ?? game.hands[enemy]?.length ?? 0}</b></div>
-      <div class="durak-arena"><div class="durak-stock">${count ? card(game.trump, `role="img" aria-label="${cardName(game.trump)}"`) : `<span class="durak-trump" data-no-translate>${SUITS[suit(game.trump)]}</span>`}${count > 1 ? card(null, '', true) : ''}</div><div class="durak-table" role="group" aria-label="${t('Карты на столе')}">${game.table.map((pair, index) => `<button class="durak-pair ${actions.some(a => a.card === selected && a.target === index) ? 'can-cover' : ''}" data-target="${index}" aria-label="${t('Отбить карту')}: ${cardName(pair.attack)}" ${!actions.some(a => a.card === selected && a.target === index) ? 'disabled' : ''}>${card(pair.attack, `data-table-card="${pair.attack}"`, false, pair.attackSide || game.attacker)}${pair.defend !== null ? card(pair.defend, `data-table-card="${pair.defend}"`, false, pair.defendSide || game.defender) : ''}</button>`).join('') || `<p class="durak-empty">${t('Выберите карту для атаки.')}</p>`}</div></div>
-      <p class="durak-instruction">${t(game.taking ? viewer===game.defender?'Вы берёте. Дождитесь завершения подкидывания.':'Соперник берёт. Можно подкинуть или завершить заход.' : game.turn === game.defender ? 'Выберите карту и нажмите на карту, которую хотите отбить.' : 'Атакуйте или завершите отбитый заход.')}</p>
+      <div class="durak-arena"><div class="durak-stock">${count ? card(game.trump, `data-trump-card role="img" aria-label="${cardName(game.trump)}"`) : `<span class="durak-trump" data-no-translate>${SUITS[suit(game.trump)]}</span>`}${count > 1 ? card(null, 'data-deck-card', true) : ''}<span class="durak-trump-label">${t('Козырь')} <b data-no-translate>${count ? cardName(game.trump) : SUITS[suit(game.trump)]}</b></span></div><div class="durak-table" role="group" aria-label="${t('Карты на столе')}">${game.table.map((pair, index) => `<button class="durak-pair ${actions.some(a => a.card === selected && a.target === index) ? 'can-cover' : ''}" data-target="${index}" aria-label="${t('Отбить карту')}: ${cardName(pair.attack)}" ${!actions.some(a => a.card === selected && a.target === index) ? 'disabled' : ''}>${card(pair.attack, `data-table-card="${pair.attack}"`, false, pair.attackSide || game.attacker)}${pair.defend !== null ? card(pair.defend, `data-table-card="${pair.defend}"`, false, pair.defendSide || game.defender) : ''}</button>`).join('')}${play ? `<button class="durak-drop-play" data-action="${play.type}">${t(play.type === 'durak-transfer' ? 'Перетащите сюда для перевода' : 'Перетащите сюда для атаки')}</button>` : !game.table.length ? `<p class="durak-empty">${t('Перетащите карту на стол или выберите её кликом.')}</p>` : ''}</div></div>
+      <p class="durak-instruction">${t(game.taking ? viewer===game.defender?'Вы берёте. Дождитесь завершения подкидывания.':'Соперник берёт. Можно подкинуть или завершить заход.' : game.turn === game.defender ? 'Перетащите свою карту на карту соперника, чтобы отбить. Для перевода — на свободное место стола. Можно играть и кликами.' : 'Перетащите карту на стол или выберите её кликом.')}</p>
       <div class="durak-hand-panel">${hidden ? `<div class="durak-handoff"><strong>${t('Передайте устройство следующему игроку.')}</strong><p>${t(viewer === 'white' ? 'Белые' : 'Чёрные')}</p><button class="primary-button" data-control="reveal">${t('Показать мои карты')}</button></div>` : `<div class="durak-hand" aria-label="${t('Ваши карты')}">${hand.map(id => `<button class="durak-card ${selected === id ? 'selected' : ''}" data-card="${id}" aria-label="${cardName(id)}" aria-pressed="${selected === id}" ${!actions.some(a => a.card === id) ? 'disabled' : ''}>${cardArt(id, skin)}</button>`).join('')}</div><div class="durak-actions">${[['durak-attack', 'Атаковать'], ['durak-transfer', 'Перевести'], ['durak-take', 'Беру'], ['durak-finish', game.taking ? 'Завершить подкидывание' : 'Бито']].map(([type, label]) => {
         const action = actions.find(a => a.type === type && (a.card === undefined || a.card === selected));
         return `<button class="secondary-button" data-action="${type}" ${!action ? 'disabled' : ''}>${t(label)}</button>`;
@@ -66,7 +78,7 @@ export function createDurakBoard(root, act, sound = () => {}) {
     if (action) act(action);
   });
   function hide() { cancel(); root.querySelectorAll('.durak-clear').forEach(el => el.remove()); revealed = null; selected = null; if (game) paint(); }
-  document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) hide(); else if (game) paint(); });
   document.addEventListener('performancechange', cancel); media?.addEventListener?.('change', cancel);
   document.addEventListener('languagechange', () => { cancel(); if (game) paint(); });
   return { render, hide, cancel };

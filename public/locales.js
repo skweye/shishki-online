@@ -1,5 +1,9 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
-const rows = `Вы берёте. Дождитесь завершения подкидывания.|You are taking. Wait for your opponent to finish throwing in.|Ви берете. Дочекайтеся завершення підкидання.
+const rows = `Перетащите сюда для перевода|Drop here to transfer|Перетягніть сюди для переведення
+Перетащите сюда для атаки|Drop here to attack|Перетягніть сюди для атаки
+Перетащите карту на стол или выберите её кликом.|Drag a card onto the table or select it with a click.|Перетягніть карту на стіл або виберіть її кліком.
+Перетащите свою карту на карту соперника, чтобы отбить. Для перевода — на свободное место стола. Можно играть и кликами.|Drag your card onto an opponent's card to cover it. To transfer, drop it onto an open area of the table. Click controls also work.|Перетягніть свою карту на карту суперника, щоб відбити. Для переведення — на вільне місце столу. Також можна грати кліками.
+Вы берёте. Дождитесь завершения подкидывания.|You are taking. Wait for your opponent to finish throwing in.|Ви берете. Дочекайтеся завершення підкидання.
 Ценность|Value|Цінність
 Продать предмет?|Sell item?|Продати предмет?
 Продать|Sell|Продати

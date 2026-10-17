@@ -19,25 +19,34 @@
 .durak-subtypes { display:grid;grid-template-columns:repeat(3,minmax(0,1fr)); }
 body .durak-subtypes .variant-option { padding:16px 12px;min-width:0; }
 .board-frame.durak-frame { padding:0;overflow:hidden; }
+.game-layout.durak-layout { grid-template-columns:minmax(0,1fr) 290px;gap:24px; }
 .durak-info { display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:16px;font-size:13px;border-bottom:1px solid var(--theme-border); }
 .durak-opponent { display:flex;justify-content:center;align-items:center;height:85px;padding:12px;gap:0; }
 .durak-opponent>.durak-card { width:38px;margin-left:-12px; }
 .durak-opponent>b { margin-left:20px; }
 .durak-card { display:block;flex:none;width:72px;aspect-ratio:5/7;padding:0;border:0;border-radius:7px;background:none;box-shadow:0 3px 5px #0003; }
 button.durak-card { cursor:pointer;transition:transform .15s; }
+.durak-hand .durak-card:not(:disabled) { touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab; }
+.durak-dragging .durak-card { cursor:grabbing; }
+.durak-hand .durak-card.durak-drag-source { opacity:.25; }
+.durak-drag-ghost { position:fixed;z-index:1000;pointer-events:none;transition:none;box-shadow:0 12px 24px #0005; }
 .durak-hand .durak-card:disabled { cursor:default;opacity:.75; }
 .durak-hand .durak-card.selected { transform:translateY(-10px);outline:3px solid var(--theme-accent);outline-offset:2px; }
 .durak-card:focus-visible,.durak-pair:focus-visible { outline:3px solid var(--theme-accent);outline-offset:3px; }
-.durak-arena { position:relative;display:flex;gap:20px;min-height:290px;padding:25px 18px;background:radial-gradient(ellipse,var(--theme-raised),var(--theme-bg)); }
-.durak-stock { position:relative;flex:0 0 80px;align-self:center;min-height:120px; }
-.durak-stock>.durak-card:first-child { transform:rotate(90deg); }
-.durak-stock>.durak-card:nth-child(2) { position:absolute;top:0;left:-14px; }
+.durak-arena { position:relative;display:flex;gap:24px;min-height:350px;padding:28px 20px;background:radial-gradient(ellipse,var(--theme-raised),var(--theme-bg)); }
+.durak-stock { position:relative;flex:0 0 164px;align-self:center;min-height:148px; }
+.durak-stock>[data-trump-card] { position:absolute;width:80px;left:64px;top:12px;transform:rotate(90deg); }
+.durak-stock>[data-deck-card] { position:absolute;width:76px;top:0;left:0; }
+.durak-trump-label { position:absolute;bottom:0;left:0;right:0;display:flex;gap:8px;align-items:center;justify-content:center;font-size:12px;color:var(--theme-secondary); }
+.durak-trump-label b { font-size:20px;color:var(--theme-text); }
 .durak-trump { display:block;text-align:center;font-size:48px;color:var(--theme-accent); }
 .durak-table { flex:1;display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:center;align-content:center;min-width:0; }
 .durak-pair { display:block;position:relative;background:none;border:0;padding:0 14px 14px 0;width:86px;min-height:115px; }
 .durak-pair>.durak-card+ .durak-card { position:absolute;left:13px;top:14px; }
 .durak-pair:disabled { opacity:1; }
 .durak-pair.can-cover { outline:2px dashed var(--theme-accent);outline-offset:3px;border-radius:8px;cursor:pointer; }
+.durak-drop-play { display:grid;place-items:center;width:112px;min-height:118px;flex-shrink:0;padding:12px;border:2px dashed var(--theme-border);border-radius:10px;background:transparent;color:var(--theme-secondary);font:inherit;font-size:12px;cursor:pointer; }
+.durak-drop-hover { outline:3px solid var(--theme-accent)!important;outline-offset:3px;background:var(--theme-raised); }
 .durak-empty { color:var(--theme-muted);font-size:14px;text-align:center; }
 .durak-instruction { margin:0;padding:12px 18px;font-size:12px;color:var(--theme-secondary);text-align:center; }
 .durak-hand-panel { border-top:1px solid var(--theme-border);padding:22px 12px;min-height:190px; }
@@ -46,22 +55,25 @@ button.durak-card { cursor:pointer;transition:transform .15s; }
 .durak-actions button { min-height:38px;font-size:12px;padding:8px 12px; }
 .durak-handoff { text-align:center; }
 .durak-handoff p { margin:8px 0 12px; }
-.durak-clear { position:absolute;inset:25px 18px 25px 118px;display:flex;gap:14px;align-content:center;align-items:center;justify-content:center;flex-wrap:wrap;pointer-events:none; }
+.durak-clear { position:absolute;inset:28px 20px 28px 208px;display:flex;gap:14px;align-content:center;align-items:center;justify-content:center;flex-wrap:wrap;pointer-events:none; }
 [data-scene^="durak-"] { --mode-color:#c4a46d; }
 .ambient-playing-card { position:absolute;display:block;width:180px;height:255px;border:3px solid var(--theme-accent);border-radius:18px;color:var(--theme-accent);background:var(--theme-raised);font-style:normal;font:110px/255px Georgia,serif;text-align:center;opacity:.17;left:max(-70px,calc(50% - 800px));top:22%;transform:rotate(-20deg);animation:durak-background 25s ease-in-out infinite alternate; }
 .ambient-playing-card.second { left:auto;right:max(-60px,calc(50% - 840px));top:56%;transform:rotate(20deg);animation-delay:-12s; }
 .ambient-playing-card::after { content:'';position:absolute;inset:12px;border:1px solid currentColor;border-radius:10px; }
 @keyframes durak-background { to { translate:0 -30px;rotate:8deg; } }
 body.ambient-paused .ambient-playing-card { animation-play-state:paused!important; }
+@media(min-width:721px) and (max-width:980px) {
+  .game-layout.durak-layout { grid-template-columns:minmax(0,1fr); }
+}
 @media(max-width:600px) {
   .durak-subtypes { grid-template-columns:1fr; }
   .durak-card { width:53px; }
   .durak-pair { width:65px;min-height:89px; }
-  .durak-arena { gap:10px;padding:18px 10px;min-height:250px; }
-  .durak-stock { flex-basis:55px;min-height:80px; }
-  .durak-stock>.durak-card:nth-child(2) { left:-8px; }
-  .durak-table { gap:10px; }
+  .durak-arena { flex-direction:column;gap:16px;padding:18px 14px;min-height:350px; }
+  .durak-stock { flex-basis:auto;width:164px;min-height:148px;align-self:flex-start; }
+  .durak-table { gap:12px;min-height:160px;width:100%; }
+  .durak-drop-play { width:92px;min-height:96px; }
   .durak-hand { gap:8px; }
-  .durak-clear { inset:18px 10px 18px 75px;gap:10px; }
+  .durak-clear { inset:182px 14px 18px;gap:12px; }
 }
 @media(prefers-reduced-motion:reduce) { .ambient-playing-card { animation:none!important; }.durak-card { transition:none!important; } }
