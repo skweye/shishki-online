@@ -7,6 +7,7 @@ import {cardArt,CARD_SKINS} from '../public/card-art.js';
 import {CATALOG} from '../public/shop-catalog.js';
 import {caseContents,CASES} from '../public/cases.js';
 import {t} from '../public/i18n.js';
+import {durakDraws} from '../public/durak-motion.js';
 
 test('local hands stay private across turns and hiding, selection submits only a legal action',()=>{
   const {document,window}=parseHTML('<html><body><div id="cards"></div></body></html>');Object.assign(globalThis,{document,window,matchMedia:()=>({matches:false,addEventListener(){}})});
@@ -23,6 +24,7 @@ test('local hands stay private across turns and hiding, selection submits only a
 });
 test('card animations run once per live revision and cancel on hidden, static mode, or navigation',()=>{
   const {document,window}=parseHTML('<html><body><div id="cards"></div></body></html>');let reduced=false;Object.assign(globalThis,{document,window,matchMedia:()=>({get matches(){return reduced;},addEventListener(){}})});
+  window.HTMLElement.prototype.getBoundingClientRect=()=>({left:0,top:0,width:72,height:100.8});
   const running=new Set(),all=[];window.HTMLElement.prototype.animate=function(frames,options){const a={element:this,frames,options,cancel(){running.delete(a);a.oncancel?.();}};running.add(a);all.push(a);return a;};
   const root=document.getElementById('cards'),board=createDurakBoard(root,()=>{}),context={mode:'online',role:'white',enabled:true,roomCode:'one'};
   let game=newDurak('durak-simple');board.render(durakView(game,'white'),context);assert.equal(all.length,0);
@@ -88,4 +90,52 @@ test('drag cleanup prevents actions after cancellation, disconnect, a new revisi
   f.document.hidden=true;f.document.dispatchEvent(new f.window.Event('visibilitychange'));
   f.document.hidden=false;f.document.dispatchEvent(new f.window.Event('visibilitychange'));
   assert.equal(f.root.querySelector('[data-card="6"]').disabled,false,'online controls recover after returning');
+});
+
+function motionFixture(mode='online') {
+  const f=dragFixture(),running=new Set(),all=[],audio=[];
+  f.window.HTMLElement.prototype.animate=function(frames,options){
+    const animation={element:this,frames,options,cancel(){running.delete(animation);animation.oncancel?.();}};
+    running.add(animation);all.push(animation);return animation;
+  };
+  const board=createDurakBoard(f.root,()=>{},(kind,delay=0)=>{const event={kind,delay,stopped:false};audio.push(event);return ()=>{event.stopped=true;};});
+  const options={...f.context,role:'white',mode};let game=f.game;
+  const render=(extra={})=>board.render(mode==='local'?game:durakView(game,'white'),{...options,...extra});
+  const finish=()=>{for(const animation of [...running])animation.onfinish?.();};
+  render();
+  return {...f,board,options,running,all,audio,finish,render,get state(){return game;},advance(action,extra={}){const before=game;game=actDurak(game,game.turn,action);render(extra);return before;}};
+}
+test('discard finishes before sequential drawing, only new cards fly, and hidden opponent draws stay face down',()=>{
+  const f=motionFixture();
+  f.advance({type:'durak-attack',card:0});f.finish();f.advance({type:'durak-defend',card:6,target:0});f.finish();
+  const previous=f.advance({type:'durak-finish'});
+  assert.deepEqual(durakDraws(durakView(previous,'white'),durakView(f.state,'white')),[{side:'white',card:12},{side:'black',card:null}]);
+  const flights=[...f.root.querySelectorAll('[data-flight]')];assert.equal(flights.filter(el=>el.dataset.flight==='discard').length,2);
+  const draw=flights.filter(el=>el.dataset.flight==='draw');assert.equal(draw.length,2);assert.equal(draw.filter(el=>el.querySelector('.card-back')).length,1);
+  assert.ok(f.root.querySelector('[data-card="12"]').classList.contains('durak-motion-hidden'));
+  const animations=[...f.running],discards=animations.filter(a=>a.element.dataset.flight==='discard'),draws=animations.filter(a=>a.element.dataset.flight==='draw');
+  assert.ok(Math.min(...draws.map(a=>a.options.delay))>=Math.max(...discards.map(a=>a.options.delay+a.options.duration)));
+  assert.ok(draws[1].options.delay>draws[0].options.delay);assert.ok(f.audio.some(e=>e.kind==='card-clear'));assert.ok(f.audio.some(e=>e.kind==='card-deal'&&e.delay>=.4));
+  const size=f.all.length,sounds=f.audio.length;f.render();assert.equal(f.all.length,size);assert.equal(f.audio.length,sounds);
+  let settled=false;f.board.whenSettled(()=>{settled=true;});assert.equal(settled,false);f.finish();assert.equal(settled,true);
+  assert.equal(f.root.querySelector('.durak-flight'),null);assert.equal(f.root.querySelector('.durak-motion-hidden'),null);
+});
+test('taking sends table cards into the defender hand and never counts them as newly drawn cards',()=>{
+  const f=motionFixture();f.advance({type:'durak-attack',card:0});f.finish();f.advance({type:'durak-take'});f.finish();
+  const previous=f.advance({type:'durak-finish'});assert.deepEqual(durakDraws(previous,f.state),[{side:'white',card:12}]);
+  assert.equal(f.root.querySelectorAll('[data-flight="take"]').length,1);assert.equal(f.root.querySelectorAll('[data-flight="draw"]').length,1);
+  assert.equal(f.root.querySelector('[data-flight="take"] .card-back'),null,'a previously public table card may be shown in flight');
+  assert.ok(f.audio.some(e=>e.kind==='card-take'));
+  f.board.cancel();assert.equal(f.root.querySelector('.durak-motion-layer'),null);assert.equal(f.root.querySelector('.durak-motion-hidden'),null);assert.equal(f.running.size,0);
+  assert.ok(f.audio.every(event=>event.stopped),'cancellation also stops delayed sound');
+});
+test('fresh local deals animate twelve backs once, while restores, skipped revisions and hidden pages stay quiet',()=>{
+  const f=motionFixture('local');assert.equal(f.all.length,0);assert.equal(f.audio.length,0);
+  f.render({deal:true});assert.equal(f.root.querySelectorAll('[data-flight="deal"]').length,12);assert.equal(f.root.querySelectorAll('[data-flight="deal"] .card-back').length,12);
+  assert.equal(f.root.querySelector('.durak-hand [data-card]'),null);assert.equal(f.audio.at(-1).kind,'card-deal');
+  f.render({deal:true});assert.equal(f.audio.length,1);f.finish();
+  f.advance({type:'durak-attack',card:0},{live:false});assert.equal(f.running.size,0);assert.equal(f.audio.length,1);
+  f.document.hidden=true;f.advance({type:'durak-defend',card:6,target:0});assert.equal(f.running.size,0);assert.equal(f.audio.length,1);
+  f.document.hidden=false;f.document.documentElement.dataset.lowPerformance='true';
+  f.advance({type:'durak-finish'});assert.equal(f.running.size,0);assert.equal(f.root.querySelector('.durak-motion-hidden'),null);assert.equal(f.audio.at(-1).kind,'card-deal');assert.equal(f.audio.at(-1).delay,0);
 });

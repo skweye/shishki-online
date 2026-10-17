@@ -19,6 +19,14 @@
 .durak-subtypes { display:grid;grid-template-columns:repeat(3,minmax(0,1fr)); }
 body .durak-subtypes .variant-option { padding:16px 12px;min-width:0; }
 .board-frame.durak-frame { padding:0;overflow:hidden; }
+#durak-board { position:relative; }
+.durak-motion-layer { position:absolute;inset:0;pointer-events:none;z-index:12; }
+.durak-motion-layer .durak-flight { position:absolute;margin:0;transform-origin:0 0;will-change:transform,opacity; }
+.durak-motion-hidden { visibility:hidden!important; }
+.durak-discard { display:inline-flex;align-items:center;gap:5px; }
+.durak-discard-mark { display:inline-block;width:22px;height:31px;flex:none;border:1px solid var(--theme-accent);border-radius:3px;background:var(--theme-raised);box-shadow:3px 2px 0 var(--theme-border);transform:rotate(-8deg); }
+.durak-private-hand { display:flex;justify-content:center;margin:0 0 16px;padding-left:10px; }
+.durak-private-hand>.durak-card { width:38px;margin-left:-10px; }
 .game-layout.durak-layout { grid-template-columns:minmax(0,1fr) 290px;gap:24px; }
 .durak-info { display:flex;gap:18px;justify-content:center;flex-wrap:wrap;padding:16px;font-size:13px;border-bottom:1px solid var(--theme-border); }
 .durak-opponent { display:flex;justify-content:center;align-items:center;height:85px;padding:12px;gap:0; }
@@ -55,7 +63,6 @@ button.durak-card { cursor:pointer;transition:transform .15s; }
 .durak-actions button { min-height:38px;font-size:12px;padding:8px 12px; }
 .durak-handoff { text-align:center; }
 .durak-handoff p { margin:8px 0 12px; }
-.durak-clear { position:absolute;inset:28px 20px 28px 208px;display:flex;gap:14px;align-content:center;align-items:center;justify-content:center;flex-wrap:wrap;pointer-events:none; }
 [data-scene^="durak-"] { --mode-color:#c4a46d; }
 .ambient-playing-card { position:absolute;display:block;width:180px;height:255px;border:3px solid var(--theme-accent);border-radius:18px;color:var(--theme-accent);background:var(--theme-raised);font-style:normal;font:110px/255px Georgia,serif;text-align:center;opacity:.17;left:max(-70px,calc(50% - 800px));top:22%;transform:rotate(-20deg);animation:durak-background 25s ease-in-out infinite alternate; }
 .ambient-playing-card.second { left:auto;right:max(-60px,calc(50% - 840px));top:56%;transform:rotate(20deg);animation-delay:-12s; }
@@ -74,6 +81,5 @@ body.ambient-paused .ambient-playing-card { animation-play-state:paused!importan
   .durak-table { gap:12px;min-height:160px;width:100%; }
   .durak-drop-play { width:92px;min-height:96px; }
   .durak-hand { gap:8px; }
-  .durak-clear { inset:182px 14px 18px;gap:12px; }
 }
 @media(prefers-reduced-motion:reduce) { .ambient-playing-card { animation:none!important; }.durak-card { transition:none!important; } }

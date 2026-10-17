@@ -184,5 +184,5 @@ export function createSounds() {
   slider.onchange = () => play('move');
   document.getElementById('sound-preview').onclick = async () => { await unlock(); play('move'); play('capture', .4); play('promotion', .9); play('case-tick', 1.5); play('case-rare', 1.8); };
   render();
-  return { play, pool, transition(previous, next, role, skipMove = false) { transitionSounds(previous, next, role).filter(sound => !skipMove || sound !== 'move').forEach((sound, i) => play(sound, i * .28)); } };
+  return { play, pool, transition(previous, next, role, skipMove = false, skipCards = false) { transitionSounds(previous, next, role).filter(sound => (!skipMove || sound !== 'move') && (!skipCards || !sound.startsWith('card-'))).forEach((sound, i) => play(sound, i * .28)); } };
 }

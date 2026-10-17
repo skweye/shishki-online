@@ -62,8 +62,11 @@ const storage = {
 };
 const localKey = variant => variant === 'russian' ? 'shashki-local-v1' : `shashki-local-${variant}-v1`;
 const localGames = {};
+const freshCardDeals = new Set();
+let cardUpdateLive = false;
 for (const variant of Object.keys(VARIANTS)) {
   localGames[variant] = newGame(variant);
+  if (durakVariant(variant)) freshCardDeals.add(localGames[variant].dealId);
   try {
     const saved = JSON.parse(storage.get(localKey(variant)));
     if (saved && variantOf(saved) === variant && saved.board?.length === (VARIANTS[variant].points || VARIANTS[variant].size ** 2) && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
@@ -72,7 +75,7 @@ for (const variant of Object.keys(VARIANTS)) {
       if(durakVariant(variant))validateDurakSave(saved);
       if(variant==='domino'){const ids=[...(saved.hands?.white||[]),...(saved.hands?.black||[]),...(saved.stock||[]),...(saved.chain||[]).map(tile=>tile.id)];if(ids.length!==28||new Set(ids).size!==28||ids.some(id=>!Number.isInteger(id)||id<0||id>27)||!saved.score||!Array.isArray(saved.readyNext))throw new Error('Invalid domino save');}
       if(variant==='battleship'){if(!saved.fleets||!saved.shots||!saved.ready||!['setup','battle'].includes(saved.phase))throw new Error('Invalid fleet save');for(const side of ['white','black']){if(typeof saved.ready[side]!=='boolean'||!Array.isArray(saved.fleets[side]))throw new Error('Invalid fleet');if(saved.ready[side])validateFleet(saved.fleets[side]);else if(saved.fleets[side].length)throw new Error('Invalid unready fleet');const shots=saved.shots[side];if(!Array.isArray(shots)||shots.length>100||shots.some(shot=>!shot||!Number.isInteger(shot.cell)||shot.cell<0||shot.cell>=100||!['miss','hit','sunk'].includes(shot.result))||new Set(shots.map(shot=>shot.cell)).size!==shots.length)throw new Error('Invalid shots');}}
-      legalMoves(saved); localGames[variant] = saved;
+      legalMoves(saved); freshCardDeals.delete(localGames[variant].dealId); localGames[variant] = saved;
     }
   } catch { /* Keep a fresh position if this variant's save is damaged. */ }
 }
@@ -137,7 +140,7 @@ function renderBoard(keepDrag = false) {
   document.querySelector('.game-layout').classList.toggle('pool-layout',isPool());
   $('chapaev-board').hidden = !isChapaev();$('shot-controls').hidden = !isChapaev()||!canPlay();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
-  if(isCards()){cardBoard.render(game,{mode,role:room?.role,roomCode:room?.code,enabled:canPlay(),skins:mode==='local'?{white:currentUser?.cardSkin,black:currentUser?.cardSkin}:{white:room?.cosmetics?.white?.card,black:room?.cosmetics?.black?.card}});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
+  if(isCards()){const deal=!$('game-screen').hidden&&(mode==='local'||connected&&room?.ready)&&freshCardDeals.has(game.dealId);cardBoard.render(game,{mode,role:room?.role,roomCode:room?.code,enabled:canPlay(),live:cardUpdateLive,deal,skins:mode==='local'?{white:currentUser?.cardSkin,black:currentUser?.cardSkin}:{white:room?.cosmetics?.white?.card,black:room?.cosmetics?.black?.card}});if(deal)freshCardDeals.delete(game.dealId);$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isSea()){seaBoard.render(game,{mode,role:room?.role,roomCode:room?.code,skins:mode==='local'?{white:currentUser?.shipSkin,black:currentUser?.shipSkin}:{white:room?.cosmetics?.white?.ship,black:room?.cosmetics?.black?.ship},enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isDomino()){
     dominoBoard.render(game,{mode,role:room?.role,enabled:game.roundResult ? !game.winner&&(mode==='local'||connected&&room?.ready&&!pending) : canPlay()});
@@ -316,7 +319,7 @@ const nardeBoard = createNardeBoard({move:playMove,roll(){
 const cardBoard = createDurakBoard($('durak-board'),action=>{
   if(!canPlay())return;
   if(mode==='online')send(action);else try{acceptGame(actDurak(game,game.turn,action));localSave();render();}catch(error){toast(error.message);sounds.play('error');}
-},kind=>sounds.play(kind));
+},(kind,delay=0)=>sounds.play(kind,delay));
 const dominoBoard = createDominoBoard($('domino-board'),action=>{
   if(action.type==='domino-ready'){if(!game.roundResult||game.winner)return;}else if(!canPlay())return;
   if(mode==='online')send(action);else try{acceptGame(action.type==='domino-ready'?nextDominoRound(game):actDomino(game,action));localSave();render();}catch(error){toast(error.message);}
@@ -355,12 +358,13 @@ const chapaevBoard = createChapaevBoard({
 });
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
+  cardUpdateLive = audible;
   if(previous.revision!==next.revision||previous.variant!==next.variant)prankEffect.cancel();
   if(audible&&next.revision===previous.revision+1&&next.lastPrank?.revision===next.revision)prankEffect.play(next.variant);
   if (isNardeRoll(previous,next,audible)) {
     animating=true;
     nardeBoard.animateRoll(next,()=>{animating=false;render();});
-    if(audible)sounds.transition(previous,next,room?.role);
+    if(audible)sounds.transition(previous,next,room?.role,false,isCards());
     return;
   }
   if(previous.revision!==next.revision||previous.variant!==next.variant){nardeBoard.cancel();if(previous.variant==='narde')animating=false;}
@@ -373,9 +377,21 @@ function acceptGame(next, audible = true) {
     document.querySelectorAll('dialog[open]').forEach(dialog => dialog.close());
     confirmAction = null;
     rocketEffect.launch(next.winner === (flipped ? 'white' : 'black'), () => {
-      animating = false; sounds.transition(previous, next, room?.role); render();
+      animating = false; sounds.transition(previous, next, room?.role, false, isCards()); render();
     }, next.finishEffect, { winner: next.winner, canvasBoard: isPool() ? poolBoard : isChapaev() ? chapaevBoard : null });
   };
+  if (isCards() && audible && previous.variant === next.variant && !previous.winner && next.winner && next.revision === previous.revision + 1) {
+    animating = true; renderBoard();
+    cardBoard.whenSettled(completed => {
+      if (game.dealId !== next.dealId || game.revision !== next.revision) return;
+      animating = false;
+      if (completed && !document.hidden && !$('game-screen').hidden) {
+        if (finishing) showFinish();
+        else { sounds.transition(previous, next, room?.role, false, isCards()); render(); }
+      } else queueMicrotask(() => { if (game.dealId === next.dealId && game.revision === next.revision && !$('game-screen').hidden) render(); });
+    });
+    return;
+  }
   if (finishing && !shot) {
     showFinish();
     return;
@@ -390,12 +406,12 @@ function acceptGame(next, audible = true) {
     animating = true; if(!isPool())sounds.play('move');
     (isPool() ? poolBoard : chapaevBoard).animate(previous, next, () => {
       if (finishing) { renderBoard(); showFinish(); }
-      else { animating = false; sounds.transition(previous, next, room?.role, true); }
+      else { animating = false; sounds.transition(previous, next, room?.role, true, isCards()); }
       render();
     });
   } else {
     if (previous.revision !== next.revision || previous.variant !== next.variant) { chapaevBoard.cancel(); poolBoard.cancel(); animating = false; }
-    if (audible) sounds.transition(previous, next, room?.role);
+    if (audible) sounds.transition(previous, next, room?.role, false, isCards());
   }
 }
 $('board').addEventListener('click', event => {
@@ -495,6 +511,8 @@ function enterRoom(code, data) {
   disconnect();
   if (mode === 'local') savedLocal = game;
   mode = 'online'; room = { code, ...data }; game = data.game;
+  cardUpdateLive = false;
+  if (isCards() && game.revision === 0 && !storage.get('shashki-room-' + code)) freshCardDeals.add(game.dealId);
   if (Number.isFinite(data.serverNow)) clockSync = { now: data.serverNow, received: performance.now() };
   storage.set('shashki-room-' + code, data.token);
   selected = game.forced; flipped = room.role === 'black';
@@ -565,8 +583,8 @@ $('start-form').onsubmit = async event => {
   const variant = $('start-form').elements.variant.value;
   if ($('start-form').elements['play-mode'].value === 'search') { await searchGame.start(variant); return; }
   if ($('start-form').elements['play-mode'].value === 'local') {
-    mode = 'local'; game = localGames[variant]; savedLocal = game;
-    if (game.winner && game.reason !== 'round') { game = newGame(variant); localSave(); }
+    mode = 'local'; game = localGames[variant]; savedLocal = game; cardUpdateLive = false;
+    if (game.winner && game.reason !== 'round') { game = newGame(variant); if(isCards())freshCardDeals.add(game.dealId); localSave(); }
     if (!game.clock && !game.winner) game.clock = createClock(variant, Date.now());
     localSave();
     sounds.play('start');
@@ -617,7 +635,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { prankEffect.cancel(); rocketEffect.cancel(); dominoBoard.hide(); cardBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { prankEffect.cancel(); rocketEffect.cancel(); dominoBoard.hide(); cardBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); if(isCards())freshCardDeals.add(game.dealId); cardUpdateLive = false; game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) goHome();
   else if (game.history.length || game.path.length || game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');

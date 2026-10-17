@@ -1,5 +1,5 @@
 // Mouse, touch and pen share the same legal actions as the click controls.
-export function attachDurakDrag(root, { actions, select, submit, sound }) {
+export function attachDurakDrag(root, { actions, select, submit, sound, prepare = () => {} }) {
   let drag = null, suppressClick = false;
   function cancel() {
     if (!drag) return;
@@ -28,6 +28,7 @@ export function attachDurakDrag(root, { actions, select, submit, sound }) {
     cancel(); suppressClick = false;
     const source = event.target.closest('.durak-hand [data-card]');
     if (!source || source.disabled || !actions().some(a => a.card === Number(source.dataset.card))) return;
+    prepare();
     const rect = source.getBoundingClientRect();
     drag = { id: event.pointerId, card: Number(source.dataset.card), x: event.clientX, y: event.clientY,
       width: rect.width, height: rect.height, offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top, active: false };
@@ -62,6 +63,7 @@ export function attachDurakDrag(root, { actions, select, submit, sound }) {
     const { active, card } = drag, target = active ? destination(event.clientX, event.clientY) : null;
     const source = !active && root.querySelector(`.durak-hand [data-card="${card}"]`);
     const tapped = source && source.contains(document.elementFromPoint(event.clientX, event.clientY));
+    const origin = active ? { left: event.clientX - drag.offsetX, top: event.clientY - drag.offsetY, width: drag.width, height: drag.height } : null;
     cancel();
     if (!active) {
       // Capture retargets the browser's click to the root, so forward a short
@@ -70,7 +72,7 @@ export function attachDurakDrag(root, { actions, select, submit, sound }) {
       return;
     }
     event.preventDefault();
-    if (target) submit(target.action); else sound('error');
+    if (target) submit(target.action, origin); else sound('error');
   });
   window.addEventListener('pointercancel', event => { if (drag?.id === event.pointerId) cancel(); });
   root.addEventListener('lostpointercapture', event => { if (drag?.id === event.pointerId) cancel(); });
