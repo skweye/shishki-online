@@ -113,7 +113,7 @@ Documentation: [WebSockets and Durable Objects](https://developers.cloudflare.co
 
 Automatic deployment is configured directly through **Cloudflare Workers Builds**. Every push to the `main` branch of `skweye/shishki-online` runs checks and deploys the `shishki-online` Worker.
 
-Settings in Cloudflare → Workers & Pages → shishki-online → Settings → Builds:
+Use these settings in Cloudflare → Workers & Pages → shishki-online → Settings → Builds:
 
 | Setting | Value |
 | --- | --- |
@@ -121,7 +121,9 @@ Settings in Cloudflare → Workers & Pages → shishki-online → Settings → B
 | Production branch | `main` |
 | Root directory | `/` |
 | Build command | `npm run check && npm test && npm run build` |
-| Deploy command | `npx wrangler deploy` |
+| Deploy command | `npm run deploy` |
+
+If the existing deploy command is `npx wrangler deploy`, change it to `npm run deploy` in Cloudflare. The npm `predeploy` hook applies pending remote D1 migrations before publishing the Worker and stops deployment if migration fails. Direct Wrangler deployment bypasses this hook. Local builds, tests, and dry runs do not modify the remote database.
 
 The existing Cloudflare build token is used. No additional GitHub secrets are needed. The Worker name in `wrangler.jsonc` matches the name in Cloudflare.
 
@@ -232,3 +234,5 @@ Style delivery and local font tests: `tests/assets.test.js`. To check a deployed
 `npm run test:browser` checks actual background rendering and card animations in a separate headless Chromium instance. Keep `npm run dev` running; set `BROWSER_BIN` and `TEST_BASE_URL` if needed. `npm run test:integration` includes online games for every Durak variant and item sales through the API.
 
 Before deploying this version, apply migrations `0015_card_skin.sql` and `0016_item_sales.sql` to the target D1 database with `npx wrangler d1 migrations apply AUTH_DB --remote`, then deploy the Worker. Locally, `npm run dev` applies migrations automatically.
+
+If `/api/auth/shop` returns HTTP 503 after updating the application, check for pending database migrations with `npx wrangler d1 migrations list AUTH_DB --remote`. In particular, the inventory sale query requires the `non_resalable_items` table from migration `0016`. Apply pending migrations to the existing database; do not recreate it or clear account data. If Wrangler is not authenticated, run `npx wrangler login` first. Reload the shop after the migrations complete. A database-only repair does not require redeploying the existing Worker.

@@ -7,15 +7,32 @@ import {itemById,saleValue} from '../public/shop-catalog.js';
 import {handleAuth} from '../src/auth.js';
 import {digest,randomToken} from '../src/auth-crypto.js';
 
-function setup(){
+function setup(lastMigration=Infinity){
   const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');
-  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort())db.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+  for(const file of readdirSync(new URL('../migrations/',import.meta.url)).filter(f=>f.endsWith('.sql')&&Number(f.slice(0,4))<=lastMigration).sort())db.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
   db.exec("INSERT INTO users(id,name,email,created_at) VALUES('p','Player','p@example.invalid',1),('q','Other','q@example.invalid',1);INSERT INTO account_wallets VALUES('p',100),('q',100)");
   const env={AUTH_DB:{prepare(sql){return {bind(...args){const query=db.prepare(sql);return {first:async()=>query.get(...args),all:async()=>({results:query.all(...args)}),run:async()=>({meta:{changes:Number(query.run(...args).changes)}})};}};},batch:queries=>Promise.all(queries.map(q=>q.all()))}};
   const award=id=>db.prepare('INSERT INTO account_items VALUES(?,?,0,1)').run('p',id);
   return {db,env,award};
 }
 const command=item=>({item,requestId:crypto.randomUUID(),expectedValue:saleValue(itemById(item))});
+test('upgrading an existing database restores the shop without losing accounts, sessions, coins or items',async()=>{
+  const {db,env,award}=setup(14);try{
+    award('skin-fox');
+    db.exec("UPDATE account_wallets SET balance=470 WHERE user_id='p';UPDATE users SET piece_skin='fox' WHERE id='p'");
+    const token=randomToken();db.prepare('INSERT INTO sessions VALUES(?,?,?)').run(digest(token),'p',Math.floor(Date.now()/1000)+3600);
+    const request=()=>new Request('https://game.test/api/auth/shop',{headers:{Cookie:'__Host-shishki-session='+token}});
+    await assert.rejects(shopState(env,'p'),/no such table: non_resalable_items/);
+    assert.equal((await handleAuth(request(),env,{},r=>r.json())).status,503);
+    for(const file of ['0015_card_skin.sql','0016_item_sales.sql'])db.exec(readFileSync(new URL('../migrations/'+file,import.meta.url),'utf8'));
+    const response=await handleAuth(request(),env,{},r=>r.json());assert.equal(response.status,200);
+    const state=await response.json();assert.equal(state.user.id,'p');assert.equal(state.user.cardSkin,'classic');assert.equal(state.user.pieceSkin,'fox');
+    assert.equal(state.balance,470);assert.ok(state.owned.includes('skin-fox'));assert.ok(state.sellable.includes('skin-fox'));
+    const sale=await sellItem(env,'p',command('skin-fox'));assert.equal(sale.credit,50);
+    assert.equal((await shopState(env,'p')).balance,520);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{db.close();}
+});
 test('sales pay exactly 50%, clear only the sold equipment slot, and cannot duplicate credit or consume reacquired items on retry',async()=>{
   const {db,env,award}=setup();try{
     award('card-koi');award('skin-fox');await equipItem(env,'p','card-koi');await equipItem(env,'p','skin-fox');
