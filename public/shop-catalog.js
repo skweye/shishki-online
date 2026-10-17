@@ -1,4 +1,8 @@
 export const CATALOG = Object.freeze([
+  {id:'card-classic',type:'card',value:'classic',name:'Карты · Классика',description:'Светлая бумага и традиционные масти.',price:0,symbol:'♠'},
+  {id:'card-astral',type:'card',value:'astral',name:'Карты · Атлас звёзд',description:'Орбиты, созвездия и серебряные звёзды на индиго.',price:500,symbol:'✧'},
+  {id:'card-imperial',type:'card',value:'imperial',name:'Карты · Золотой двор',description:'Геометрическая корона и золотая гравировка на чёрном лаке.',price:550,symbol:'♛'},
+  {id:'card-koi',type:'card',value:'koi',name:'Карты · Сад кои',description:'Два карпа, волны и медные линии на глубоком бирюзовом фоне.',price:600,symbol:'❧'},
   {"id":"skin-marble","type":"skin","value":"marble","name":"Каррарский мрамор","description":"Молочный и графитовый камень с тонкими золотыми прожилками.","price":160,"symbol":"◈"},
   {"id":"skin-walnut","type":"skin","value":"walnut","name":"Ореховый кап","description":"Продольные волокна, древесные кольца и полированный обод.","price":140,"symbol":"◈"},
   {"id":"skin-damascus","type":"skin","value":"damascus","name":"Дамасская сталь","description":"Волнистые слои кованого металла и чеканный кант.","price":220,"symbol":"◈"},
@@ -41,6 +45,7 @@ export const CATALOG = Object.freeze([
   { id: 'effect-eclipse', type: 'effect', value: 'eclipse', name: 'Затмение', description: 'Тень накрывает соперника, победитель сияет.', price: 180, symbol: '◉' }
 ]);
 export const itemById = id => typeof id === 'string' ? CATALOG.find(item => item.id === id) : undefined;
+export const saleValue = item => item?.price > 0 ? Math.floor(item.price / 2) : 0;
 export const validSkin = value => CATALOG.some(item => item.type === 'skin' && item.value === value) ? value : 'classic';
 export const validShipSkin = value => CATALOG.some(item => item.type === 'ship' && item.value === value) ? value : 'classic';
 export const validEffect = value => CATALOG.some(item => item.type === 'effect' && item.value === value) ? value : 'none';

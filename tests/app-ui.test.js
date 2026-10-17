@@ -62,7 +62,7 @@ test('complete app starts every local mode with one menu and state-specific cont
   // The shell is mounted by auth dependencies before the app starts.
   try{
     await import('../public/app.js');
-    for(const name of ['russian','russian12','chess','narde','pool8','chapaev','domino','battleship']){
+    for(const name of ['russian','russian12','chess','narde','pool8','chapaev','domino','battleship','durak-simple','durak-throw','durak-transfer']){
       variant.value=name;$('start-form').onchange();
       assert.equal(document.querySelectorAll('.ambient-mode.is-active').length,1);
       assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,name,'home background follows selected game');

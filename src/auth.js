@@ -2,7 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { validateProfile } from './profile.js';
 import { accountStats } from './account-stats.js';
 import { progression } from '../public/cases.js';
-import { shopState, buyItem, equipItem, openCase } from './shop.js';
+import { shopState, buyItem, equipItem, openCase, sellItem } from './shop.js';
 import { adminOverview, changeShopAccess, grantAdmin, setAdminLevel, grantCoins } from './admin.js';
 import { randomToken, digest, challengeFor, normalizeEmail, validateRegistration, safeReturnTo } from './auth-crypto.js';
 
@@ -10,7 +10,7 @@ const SESSION_AGE = 30 * 24 * 3600;
 const now = () => Math.floor(Date.now() / 1000);
 const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
 const googleEnabled = env => !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-const publicUser = row => row ? { id: row.id, ownerPranks: row.owner_pranks === 1 && row.email === 'kkoallqq@gmail.com' && !!row.email_verified, level: progression(row.xp || 0).level, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
+const publicUser = row => row ? { id: row.id, ownerPranks: row.owner_pranks === 1 && row.email === 'kkoallqq@gmail.com' && !!row.email_verified, level: progression(row.xp || 0).level, name: row.name, avatar: row.avatar || null, email: row.email, createdAt: row.created_at, emailVerified: !!row.email_verified, googleLinked: !!row.google_sub, hasPassword: !!row.password_hash, pieceSkin: row.piece_skin || 'classic', cueSkin: row.cue_skin || 'classic', shipSkin: row.ship_skin || 'classic', cardSkin: row.card_skin || 'classic', finishEffect: row.finish_effect || 'none', victoryEffect: row.victory_effect || 'none', isAdmin: row.admin_level > 0, adminLevel: row.admin_level || 0 } : null;
 export async function verifyGoogleIdentity(idToken, clientId, nonce, keys = googleKeys) {
   const { payload } = await jwtVerify(idToken, keys, {
     issuer: ['https://accounts.google.com', 'accounts.google.com'], audience: clientId,
@@ -168,7 +168,7 @@ export async function handleAuth(request, env, ctx, readBody) {
       ctx.waitUntil(tidy(env));
       return await googleStart(request, env);
     }
-    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile', '/api/auth/delete-account', '/api/auth/shop/buy', '/api/auth/shop/equip', '/api/auth/shop/open'].includes(path)) return error('Запрос не найден.', 404);
+    if (request.method !== 'POST' || !['/api/auth/register', '/api/auth/login', '/api/auth/logout', '/api/auth/profile', '/api/auth/delete-account', '/api/auth/shop/buy', '/api/auth/shop/equip', '/api/auth/shop/open', '/api/auth/shop/sell'].includes(path)) return error('Запрос не найден.', 404);
     if (request.headers.get('Origin') !== url.origin || request.headers.get('Sec-Fetch-Site') === 'cross-site') return error('Запрос с другого сайта запрещён.', 403);
     if (!request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return error('Ожидается JSON.', 415);
     let data;
@@ -178,13 +178,14 @@ export async function handleAuth(request, env, ctx, readBody) {
       const user = await authenticatedUser(request, env);
       if (!user) return error('Войдите в аккаунт.', 401);
       if (!await limit(env, 'shop:' + user.id, 60, 600)) return error('Слишком много запросов. Попробуйте позже.', 429);
-      let opening;
+      let opening, sale;
       try {
         if (path.endsWith('/buy')) await buyItem(env, user.id, data.item);
+        else if(path.endsWith('/sell'))sale=await sellItem(env,user.id,data);
         else if(path.endsWith('/open'))opening=await openCase(env,user.id,data);
         else await equipItem(env, user.id, data.item, data.slot);
       } catch (cause) { if (cause.status) return error(cause.message, cause.status); throw cause; }
-      return json({ user: cleanUser(await authenticatedUser(request, env)), ...await shopState(env, user.id), ...(opening?{opening}:{}) });
+      return json({ user: cleanUser(await authenticatedUser(request, env)), ...await shopState(env, user.id), ...(opening?{opening}:{}), ...(sale?{sale}:{}) });
     }
     if (path === '/api/auth/delete-account') {
       const user = await authenticatedUser(request, env);

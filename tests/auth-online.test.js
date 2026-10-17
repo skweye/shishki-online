@@ -4,7 +4,7 @@ import WebSocket from 'ws';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
 import { legalMoves } from '../public/game.js';
-import { itemById } from '../public/shop-catalog.js';
+import { itemById, CATALOG } from '../public/shop-catalog.js';
 
 const base = process.env.TEST_BASE_URL || 'http://127.0.0.1:8787';
 const post = async (path, data, cookie = '', origin = base) => {
@@ -25,13 +25,18 @@ test('case item persists in account and room cosmetics through reconnect, withou
     assert.equal((await post('/api/auth/shop/open',{...data,source:'access'},account.cookie)).response.status,403);
     const opened=await post('/api/auth/shop/open',data,account.cookie);assert.equal(opened.response.status,200,opened.data.error);
     assert.equal(opened.data.balance,0);assert.equal(opened.data.progression.xp,0);
-    const item=itemById(opened.data.opening.itemId),fields={skin:['pieceSkin','skin'],cue:['cueSkin','cue'],ship:['shipSkin','ship'],effect:['finishEffect','effect']};
+    const item=itemById(opened.data.opening.itemId),fields={skin:['pieceSkin','skin'],cue:['cueSkin','cue'],ship:['shipSkin','ship'],card:['cardSkin','card'],effect:['finishEffect','effect']};
     const [accountField,roomField]=fields[item.type];
     const equipped=await post('/api/auth/shop/equip',{item:item.id},account.cookie);assert.equal(equipped.response.status,200);assert.equal(equipped.data.user[accountField],item.value);
     assert.equal((await session(account.cookie)).user[accountField],item.value);
     const room=await post('/api/rooms',{variant:'pool8',cosmetics:{white:{cue:'aurora'}}},account.cookie);assert.equal(room.response.status,201);assert.equal(room.data.cosmetics.white[roomField],item.value);
     const restored=await post(`/api/rooms/${room.data.code}/join`,{token:room.data.token},account.cookie);assert.equal(restored.data.cosmetics.white[roomField],item.value);
     const replay=await post('/api/auth/shop/open',data,account.cookie);assert.deepEqual(replay.data.opening,opened.data.opening);assert.equal(replay.data.balance,0);
+    const sale={item:item.id,expectedValue:Math.floor(item.price/2),requestId:crypto.randomUUID()};
+    const sold=await post('/api/auth/shop/sell',sale,account.cookie);assert.equal(sold.response.status,200,sold.data.error);assert.equal(sold.data.sale.credit,sale.expectedValue);assert.equal(sold.data.balance,sale.expectedValue);assert.ok(!sold.data.owned.includes(item.id));assert.equal(sold.data.user[accountField],item.type==='effect'?'none':'classic');
+    const saleRetry=await post('/api/auth/shop/sell',sale,account.cookie);assert.equal(saleRetry.data.balance,sale.expectedValue);assert.deepEqual(saleRetry.data.sale,sold.data.sale);
+    assert.equal((await post('/api/auth/shop/equip',{item:item.id},account.cookie)).response.status,403);
+
   }finally{assert.equal((await post('/api/auth/delete-account',{email,password,confirmation:'DELETE'},account.cookie)).response.status,200);}
 });
 
@@ -134,7 +139,7 @@ test('cases charge once, reject forged rewards and award coins and XP once per c
   const command={caseId:'standard',source:'coins',requestId:crypto.randomUUID(),cost:0,balance:99999};
   const openings=await Promise.all([1,2,3].map(()=>post('/api/auth/shop/open',command,a.cookie)));
   for(const opened of openings){assert.equal(opened.response.status,200,opened.data.error);assert.deepEqual(opened.data.opening,openings[0].data.opening);}
-  assert.equal((await shop(a.cookie)).balance,0);assert.equal((await shop(a.cookie)).owned.length,5);
+  assert.equal((await shop(a.cookie)).balance,0);assert.equal((await shop(a.cookie)).owned.length,CATALOG.filter(item=>!item.price).length+1);
   const drop=await post('/api/auth/shop/open',{...command,requestId:crypto.randomUUID()},b.cookie);assert.equal(drop.response.status,200);
   const bItem=itemById(drop.data.opening.itemId);await post('/api/auth/shop/equip',{item:bItem.id,slot:'resign'},b.cookie);await post('/api/auth/shop/equip',{item:bItem.id,slot:'victory'},b.cookie);
   const finishEffect=bItem.type==='effect'?bItem.value:'none';
@@ -195,7 +200,7 @@ test('cases charge once, reject forged rewards and award coins and XP once per c
   for (const user of [a, b, c]) assert.equal((await post('/api/auth/delete-account', { email: user.email, password, confirmation: 'DELETE' }, user.cookie)).response.status, 200);
   const recreated = await post('/api/auth/register', { name: 'Заново', email: c.email, password, confirmPassword: password });
   assert.equal(recreated.response.status, 201, recreated.data.error);
-  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100);assert.equal(fresh.progression.xp,0);assert.equal(fresh.openings.length,0); assert.deepEqual(fresh.owned.sort(), ['cue-classic','effect-none','ship-classic','skin-classic']);
+  const fresh = await shop(recreated.cookie); assert.equal(fresh.balance, 100);assert.equal(fresh.progression.xp,0);assert.equal(fresh.openings.length,0); assert.deepEqual(fresh.owned.sort(), CATALOG.filter(item=>!item.price).map(item=>item.id).sort());
   await post('/api/auth/delete-account', { email: c.email, password, confirmation: 'DELETE' }, recreated.cookie);
 });
 

@@ -36,7 +36,7 @@ test('matchmaking creates playable rooms in all modes with private views and rec
     const p=await pair(variant);assert.equal(p.one.game.variant,variant);assert.equal(p.one.ready,true);
     const stolen=await player().post('/api/rooms/'+p.code+'/join',{});assert.equal(stolen.status,409);
     const restored=await p.a.post('/api/rooms/'+p.code+'/join',{token:p.one.token});assert.equal(restored.data.role,p.one.role);assert.deepEqual(restored.data.game,p.one.game);
-    if(variant==='domino'){assert.equal(p.one.game.hands[p.two.role].length,0);assert.equal('stock' in p.one.game,false);}
+    if(variant==='domino'||variant.startsWith('durak-')){assert.equal(p.one.game.hands[p.two.role].length,0);assert.equal('stock' in p.one.game,false);}
     if(variant==='battleship')assert.deepEqual(p.one.game.fleets[p.two.role],[]);
   }
 });

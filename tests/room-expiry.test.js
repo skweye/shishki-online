@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { newGame } from '../public/game.js';
 import { actBattleship, randomFleet } from '../public/battleship.js';
+import {actDurak,durakActions,DURAK_VARIANTS} from '../public/durak.js';
 import { createClock } from '../public/time-control.js';
 
 import { isFinishTransition } from '../public/rocket.js';
@@ -13,6 +14,22 @@ register('./helpers/cloudflare-loader.js', import.meta.url);
 globalThis.WebSocketRequestResponsePair = class {};
 const { GameRoom } = await import('../src/worker.js');
 const HOUR = 3_600_000, START = 1_800_000_000_000;
+test('all Durak subtypes persist hidden hands and record completed-match statistics and rewards once',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  for(const variant of DURAK_VARIANTS){
+    const writes=[],env={AUTH_DB:{prepare:()=>({bind:(...values)=>values}),async batch(rows){writes.push(...rows);}}};
+    const initial=fixture();initial.accounts={white:'a',black:'b'};initial.game=newGame(variant);
+    const {room,values}=await roomWith(initial,env);let random=123;
+    for(let i=0;i<1800&&!room.room.game.winner;i++){
+      const g=room.room.game,moves=durakActions(g);random=(random*1664525+1013904223)>>>0;
+      room.room.game=actDurak(g,g.turn,moves[random%moves.length]);
+    }
+    assert.ok(room.room.game.winner);assert.deepEqual(room.snapshot('white').game.hands.black,[]);assert.equal(room.snapshot('black').game.stock,undefined);
+    await room.save();await room.save(false);assert.equal(writes.length,2);
+    assert.equal(writes[0][1],variant);assert.ok(writes[0][3]>=4);assert.equal(writes[0][5],matchCoins(writes[0][2],writes[0][3]));
+    const restored=await roomWith(values.get('room'),env);await restored.room.save(false);assert.equal(writes.length,2);assert.deepEqual(restored.room.snapshot('black').game.hands.white,[]);
+  }
+});
 function fixture(updatedAt = START) {
   return { updatedAt, players: { white: 'white-token', black: 'black-token' }, game: newGame(), clock: null, rematch: [], drawOffer: null };
 }

@@ -21,13 +21,14 @@ export async function changeShopAccess(env, actorId, data) {
   // Check both permissions and the displayed previous state inside the atomic UPDATE.
   const result = await env.AUTH_DB.batch([
     env.AUTH_DB.prepare(`UPDATE users SET shop_access = ?,
+      card_skin = CASE WHEN ? = 1 OR card_skin = 'classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'card-' || users.card_skin) THEN card_skin ELSE 'classic' END,
       ship_skin = CASE WHEN ? = 1 OR ship_skin = 'classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'ship-' || users.ship_skin) THEN ship_skin ELSE 'classic' END,
       cue_skin = CASE WHEN ? = 1 OR cue_skin = 'classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'cue-' || users.cue_skin) THEN cue_skin ELSE 'classic' END,
       piece_skin = CASE WHEN ? = 1 OR piece_skin = 'classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'skin-' || users.piece_skin) THEN piece_skin ELSE 'classic' END,
       finish_effect = CASE WHEN ? = 1 OR finish_effect = 'none' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'effect-' || users.finish_effect) THEN finish_effect ELSE 'none' END,
       victory_effect = CASE WHEN ? = 1 OR victory_effect = 'none' OR EXISTS(SELECT 1 FROM account_items WHERE user_id = users.id AND item_id = 'effect-' || users.victory_effect) THEN victory_effect ELSE 'none' END
       WHERE id = ? AND shop_access = ? AND ${hierarchy}`)
-      .bind(Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), data.userId, Number(data.expected), actorId),
+      .bind(Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), Number(data.enabled), data.userId, Number(data.expected), actorId),
     env.AUTH_DB.prepare('INSERT INTO admin_audit(id, actor_id, target_id, action, created_at) SELECT ?, ?, ?, ?, ? WHERE changes() > 0')
       .bind(crypto.randomUUID(), actorId, data.userId, data.enabled ? 'grant_shop' : 'revoke_shop', Math.floor(Date.now() / 1000))
   ]);
@@ -42,13 +43,14 @@ export async function setAdminLevel(env,actorId,data){
   if(typeof data.userId!=='string'||!data.userId||data.userId.length>100||!Number.isInteger(data.level)||data.level<0||data.level>3||!Number.isInteger(data.expected)||data.expected<0||data.expected>3||data.level===data.expected)fail('Некорректный уровень администратора.');
   const result=await env.AUTH_DB.batch([
     env.AUTH_DB.prepare(`UPDATE users SET admin_level=?,is_admin=(?>0),shop_access=CASE WHEN ?>0 THEN 1 ELSE 0 END,
+      card_skin=CASE WHEN ?>0 OR card_skin='classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id=users.id AND item_id='card-'||users.card_skin) THEN card_skin ELSE 'classic' END,
       ship_skin=CASE WHEN ?>0 OR ship_skin='classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id=users.id AND item_id='ship-'||users.ship_skin) THEN ship_skin ELSE 'classic' END,
       cue_skin=CASE WHEN ?>0 OR cue_skin='classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id=users.id AND item_id='cue-'||users.cue_skin) THEN cue_skin ELSE 'classic' END,
       piece_skin=CASE WHEN ?>0 OR piece_skin='classic' OR EXISTS(SELECT 1 FROM account_items WHERE user_id=users.id AND item_id='skin-'||users.piece_skin) THEN piece_skin ELSE 'classic' END,
       finish_effect=CASE WHEN ?>0 OR finish_effect='none' OR EXISTS(SELECT 1 FROM account_items WHERE user_id=users.id AND item_id='effect-'||users.finish_effect) THEN finish_effect ELSE 'none' END,
       victory_effect=CASE WHEN ?>0 OR victory_effect='none' OR EXISTS(SELECT 1 FROM account_items WHERE user_id=users.id AND item_id='effect-'||users.victory_effect) THEN victory_effect ELSE 'none' END
       WHERE id=? AND admin_level=? AND EXISTS(SELECT 1 FROM users actor WHERE actor.id=? AND actor.admin_level=3 AND (users.admin_level<3 OR users.id=actor.id))`)
-      .bind(...Array(8).fill(data.level),data.userId,data.expected,actorId),
+      .bind(...Array(9).fill(data.level),data.userId,data.expected,actorId),
     env.AUTH_DB.prepare("INSERT INTO admin_audit(id,actor_id,target_id,action,created_at,from_level,to_level) SELECT ?,?,?,'set_level',?,?,? WHERE changes()>0")
       .bind(crypto.randomUUID(),actorId,data.userId,Math.floor(Date.now()/1000),data.expected,data.level)
   ]);

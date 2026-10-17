@@ -1,3 +1,4 @@
+import { isDurak, newDurak } from './durak.js';
 // Shared, deterministic Russian draughts rules. Positive pieces are white;
 // negative are black. Absolute value 2 denotes a flying king.
 import { newBattleship } from './battleship.js';
@@ -17,6 +18,9 @@ export const VARIANTS = Object.freeze({
   chess: { name: 'Шахматы', size: 8, rows: 2 },
   narde: { name: 'Длинные нарды', size: 24, points: 24 },
   pool8: { name: 'Пул-8', size: 4, points: 16, category: 'arcade' },
+  'durak-simple': { name: 'Дурак · Простой', size: 6, points: 36, category: 'arcade' },
+  'durak-throw': { name: 'Дурак · Подкидной', size: 6, points: 36, category: 'arcade' },
+  'durak-transfer': { name: 'Дурак · Переводной', size: 6, points: 36, category: 'arcade' },
   domino: { name: 'Домино', size: 7, points: 28, category: 'arcade' }
 });
 export const validVariant = variant => typeof variant === 'string' && Object.hasOwn(VARIANTS, variant);
@@ -34,6 +38,7 @@ export function newGame(variant = 'russian') {
   if (variant === 'narde') return newNarde();
   if (variant === 'pool8') return newPool();
   if (variant === 'battleship') return newBattleship();
+  if (isDurak(variant)) return newDurak(variant);
   if (variant === 'domino') return newDomino();
   const { size, rows } = VARIANTS[variant];
   const board = Array.from({ length: size * size }, (_, i) => {
@@ -72,6 +77,7 @@ function capturesFrom(board, from, captured, size) {
 }
 
 export function legalMoves(game) {
+  if (isDurak(variantOf(game))) return [];
   if (variantOf(game) === 'narde') return nardeMoves(game);
   if (variantOf(game) === 'chess') return chessMoves(game);
   if (['chapaev','pool8','domino','battleship'].includes(variantOf(game))) return [];

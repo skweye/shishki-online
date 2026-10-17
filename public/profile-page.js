@@ -4,6 +4,9 @@ import { syncAccount } from './auth.js';
 import { createCaseShop } from './case-shop.js';
 const $ = id => document.getElementById(id);
 const modes = [
+  ['durak-simple','Дурак · Простой','36 карт · По 6 на руках · Без часов','♠'],
+  ['durak-throw','Дурак · Подкидной','36 карт · По 6 на руках · Без часов','♠'],
+  ['durak-transfer','Дурак · Переводной','36 карт · По 6 на руках · Без часов','♠'],
   ['battleship', 'Морской бой', '10 кораблей · Поле 10 × 10', '⚓'],
   ['russian', 'Русские шашки', 'Классическая доска 8 × 8', '▦'],
   ['russian12', 'Русские шашки 12 × 12', 'Большая доска', '▦'],

@@ -1,3 +1,4 @@
+import {cardPreview} from './card-art.js';
 import { pieceArt } from './skin-art.js';
 import { drawCue } from './pool-cue.js';
 import { fleetPreview } from './battleship-art.js';
@@ -9,6 +10,7 @@ export function renderItemArt(root,item){
     const piece=document.createElement('span');piece.className=`piece ${side} skin-${item.value}`;
     piece.innerHTML=pieceArt(item.value);root.append(piece);
   }
+  else if(item.type==='card')root.innerHTML=cardPreview(item.value);
   else if(item.type==='ship')root.innerHTML=fleetPreview(item.value);
   else if(item.type==='cue'){
     const canvas=document.createElement('canvas');canvas.width=400;canvas.height=140;canvas.className='shop-cue-preview';

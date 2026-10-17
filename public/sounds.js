@@ -13,6 +13,7 @@ export function transitionSounds(previous, next, role = null) {
   if (next.revision !== previous.revision + 1) return [];
   if (previous.winner && !next.winner) return ['start'];
   const sounds = [];
+  if(next.variant?.startsWith('durak-')&&next.lastAction?.revision===next.revision){sounds.push(({ 'durak-attack':'card-play','durak-defend':'card-cover','durak-transfer':'card-transfer','durak-take':'card-take','durak-finish':'card-clear' })[next.lastAction.type]);if(next.bout>previous.bout&&(next.stockCount??next.stock?.length??0)<(previous.stockCount??previous.stock?.length??0))sounds.push('card-deal');}
   if(next.variant==='battleship'&&next.lastSeaShot?.revision===next.revision)sounds.push(next.lastSeaShot.result==='miss'?'move':'capture');
   if(next.variant==='domino'&&previous.variant==='domino'){if(next.round>previous.round)sounds.push('start');else if(next.history.length>previous.history.length)sounds.push('move');}
   if (next.variant === 'chapaev' && next.lastShot?.revision === next.revision) sounds.push(next.lastShot.ownLost + next.lastShot.otherLost ? 'capture' : 'move');
@@ -34,6 +35,8 @@ export function actionSound(kind) {
   return event.stopSound;
 }
 export const ACTION_NOTES = Object.freeze({
+  'sell-open':[349,440], 'sell':[659,523,784],
+  'card-play':[330,262], 'card-cover':[440,330], 'card-transfer':[330,494,392], 'card-take':[392,294,220], 'card-clear':[523,659], 'card-deal':[294,349,440], 'card-reveal':[349,523],
   'case-open': [196, 294, 392], 'case-common': [392, 494],
   'case-rare': [392, 494, 587], 'case-epic': [330, 494, 659, 784],
   'case-legendary': [392, 494, 587, 784, 988],

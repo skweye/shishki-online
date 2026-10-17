@@ -6,7 +6,7 @@ const RECEIPT_TTL = 10 * 60 * 1000;
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
 const json = (data, status = 200) => Response.json(data, {status, headers:{'Cache-Control':'no-store'}});
 const identityOf = request => request.headers.has('X-Auth-User') ? JSON.parse(decodeURIComponent(request.headers.get('X-Auth-User'))) : null;
-const cosmeticIdentity = identity => identity ? Object.fromEntries(['id','name','pieceSkin','cueSkin','shipSkin','finishEffect','victoryEffect'].map(key=>[key,identity[key]])) : null;
+const cosmeticIdentity = identity => identity ? Object.fromEntries(['id','name','pieceSkin','cueSkin','shipSkin','cardSkin','finishEffect','victoryEffect'].map(key=>[key,identity[key]])) : null;
 
 // One coordinator serializes queue/cancel/pair operations. Room creation is
 // idempotent and reservations are persisted before the cross-object call.

@@ -101,7 +101,7 @@ test('background artwork survives Windows transparency, motion and performance s
       assert.equal(exceptionDetails, undefined);
       assert.equal(result.value.reducedTransparency, transparency === 'reduce');
       assert.equal(result.value.reducedMotion, motion === 'reduce');
-      assert.equal(result.value.count, 192);
+      assert.equal(result.value.count, 264);
       assert.deepEqual(result.value.errors, [], `${width}px / transparency=${transparency} / motion=${motion}`);
     }
   } finally {

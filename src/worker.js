@@ -1,3 +1,4 @@
+import {actDurak,durakView} from '../public/durak.js';
 import {applyOwnerPrank,OWNER_EMAIL} from '../public/pranks.js';
 import { handleMatchmaking } from './matchmaking.js';
 export { Matchmaker } from './matchmaking.js';
@@ -52,7 +53,7 @@ export default {
       const headers = new Headers(request.headers);
       // Identity is supplied only by this Worker, never by a browser header.
       headers.delete('X-Auth-User'); headers.delete('X-Match-Actor');
-      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, cueSkin: identity.cueSkin, shipSkin: identity.shipSkin, finishEffect: identity.finishEffect, victoryEffect: identity.victoryEffect })));
+      if (identity) headers.set('X-Auth-User', encodeURIComponent(JSON.stringify({ id: identity.id, name: identity.name, sessionHash: identity.sessionHash, pieceSkin: identity.pieceSkin, cueSkin: identity.cueSkin, shipSkin: identity.shipSkin, cardSkin: identity.cardSkin, finishEffect: identity.finishEffect, victoryEffect: identity.victoryEffect })));
       request = new Request(request, { headers });
       if (request.method === 'POST') {
         let data;
@@ -155,7 +156,7 @@ export class GameRoom extends DurableObject {
   }
   snapshot(role = null) {
     return {
-      game: battleshipView(dominoView(this.room.game, role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
+      game: durakView(battleshipView(dominoView(this.room.game, role), role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
       poolAim: this.poolAim && Date.now()-this.poolAimAt<3000 && validPoolAim(this.poolAim,this.room.game,this.poolAim.role) ? this.poolAim : null,
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer,
@@ -200,7 +201,7 @@ export class GameRoom extends DurableObject {
         for(const side of ['white','black']){
           const player=pair.players[side],user=player.identity;
           room.players[side]=player.token;room.accounts[side]=user?.id||null;room.names[side]=user?.name||null;
-          room.cosmetics[side]={skin:user?.pieceSkin||'classic',cue:user?.cueSkin||'classic',ship:user?.shipSkin||'classic',effect:user?.finishEffect||'none',victory:user?.victoryEffect||'none'};
+          room.cosmetics[side]={skin:user?.pieceSkin||'classic',cue:user?.cueSkin||'classic',ship:user?.shipSkin||'classic',card:user?.cardSkin||'classic',effect:user?.finishEffect||'none',victory:user?.victoryEffect||'none'};
           if(user)await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(user.id,room.code).run();
         }
         this.room=room;await this.save();return json({ok:true},201);
@@ -213,7 +214,7 @@ export class GameRoom extends DurableObject {
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         this.room.clock = createClock(variant); this.room.chat = [];
         this.room.code = url.searchParams.get('code');
-        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', cue: identity?.cueSkin || 'classic', ship: identity?.shipSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
+        this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', cue: identity?.cueSkin || 'classic', ship: identity?.shipSkin || 'classic', card: identity?.cardSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
         await this.save();
         return json({ code: url.searchParams.get('code'), token, role: 'white', ...this.snapshot('white') }, 201);
@@ -238,7 +239,7 @@ export class GameRoom extends DurableObject {
         if (identity) {
           this.room.accounts[role] = identity.id; this.room.names[role] = identity.name;
           this.room.cosmetics ||= {};
-          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', cue: identity.cueSkin || 'classic', ship: identity.shipSkin || 'classic', effect: identity.finishEffect || 'none', victory: identity.victoryEffect || 'none' };
+          this.room.cosmetics[role] = { skin: identity.pieceSkin || 'classic', cue: identity.cueSkin || 'classic', ship: identity.shipSkin || 'classic', card: identity.cardSkin || 'classic', effect: identity.finishEffect || 'none', victory: identity.victoryEffect || 'none' };
           const code = this.room.code || url.pathname.match(/\/rooms\/([A-F0-9]{12})\//)?.[1];
           if (code) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, code).run();
         }
@@ -313,6 +314,8 @@ export class GameRoom extends DurableObject {
           this.room.drawOffer=null;
         }else if (['fleet-ready','sea-fire'].includes(data.type)) {
           this.room.game = actBattleship(this.room.game, role, data); this.room.drawOffer = null;
+        } else if (['durak-attack','durak-defend','durak-transfer','durak-take','durak-finish'].includes(data.type)) {
+          this.room.game = actDurak(game, role, data); this.room.drawOffer = null;
         } else if (data.type === 'domino-ready') {
           this.room.game = readyDominoRound(this.room.game, role); this.room.drawOffer = null;
         } else if (['domino-play','domino-draw','domino-pass'].includes(data.type)) {

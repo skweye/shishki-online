@@ -1,3 +1,5 @@
+import {isDurak as durakVariant,actDurak,validateDurakSave} from './durak.js';
+import {createDurakBoard} from './durak-board.js';
 import {PRANKS,applyOwnerPrank,ownerPranks} from './pranks.js';
 import {createPrankEffect} from './prank-effect.js';
 import { createMatchmaking } from './matchmaking.js';
@@ -47,6 +49,7 @@ let animating = false;
 let clockSync = { now: Date.now(), received: performance.now() };
 const isChess = () => variantOf(game) === 'chess';
 const isSea = () => variantOf(game) === 'battleship';
+const isCards = () => durakVariant(variantOf(game));
 const isDomino = () => variantOf(game) === 'domino';
 const isPool = () => variantOf(game) === 'pool8';
 const isNarde = () => variantOf(game) === 'narde';
@@ -66,6 +69,7 @@ for (const variant of Object.keys(VARIANTS)) {
     if (saved && variantOf(saved) === variant && saved.board?.length === (VARIANTS[variant].points || VARIANTS[variant].size ** 2) && Array.isArray(saved.history) && Array.isArray(saved.path) && Array.isArray(saved.captured) && saved.repetitions && ['white', 'black'].includes(saved.turn)) {
       if (variant === 'chapaev' && (!Array.isArray(saved.pieces) || saved.pieces.length > 16 || saved.pieces.some(p => !Number.isInteger(p.id) || !['white', 'black'].includes(p.side) || !Number.isFinite(p.x) || !Number.isFinite(p.y)))) throw new Error('Invalid saved pieces');
       if (variant === 'pool8' && (!Array.isArray(saved.balls) || saved.balls.length > 16 || new Set(saved.balls.map(b=>b.id)).size !== saved.balls.length || saved.balls.some(b=>!Number.isInteger(b.id)||b.id<0||b.id>15||!Number.isFinite(b.x)||!Number.isFinite(b.y)) || !saved.groups)) throw new Error('Invalid saved balls');
+      if(durakVariant(variant))validateDurakSave(saved);
       if(variant==='domino'){const ids=[...(saved.hands?.white||[]),...(saved.hands?.black||[]),...(saved.stock||[]),...(saved.chain||[]).map(tile=>tile.id)];if(ids.length!==28||new Set(ids).size!==28||ids.some(id=>!Number.isInteger(id)||id<0||id>27)||!saved.score||!Array.isArray(saved.readyNext))throw new Error('Invalid domino save');}
       if(variant==='battleship'){if(!saved.fleets||!saved.shots||!saved.ready||!['setup','battle'].includes(saved.phase))throw new Error('Invalid fleet save');for(const side of ['white','black']){if(typeof saved.ready[side]!=='boolean'||!Array.isArray(saved.fleets[side]))throw new Error('Invalid fleet');if(saved.ready[side])validateFleet(saved.fleets[side]);else if(saved.fleets[side].length)throw new Error('Invalid unready fleet');const shots=saved.shots[side];if(!Array.isArray(shots)||shots.length>100||shots.some(shot=>!shot||!Number.isInteger(shot.cell)||shot.cell<0||shot.cell>=100||!['miss','hit','sunk'].includes(shot.result))||new Set(shots.map(shot=>shot.cell)).size!==shots.length)throw new Error('Invalid shots');}}
       legalMoves(saved); localGames[variant] = saved;
@@ -114,12 +118,14 @@ function playerHTML(side) {
   const yours = room?.role === side;
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
-  const count = isSea() ? 20-view.shots[opposite(side)].filter(shot=>shot.result!=='miss').length : isDomino() ? view.handCounts?.[side] ?? view.hands[side].length : isPool() ? remainingPool(view,side) : isNarde() ? 15-view.off[side] : isChapaev() ? view.pieces.filter(p => p.side === side).length : view.board.filter((p, i) => sideOf(p) === side && !view.captured.includes(i)).length;
-  return `<div class="player-avatar">${isSea() ? '<span aria-hidden="true">⚓</span>' : isDomino() ? '<span aria-hidden="true">◈</span>' : isPool() ? '<span class="pool-player-ball '+side+'">'+(view.groups[side]==='solid'?'1':view.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (view.groups[side] === 'solid' ? 'Сплошные' : view.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolRackMarkup(view,side):''}</div>${!view.winner && view.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  const count = isCards() ? view.handCounts?.[side] ?? view.hands[side].length : isSea() ? 20-view.shots[opposite(side)].filter(shot=>shot.result!=='miss').length : isDomino() ? view.handCounts?.[side] ?? view.hands[side].length : isPool() ? remainingPool(view,side) : isNarde() ? 15-view.off[side] : isChapaev() ? view.pieces.filter(p => p.side === side).length : view.board.filter((p, i) => sideOf(p) === side && !view.captured.includes(i)).length;
+  return `<div class="player-avatar">${isCards() ? '<span aria-hidden="true">♠</span>' : isSea() ? '<span aria-hidden="true">⚓</span>' : isDomino() ? '<span aria-hidden="true">◈</span>' : isPool() ? '<span class="pool-player-ball '+side+'">'+(view.groups[side]==='solid'?'1':view.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (view.groups[side] === 'solid' ? 'Сплошные' : view.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolRackMarkup(view,side):''}</div>${!view.winner && view.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
-  $('board').hidden = isChapaev() || isNarde() || isPool() || isDomino() || isSea();
+  $('board').hidden = isCards() || isChapaev() || isNarde() || isPool() || isDomino() || isSea();
+  $('durak-board').hidden=!isCards();
+  document.querySelector('.board-frame').classList.toggle('durak-frame',isCards());
   $('battleship-board').hidden=!isSea();
   document.querySelector('.board-frame').classList.toggle('sea-frame',isSea());
   document.querySelector('.game-layout').classList.toggle('sea-layout',isSea());
@@ -130,6 +136,7 @@ function renderBoard(keepDrag = false) {
   document.querySelector('.game-layout').classList.toggle('pool-layout',isPool());
   $('chapaev-board').hidden = !isChapaev();$('shot-controls').hidden = !isChapaev()||!canPlay();
   $('narde-board').hidden = !isNarde(); document.querySelector('.board-frame').classList.toggle('narde-frame',isNarde());
+  if(isCards()){cardBoard.render(game,{mode,role:room?.role,roomCode:room?.code,enabled:canPlay(),skins:mode==='local'?{white:currentUser?.cardSkin,black:currentUser?.cardSkin}:{white:room?.cosmetics?.white?.card,black:room?.cosmetics?.black?.card}});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isSea()){seaBoard.render(game,{mode,role:room?.role,roomCode:room?.code,skins:mode==='local'?{white:currentUser?.shipSkin,black:currentUser?.shipSkin}:{white:room?.cosmetics?.white?.ship,black:room?.cosmetics?.black?.ship},enabled:canPlay()});$('top-player').innerHTML=playerHTML(flipped?'white':'black');$('bottom-player').innerHTML=playerHTML(flipped?'black':'white');return;}
   if(isDomino()){
     dominoBoard.render(game,{mode,role:room?.role,enabled:game.roundResult ? !game.winner&&(mode==='local'||connected&&room?.ready&&!pending) : canPlay()});
@@ -181,6 +188,7 @@ function status() {
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if(isDomino()&&game.roundResult)return ['Раунд завершён.','Подтвердите готовность к следующему раунду.','◈'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
+  if(isCards())return [mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных',game.taking?'Соперник берёт. Можно подкинуть или завершить заход.':game.turn===game.defender?'Выберите карту и нажмите на карту, которую хотите отбить.':'Атакуйте или завершите отбитый заход.','♠'];
   if(isSea())return [mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных','Выберите клетку на поле соперника.','⚓'];
   if(isDomino())return [game.roundResult?'Раунд завершён.':mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных',game.roundResult?'Подтвердите готовность к следующему раунду.':'Перетяните кость к подсвеченному месту на поле.', '◈'];
   if (isPool()) return [mode === 'online' ? 'Ваш удар' : game.turn === 'white' ? 'Ход белых' : 'Ход чёрных', 'Прицельтесь и ударьте: ЛКМ по столу или кнопка «Ударить».', '⑧'];
@@ -198,10 +206,10 @@ function renderHistory() {
     $('history').innerHTML = '<div class="empty-history"><span aria-hidden="true">↗</span><p>У каждой партии есть начало.<br>Сделайте первый ход.</p></div>'; return;
   }
   const rows = [];
-  if (isChapaev() || isNarde() || isPool() || isDomino() || isSea()) {
+  if (isCards() || isChapaev() || isNarde() || isPool() || isDomino() || isSea()) {
     view.history.forEach((move, i) => {
       const row = document.createElement('div'); row.className = 'history-row';
-      for (const text of [isDomino() ? `${move.round} · ${i+1}` : isNarde() || isPool() || isSea() ? String(i+1) : `Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
+      for (const text of [isDomino() ? `${move.round} · ${i+1}` : isCards() || isNarde() || isPool() || isSea() ? String(i+1) : `Р${move.round || 1} · ${i + 1}`, move.side === 'white' ? move.notation : '—', move.side === 'black' ? move.notation : '—']) {
         const cell = document.createElement('span'); cell.textContent = text; row.append(cell);
       }
       rows.push(row);
@@ -225,11 +233,11 @@ function render() {
   renderBoard(); rocketEffect.refresh(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
-  document.querySelector('.rule-chip .mini-board').textContent=({pool8:'⑧',narde:'⚄',chess:'♞',domino:'◈',battleship:'⚓',chapaev:'↗'})[variantOf(game)]||'▦';
-  $('variant-description').textContent = isSea() ? '10 кораблей · Поле 10 × 10' : isDomino() ? 'По 7 костей · Базар · До 100 очков' : isPool() ? '15 шаров · 6 луз · Без часов' : isNarde() ? '24 пункта · По 15 фишек · Без часов' : isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
+  document.querySelector('.rule-chip .mini-board').textContent=isCards()?'♠':({pool8:'⑧',narde:'⚄',chess:'♞',domino:'◈',battleship:'⚓',chapaev:'↗'})[variantOf(game)]||'▦';
+  $('variant-description').textContent = isCards() ? '36 карт · По 6 на руках · Без часов' : isSea() ? '10 кораблей · Поле 10 × 10' : isDomino() ? 'По 7 костей · Базар · До 100 очков' : isPool() ? '15 шаров · 6 луз · Без часов' : isNarde() ? '24 пункта · По 15 фишек · Без часов' : isChapaev() ? `Раунд ${game.round || 1} · Счёт ${game.score?.white || 0}:${game.score?.black || 0} (белые : чёрные)` : `${boardSize(game)} × ${boardSize(game)} · ${timeControl(variantOf(game)).initial / 60000} мин + 5 сек`;
   const help={chess:'Перетаскивайте фигуры или нажмите на фигуру, затем на клетку.',chapaev:'Оттяните шашку назад и отпустите. Или выберите направление и силу удара ниже доски.',narde:'Нажмите на фишку и пункт назначения или перетащите её.',pool8:'Мышь — прицел, колесо — сила, ЛКМ по столу — удар. На телефоне прицельтесь касанием и нажмите «Ударить». Оттягивание битка и ползунки также доступны. 0° — вправо по столу.',domino:'Перетягивайте кости к концам цепочки: прямо или с поворотом. Нет хода — берите с базара.',battleship:'Выберите клетку на поле соперника.'};
-  $('move-help').textContent=help[variantOf(game)]||'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
-  $('flip-button').hidden=isDomino()||isSea();
+  $('move-help').textContent=isCards()?'Выберите карту, затем действие или карту на столе.':help[variantOf(game)]||'Перетаскивайте шашки или нажмите на шашку, затем на клетку.';
+  $('flip-button').hidden=isCards()||isDomino()||isSea();
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
@@ -304,6 +312,10 @@ const nardeBoard = createNardeBoard({move:playMove,roll(){
   if(mode==='online')send({type:'roll'});
   else {acceptGame(rollNarde(game,randomDice(game.opening)));selected=null;localSave();render();}
 }});
+const cardBoard = createDurakBoard($('durak-board'),action=>{
+  if(!canPlay())return;
+  if(mode==='online')send(action);else try{acceptGame(actDurak(game,game.turn,action));localSave();render();}catch(error){toast(error.message);sounds.play('error');}
+},kind=>sounds.play(kind));
 const dominoBoard = createDominoBoard($('domino-board'),action=>{
   if(action.type==='domino-ready'){if(!game.roundResult||game.winner)return;}else if(!canPlay())return;
   if(mode==='online')send(action);else try{acceptGame(action.type==='domino-ready'?nextDominoRound(game):actDomino(game,action));localSave();render();}catch(error){toast(error.message);}
@@ -504,7 +516,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
-  dominoBoard.hide();
+  dominoBoard.hide(); cardBoard.hide();
   nardeBoard.cancel();
   rocketEffect.cancel();
   chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
@@ -540,7 +552,7 @@ function updateStart() {
   const saved = localGames[$('start-form').elements.variant.value];
   const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || ['narde','battleship'].includes(saved.variant) && saved.revision > 0);
   $('start-button').innerHTML = `${search ? 'Найти соперника' : local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
-  $('start-hint').textContent = search ? 'Подберём соперника в выбранном режиме. Поиск можно отменить.' : local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : $('start-form').elements.variant.value==='domino' ? 'Первый ход — старший дубль. Если дублей нет — старшая кость.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
+  $('start-hint').textContent = search ? 'Подберём соперника в выбранном режиме. Поиск можно отменить.' : local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : durakVariant($('start-form').elements.variant.value) ? 'Начинает игрок с младшим козырем. Передавайте устройство с закрытыми картами.' : $('start-form').elements.variant.value==='domino' ? 'Первый ход — старший дубль. Если дублей нет — старшая кость.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
 }
 $('home-button').onclick = goHome;
 $('menu-home').onclick = () => { closeAccountMenu(); goHome(); };
@@ -574,11 +586,13 @@ $('prank-button').onclick=()=>{
 };
 $('rules-button').onclick = () => {
   const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
+  $('durak-rules').hidden=!durakVariant(variant);
   $('battleship-rules').hidden=variant!=='battleship';
-  $('domino-rules').hidden = variant !== 'domino'; $('pool-rules').hidden = variant !== 'pool8'; $('narde-rules').hidden = variant !== 'narde'; $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = ['chapaev', 'chess', 'narde','pool8','domino','battleship'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
+  $('domino-rules').hidden = variant !== 'domino'; $('pool-rules').hidden = variant !== 'pool8'; $('narde-rules').hidden = variant !== 'narde'; $('chess-rules').hidden = variant !== 'chess'; $('draughts-rules').hidden = durakVariant(variant) || ['chapaev', 'chess', 'narde','pool8','domino','battleship'].includes(variant); $('chapaev-rules').hidden = variant !== 'chapaev';
   $('rules-variant').textContent = variant === 'battleship' ? '10 кораблей · Поле 10 × 10' : variant === 'chess' ? 'Классические шахматы. Белые начинают, взятие не обязательно.' : variant === 'chapaev' ? 'Чапаев: партия из раундов на доске 8×8. Выигрывайте раунды и оттесняйте соперника к краю.' : variant === 'russian12' ? 'Доска 12×12, по 30 шашек. Русские правила на большой доске: можно выбрать любое взятие, брать максимум не обязательно.' : 'Доска 8×8, по 12 шашек. Классические русские правила.';
   if(variant==='narde')$('rules-variant').textContent='Длинные нарды: 24 пункта, по 15 фишек. Без сбивания, часов и куба удвоения.';
   if(variant==='pool8')$('rules-variant').textContent='Американский пул-8. Клубная версия без часов, прыжков и подкрутки.';
+  if(durakVariant(variant))$('rules-variant').textContent='36 карт · По 6 на руках · Без часов';
   if(variant==='domino')$('rules-variant').textContent='Классическое домино вдвоём: набор 0–6, базар и партия до 100 очков. Без часов.';
   $('rules-dialog').showModal();
 };
@@ -602,7 +616,7 @@ $('copy-button').onclick = async () => {
   try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
-function resetLocal() { prankEffect.cancel(); rocketEffect.cancel(); dominoBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
+function resetLocal() { prankEffect.cancel(); rocketEffect.cancel(); dominoBoard.hide(); cardBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
 $('new-button').onclick = () => {
   if (room) goHome();
   else if (game.history.length || game.path.length || game.revision > 0) confirm('Начать новую партию?', 'Текущая локальная партия будет заменена новой.', resetLocal, 'Начать заново');

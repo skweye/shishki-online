@@ -146,6 +146,8 @@ function database(verified = true) {
   db.exec(readFileSync(new URL('../migrations/0010_ship_skin.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../migrations/0011_cases_levels.sql',import.meta.url),'utf8'));
   db.exec(readFileSync(new URL('../migrations/0013_progressive_levels.sql',import.meta.url),'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0015_card_skin.sql',import.meta.url),'utf8'));
+  db.exec(readFileSync(new URL('../migrations/0016_item_sales.sql',import.meta.url),'utf8'));
   const env = { AUTH_DB: {
     prepare(sql) { return { bind(...args) { const statement = db.prepare(sql); return {
       first: async () => statement.get(...args),
