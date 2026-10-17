@@ -1,71 +1,70 @@
-# Шашки онлайн
+# Shishki Online
 
-Русские шашки 8×8 и 12×12, «Шашки Чапаева», шахматы, длинные нарды, пул-8, домино, морской бой и «Дурак»: игра вдвоём по ссылке или на одном устройстве. Интерфейс на русском, английском и украинском, адаптирован для телефона и компьютера. Можно играть гостем или войти в аккаунт.
+Russian draughts on 8×8 and 12×12 boards, Chapaev, chess, long nardy, 8-ball pool, dominoes, Battleship, and Durak. Play with a friend through an invitation link or share one device. The interface supports English, Russian, and Ukrainian on phones and computers. Play as a guest or sign in to an account.
 
-**Играть:** https://shishki.pp.ua
+**Play:** https://shishki.pp.ua
 
-**Репозиторий:** https://github.com/skweye/shishki-online
+**Repository:** https://github.com/skweye/shishki-online
 
-## Возможности
+## Features
 
-- «Дурак» в разделе «Игры вне доски»: простой (одна атака за заход), подкидной и переводной; 36 карт, 6 на руках, без часов. Перевод до первого отбивания, ограничение по руке нового защитника, подкидывание после «Беру», добор атакующим первым, козырь последним. Победа определяется после завершения захода; одновременно пустые руки дают ничью. Сервер не раскрывает чужую руку и колоду, включая синхронизацию и ошибки. Есть локальная передача устройства, онлайн, чат, реванш, статистика и фон для каждого подтипа.
-- Карты анимируют открытие руки, атаку, отбивание, добор и уход в сброс/руку. Действия имеют отдельные звуки с общими настройками. Скрытие страницы, reduced motion и режим слабых устройств останавливают анимации.
-- Три премиальные колоды только из кейсов: «Атлас звёзд» (ценность 500), «Золотой двор» (550), «Сад кои» (600). Базовая колода доступна всем.
-- В инвентаре предмет можно продать за 50% его ценности с подтверждением суммы. Начисление монет и удаление предмета атомарны; повтор запроса не оплачивается дважды. Выбранное оформление сбрасывается на базовое, бесплатные предметы и предметы полного доступа не продаются.
+- Durak is available under “Games off the board” in three variants: simple (one attacking card per bout), throw-in, and transfer. Each uses a 36-card deck, six cards per hand, and no clock. Transfers are allowed before the first defense and are limited by the new defender's hand size. Attackers can add cards after the defender chooses to take, draw first when replenishing hands, and draw the trump card last. The winner is determined after the bout ends; if both hands are empty, the game is a draw. The server never reveals the opponent's hand or the draw pile, including in synchronization and error responses. All variants support local device handoff, online play, chat, rematches, statistics, and themed backgrounds.
+- Card animations cover revealing a hand, attacking, defending, drawing, discarding, and taking cards. Actions have distinct sounds controlled by the shared sound settings. Hiding the page, enabling reduced motion, or enabling low-performance mode stops animations.
+- Three premium decks are available only from cases: Star Atlas (value: 500 coins), Golden Court (550), and Koi Garden (600). The classic deck is available to everyone.
+- Inventory items can be sold for 50% of their value after confirming the amount. Crediting coins and removing the item happen atomically; retrying a request never pays twice. Equipped cosmetics revert to their defaults. Free items and items obtained through full catalog access cannot be sold.
 
+- Drag domino tiles with a mouse or finger onto highlighted placements. The chain can turn horizontally and vertically; placements are validated by the server and preserved when reconnecting. Keyboard users can select a tile and a placement on the table.
+- Dominoes appears below pool: a double-six set, seven tiles per player, a boneyard, and a match to 100 points without a clock. The highest double starts each round; if neither player has a double, the highest tile starts. Draw one tile at a time until a move is available; passing is allowed only when the boneyard is empty. Going out scores the opponent's remaining pips. In a blocked round, the player with fewer remaining pips scores the difference. Online, both players must confirm the next round; a rematch resets the score.
+- The domino server stores the complete deal but sends only the player's own hand and the opponent's tile count through HTTP, WebSocket, error, and reconnection responses. Hands are revealed after a round; the boneyard stays hidden. Shared-device games show a handoff screen between turns. Chat, resignation, draw offers, completed-match statistics, and dedicated home and game backgrounds are supported. Backgrounds respect reduced motion and pause in hidden tabs.
 
-- В домино кости перетягиваются мышью или пальцем к подсвеченным местам на поле. Цепочку можно поворачивать горизонтально и вертикально; расположение проверяется сервером и сохраняется при восстановлении. Для клавиатуры доступны выбор кости и места на поле.
-- Домино расположено под бильярдом: набор 0–6, по 7 костей, базар, партия до 100 очков без часов. Каждый раунд начинает старший дубль (при отсутствии дублей — старшая кость). Добор по одной до появления хода; пас только при пустом базаре. Выход приносит сумму точек соперника, рыба — разницу остатков победителю с меньшей суммой. Онлайн оба игрока подтверждают следующий раунд; реванш обнуляет счёт.
-- В домино сервер хранит полную раздачу, а в HTTP, WebSocket, ошибках и восстановлении передаёт только собственную руку игрока и количество чужих костей; руки открываются после раунда, базар остаётся скрытым. На одном устройстве между ходами появляется экран передачи устройства. Доступны чат, сдача, ничья, статистика завершённой партии и отдельный фон на главной и за столом с поддержкой reduced motion и паузы скрытой вкладки.
+- Low-performance mode is available in settings: static backgrounds, no blur or expensive effects, and simpler pool balls. Shot animations in pool and Chapaev remain enabled. The preference is stored in the browser and applies to every page; physics and rules are unchanged.
 
-- В настройках доступен режим для слабых устройств: статичные фоны, без размытия и тяжёлых эффектов, упрощённые шары пула. Анимации ударов в пуле и Чапаеве сохраняются. Выбор сохраняется в браузере и действует на всех страницах; физика и правила не меняются.
+- The separate lower “Games off the board” section starts with Battleship, followed by American 8-ball pool, dominoes, and Durak. Pool supports local and online games, mouse/touch aiming, pulling back the cue ball, and keyboard controls for direction and power. Shots do not require calling a ball or pocket. On desktop, the aim follows the mouse, scrolling over the table changes power by 5%, and a short left click shoots. Dragging only adjusts the aim; touch and keyboard users retain a “Shoot” button. The server calculates physics, fouls, groups, and results. Chat, reconnection, and rematches work as in the other modes.
+- In pool, the first ball legally pocketed after the break determines the player's group. Pocketing a ball from your group keeps your turn. After clearing your group, the eight ball can be pocketed in any pocket; pocketing it early or committing a foul while pocketing it loses the game. The aim guide shows the first collision, and ball strips beside player names track remaining and pocketed balls. Texture rotation follows the distance traveled, and frames are smoothly interpolated. Cue, ball, cushion, and pocket sounds follow simulation events and the shared volume setting. Reconnecting does not replay effects.
+- Pool uses casual club rules without clocks, jump shots, or spin. An eight ball pocketed on the break is respotted. If nothing is pocketed on the break, all balls stay where they stopped. An illegal break gives the opponent ball in hand behind the head string. Other fouls give ball in hand anywhere on the table; break fouls restrict placement to behind the head string. Pocketing the eight ball early or with a foul loses the game. Detailed rules are available in the game.
+- Nardy and pool have dedicated backgrounds that follow the selected theme. Backgrounds appear on the home screen and during play, respect reduced motion, and pause in hidden tabs. The requirement to include a background for every future mode is recorded in AGENTS.md and covered by a test.
 
-- Отдельный нижний раздел «Игры вне доски» начинается с морского боя; далее доступны американский пул-8, домино и «Дурак». Локальные и онлайн-партии, прицел мышью/касанием, оттягивание битка, направление и сила с клавиатуры, игра без заказа шара и лузы. На компьютере прицел следует за мышью, колесо над полем меняет силу на 5%, короткий ЛКМ выполняет удар. Перетаскивание только настраивает прицел; на телефоне и с клавиатуры остаётся кнопка «Ударить». Сервер сам рассчитывает физику, фолы, группы и результат; чат, восстановление и реванш работают как в остальных режимах.
-- В пуле первый шар, забитый без фола после разбоя, определяет группу. Свой забитый шар сохраняет ход. Восьмёрка после очистки группы засчитывается в любой лузе; ранняя восьмёрка или фол при её забивании — поражение. Прицел показывает первое столкновение, полоски шаров у имён отмечают оставшиеся и забитые. Вращение текстуры соответствует пройденному расстоянию, кадры плавно интерполируются; звуки кия, шаров, бортов и луз привязаны к событиям симуляции и общей громкости. При восстановлении партии эффекты не повторяются.
-- Пул использует клубные правила без часов, прыжков и подкрутки: восьмёрка на разбое возвращается на стол, после пустого разбоя все шары остаются на местах остановки; при неправильном разбое соперник получает биток с руки в доме. Фол даёт биток с руки, после разбоя — только в доме. Ранняя восьмёрка или фол с восьмёркой означают поражение. Подробные правила доступны в игре.
-- У нард и пула собственные фоны в цветах выбранной темы. Фоны есть на главной и во время партии, учитывают reduced motion и приостанавливаются в скрытой вкладке. Требование фона для каждого следующего режима закреплено в AGENTS.md и проверяется тестом.
+- Long nardy: 24 points, 15 checkers per player, no hitting, clocks, or doubling cube. Both sides move forward; opening dice determine who starts. Tied opening rolls are rerolled automatically. Shared rules in the server and browser enforce maximum dice use, priority for the higher die, doubles, moving off the head (with first-turn exceptions for 3–3, 4–4, and 6–6), restrictions against blocking all opposing checkers, bearing off, and a mars win.
+- In online nardy, the server generates dice using uniformly sampled `crypto.getRandomValues`. Rerolling with unused dice is prohibited. Remaining dice and whether a checker has already moved off the head are preserved. Chat, resignation, draw offers, rematches, statistics, and game rewards are supported. Local positions are saved separately from other games.
+- Two skins feature original vector engravings: Moon Fox (value: 100 coins) and Wind Rose (120). Their artwork appears in the shop, draughts, Chapaev, and nardy; kings retain a crown marker.
 
-- Длинные нарды: 24 пункта, по 15 фишек, без сбивания, часов и куба удвоения. Обе стороны идут вперёд; кости определяют начинающего. При равных числах стартовый бросок повторяется автоматически. Максимальное использование костей, приоритет большей кости, дубли, снятие с головы (исключения для 3–3, 4–4, 6–6 на первом ходу), запрет запирающего все фишки блока, вывод из дома и марс проверяются общими правилами на сервере и в браузере.
-- В онлайн-нардах кости генерирует сервер через crypto.getRandomValues с равномерной выборкой. Переброс при неиспользованных костях запрещён. Сохраняются оставшиеся кости и уже использованное снятие с головы. Доступны чат, сдача, ничья, реванш, статистика и игровые награды. На одном устройстве позиция сохраняется отдельно от других игр.
-- Два скина с оригинальными векторными гравировками: «Лунный лис» (100 монет) и «Роза ветров» (120 монет). Рисунки отображаются в магазине, шашках, Чапаеве и нардах; дамки сохраняют отметку короны.
+- The account dropdown includes a profile link, nested appearance and language menus, sound settings, and sign-out at the bottom. It supports mouse, keyboard, and touch.
+- Change your nickname and avatar in your profile. PNG/JPEG/WebP images up to 5 MB are cropped to a 256×256 square. Names and photos are stored in D1 and available across devices.
+- Chess supports local and online play, check and checkmate, castling, en passant, and promotion choices. Automatic draws cover stalemate, insufficient material, threefold repetition, and 50 moves without a capture or pawn move. Local saves are separated by mode, and rematches preserve the mode.
 
-- Выпадающее меню аккаунта: профиль, вложенные меню оформления и языка, настройки звука и выход снизу. Поддерживаются мышь, клавиатура и телефон.
-- В профиле можно изменить никнейм и аватар. PNG/JPEG/WebP до 5 МБ обрезаются до квадрата 256×256; имя и фото хранятся в D1 и доступны на других устройствах.
-- Шахматы на одном устройстве и онлайн: шах и мат, рокировка, взятие на проходе, выбор фигуры при превращении пешки. Автоматические ничьи при пате, недостаточном материале, троекратном повторении и 50 ходах без взятия и хода пешкой. Локальные сохранения разделены по режимам, реванш сохраняет режим.
+- Registration requires a name, email, password, and password confirmation. Email/password sign-in, profiles, sign-out, and Google sign-in are supported once OAuth is configured.
+- A signed-in player's seat is linked to their account and can be restored from the room link on another device. The opponent sees the player's name, never their email.
+- The home screen offers online play with a friend or play on one device, with 8×8 draughts (12 pieces per side) or 12×12 draughts (30 per side). Both use Russian rules: any mandatory capture sequence may be chosen, kings can move across multiple squares, and promotion can happen during a capture sequence. Rematches preserve the board size, and local saves are separate for each mode.
+- Themes include Matcha (default), PULSE, Alduin, 80s After Dark, 8008, and the original light theme. Board and interface styling changes immediately, and the selection is saved in the browser.
+- Chapaev is played in rounds with eight pieces per side. Pull one of your pieces backward and release, or set direction and power in the panel below the board. The server calculates collision physics; a piece is eliminated when its center leaves the board. Turns alternate after every shot, regardless of how many pieces were knocked out. The round winner advances their starting row one square. If the rows are adjacent, the loser's row retreats; being unable to retreat beyond the edge ends the match. Each side receives eight pieces in the next round. Drawn rounds keep the same rows. Round number, score, and row positions are saved, and shot order is not reset. Online, both players must be ready to advance. Local games have their own save, and online rematches preserve the mode.
+- Appearance, language, and sound settings are available through the avatar menu, including for guests. Theme and language changes apply immediately and are stored in the browser.
+- Four sound packs are available: Wood, Felt, Glass, and Retro. The selection is saved in the browser, and packs can be previewed before playing. Chapaev has sounds for shots, collisions, and pieces being knocked off the board.
+- Moves use a soft wooden tap, captures use a double tap, and promotions, results, and rematches use quiet notes. A gentle attack and muted high frequencies avoid sharp clicks. The default volume is 35%; existing preferences are preserved. Volume, mute, and previews are available in settings. Sounds are generated with Web Audio without external files and unlock after the first interaction with the page.
+- Resume a saved local game from the home screen; invitation links open the room directly.
+- Move pieces by clicking or dragging with a mouse, finger, or pen. Legal destinations are highlighted, and invalid moves leave the position unchanged.
+- Animated victory, defeat, and draw dialogs offer rematches. Animations are disabled when the device requests reduced motion.
+- Resign with confirmation or offer a draw below the board. Online opponents can accept or decline; on a shared device, the second player confirms the decision. Online rematches require both players' agreement.
+- Private invitation rooms assign white to the creator and black to the second player.
+- WebSocket synchronization, server validation of every move, and protection against stale commands.
+- Mandatory forward and backward captures, multiple captures, flying kings, and promotion during capture sequences. Captured pieces remain obstacles until the move is complete.
+- Move highlighting, history, board rotation, resignation, draw offers, and mutually agreed rematches.
+- Threefold repetition is a draw. Special tournament limits for draughts endgames are not implemented.
+- Clocks give each player five minutes in 8×8 draughts and chess, or ten minutes in 12×12 draughts, with a five-second increment after a complete move. A capture sequence counts as one move. Chapaev has no clock. Online clocks start when the second player joins and are maintained by the server; disconnecting or reloading does not pause them. Running out of time loses the game. A rematch starts fresh clocks.
+- Two-player chat appears below move history. A room keeps the latest 50 messages, each up to 400 characters, with at most one message per second. Reconnecting restores the conversation. Messages neither extend the room's lifetime nor affect the clocks.
+- Connections and positions recover after a reload. Local games are stored in the browser; online games are stored in a Durable Object.
 
-- Регистрация: имя, почта, пароль и подтверждение пароля. Вход по почте и паролю, профиль, выход и вход через Google после настройки OAuth.
-- Место авторизованного игрока привязано к аккаунту: его можно восстановить по ссылке комнаты с другого устройства. Соперник видит имя, но не почту.
-- Главная страница с выбором игры с другом онлайн или на одном устройстве и доски 8×8 (по 12 шашек) либо 12×12 (по 30). В обоих режимах действуют русские правила: любое обязательное взятие, летающие дамки и превращение посреди цепочки. Реванш сохраняет размер доски; локальные партии двух режимов сохраняются отдельно.
-- Темы Matcha (по умолчанию), PULSE, Alduin, 80s After Dark, 8008 и исходная светлая тема. Оформление доски и интерфейса меняется сразу, выбор сохраняется в браузере.
-- «Шашки Чапаева»: партия из раундов с восемью шашками у каждой стороны. Оттяните свою шашку назад и отпустите или задайте направление и силу в панели под доской. Физика столкновений рассчитывается сервером; шашка выбывает, когда её центр покидает доску. После каждого удара очередь переходит сопернику, независимо от выбитых шашек. Победитель раунда продвигает свой ряд на одну клетку вперёд. Если ряды стоят вплотную, отступает ряд проигравшего; невозможность отступить за край завершает партию. В следующем раунде обе стороны получают восемь шашек; при ничьей ряды остаются на месте. Номер раунда, счёт и ряды сохраняются; очередь ударов не сбрасывается. Онлайн переход требует готовности обоих игроков. Локальная партия сохраняется отдельно, онлайн-реванш сохраняет режим.
-- Оформление, язык и звук доступны через меню аватара, в том числе для гостей. Тема и язык переключаются сразу и сохраняются в браузере.
-- Четыре набора звуков: «Дерево», «Фетр», «Стекло» и «Ретро». Выбор сохраняется в браузере; набор можно прослушать перед игрой. В режиме Чапаева озвучены удар, столкновения и выбивание.
-- Мягкий деревянный стук хода, двойной стук взятия и тихие ноты для дамки, результата и реванша. Плавная атака и приглушённые верхние частоты убирают резкие щелчки. Громкость по умолчанию 35%; прежний выбор сохраняется. Громкость, отключение и прослушивание доступны в настройках. Звуки создаются Web Audio без внешних файлов и включаются после первого взаимодействия со страницей.
-- Продолжение сохранённой локальной партии с главной; приглашения по ссылке открывают комнату напрямую.
-- Ходы кликом или перетягиванием мышью, пальцем и пером; доступные клетки подсвечиваются, недопустимый ход не меняет позицию.
-- Анимированные окна победы, поражения и ничьей с реваншем. При уменьшении движения в настройках устройства анимации отключаются.
-- Сдача с подтверждением и предложение ничьей под доской. Онлайн-соперник может принять или отклонить предложение; на одном устройстве решение подтверждает второй игрок. Онлайн-реванш требует согласия обоих игроков.
-- Приватные комнаты по приглашению: создатель играет белыми, второй игрок — чёрными.
-- WebSocket-синхронизация, серверная проверка каждого хода и защита от устаревших команд.
-- Обязательное взятие вперёд и назад, цепочки ударов, летающие дамки, превращение во время взятия. Побитые шашки остаются препятствиями до завершения хода.
-- Подсветка ходов, история, поворот доски, сдача, предложение ничьей, реванш по согласию обоих игроков.
-- Ничья при троекратном повторении позиции. Специальные турнирные лимиты шашечного эндшпиля не реализованы.
-- Часы: шашки 8×8 и шахматы — 5 минут каждому, шашки 12×12 — 10 минут; после полного хода добавляется 5 секунд. Цепочка взятий считается одним ходом. В Чапаеве часов нет. Онлайн часы запускаются при присоединении второго игрока и считаются сервером; отключение и перезагрузка их не останавливают. Истечение времени завершает партию поражением. Реванш начинает новый отсчёт.
-- Чат двух игроков расположен под историей ходов. В комнате сохраняются последние 50 сообщений до 400 символов; не чаще одного сообщения в секунду. Переподключение восстанавливает переписку. Сообщения не продлевают срок жизни комнаты и не влияют на часы.
-- Восстановление соединения и позиции после перезагрузки. Локальная партия сохраняется в браузере, онлайн-партия — в Durable Object.
+## Getting started
 
-## Запуск
-
-Нужны Node.js 22+ и npm.
+Requires Node.js 22+ and npm.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Откройте http://127.0.0.1:8787. Локальная база аккаунтов создаётся командой `predev` автоматически. Для проверки игры вдвоём используйте два разных браузера или обычное и приватное окно. Повторное открытие комнаты восстанавливает ваше место и отключает старую вкладку. Google локально необязателен; пример настроек — `.dev.vars.example`.
+Open http://127.0.0.1:8787. The `predev` command creates the local account database automatically. To test two-player games, use two browsers or a regular and a private window. Reopening a room restores your seat and disconnects your previous tab. Google sign-in is optional locally; see `.dev.vars.example` for configuration examples.
 
-## Проверки
+## Checks
 
 ```bash
 npm run check
@@ -73,17 +72,17 @@ npm test
 npm run build
 ```
 
-Для интеграционных проверок запустите `npm run dev` в отдельном терминале, затем:
+For integration tests, start `npm run dev` in a separate terminal, then run:
 
 ```bash
 npm run test:integration
 ```
 
-Проверяются правила, два WebSocket-клиента, синхронизация, чужой ход, ревизии, переподключение, ничья, реванш и сдача. Проверки авторизации включают регистрацию, ошибки входа, CSRF, сессии, восстановление места по аккаунту, отклонение украденного игрового токена и отключение WebSocket после выхода. Google ID-токены проверяются криптографическими тестами; настоящий OAuth требует настройки Google Cloud. Интеграционные тесты создают тестовые аккаунты в локальной D1. `TEST_BASE_URL` меняет адрес сервера; не запускайте весь набор на production без необходимости.
+Tests cover rules, two WebSocket clients, synchronization, out-of-turn moves, revisions, reconnection, draws, rematches, and resignation. Authentication tests cover registration, sign-in errors, CSRF, sessions, account-based seat recovery, rejection of stolen game tokens, and WebSocket disconnection after sign-out. Google ID tokens have cryptographic tests; real OAuth requires Google Cloud configuration. Integration tests create test accounts in local D1. Set `TEST_BASE_URL` to change the server address; avoid running the full suite against production unless necessary.
 
 ## Cloudflare
 
-Приложение использует **Cloudflare Workers + Static Assets + SQLite Durable Objects + D1**. Обычный GitHub Pages не подходит для онлайн-режима: нужен Worker с WebSocket-комнатами.
+The application uses **Cloudflare Workers + Static Assets + SQLite Durable Objects + D1**. Standard GitHub Pages cannot host online play: a Worker with WebSocket rooms is required.
 
 ```bash
 npx wrangler login
@@ -91,32 +90,32 @@ npx wrangler d1 migrations apply AUTH_DB --remote
 npm run deploy
 ```
 
-Основной Worker — `shishki-online`. D1 `shishki-online-auth` хранит аккаунты и сессии; binding — `AUTH_DB`. Миграции Durable Objects создают `GameRoom` (v1) и сервис хеширования `PasswordService` (v2). При развёртывании в другом аккаунте создайте свою D1 и замените её ID в `wrangler.jsonc`. Новые D1-миграции нужно применить до публикации зависящего от них кода.
+The main Worker is `shishki-online`. The `shishki-online-auth` D1 database stores accounts and sessions using the `AUTH_DB` binding. Durable Object migrations create `GameRoom` (v1) and the `PasswordService` hashing service (v2). When deploying to another account, create your own D1 database and replace its ID in `wrangler.jsonc`. Apply new D1 migrations before deploying code that depends on them.
 
 ### Google OAuth
 
-1. В Google Cloud создайте OAuth-приложение и клиент типа **Web application**. Доступны только базовые данные `openid email profile`.
-2. Добавьте точный Authorized redirect URI: `https://shishki.pp.ua/api/auth/google/callback`. Если меняется домен, обновите также `AUTH_ORIGIN` в Wrangler.
-3. Сохраните значения серверными секретами, вводя их в интерактивный запрос:
+1. Create an OAuth application in Google Cloud with a **Web application** client. Only the basic `openid email profile` scopes are requested.
+2. Add this exact Authorized redirect URI: `https://shishki.pp.ua/api/auth/google/callback`. If the domain changes, also update `AUTH_ORIGIN` in Wrangler.
+3. Store the values as server secrets by entering them at the interactive prompts:
 
 ```bash
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 ```
 
-4. Проверьте настройки Audience Google: в режиме Testing вход ограничен тестовыми пользователями; для общего доступа нужен режим In production. Billing для базового Google Sign-In не используется.
+4. Check Google's Audience settings: Testing mode limits sign-in to test users; public access requires In production mode. Basic Google Sign-In does not require billing.
 
-Без обоих секретов кнопка Google отключена с пояснением; регистрация по почте работает независимо. Client secret никогда не попадает в браузер или репозиторий. Для существующего аккаунта с паролем сначала войдите по паролю и нажмите «Привязать Google» в профиле: автоматического объединения по неподтверждённой почте нет.
+Without both secrets, the Google button is disabled with an explanation; email registration works independently. The client secret is never sent to the browser or stored in the repository. For an existing password account, sign in with the password first and choose “Link Google” in the profile. Accounts are not automatically merged based on an unverified email address.
 
-Документация: [WebSockets и Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/websockets/), [статические файлы Worker](https://developers.cloudflare.com/workers/static-assets/binding/).
+Documentation: [WebSockets and Durable Objects](https://developers.cloudflare.com/durable-objects/best-practices/websockets/), [Worker static assets](https://developers.cloudflare.com/workers/static-assets/binding/).
 
-## GitHub и автоматическая публикация
+## GitHub and automatic deployment
 
-Автопубликация настроена напрямую через **Cloudflare Workers Builds**. Каждый push в ветку `main` репозитория `skweye/shishki-online` запускает проверки и публикует Worker `shishki-online`.
+Automatic deployment is configured directly through **Cloudflare Workers Builds**. Every push to the `main` branch of `skweye/shishki-online` runs checks and deploys the `shishki-online` Worker.
 
-Настройки в Cloudflare → Workers & Pages → shishki-online → Settings → Builds:
+Settings in Cloudflare → Workers & Pages → shishki-online → Settings → Builds:
 
-| Настройка | Значение |
+| Setting | Value |
 | --- | --- |
 | Git repository | `skweye/shishki-online` |
 | Production branch | `main` |
@@ -124,111 +123,112 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET
 | Build command | `npm run check && npm test && npm run build` |
 | Deploy command | `npx wrangler deploy` |
 
-Используется уже подключённый build token Cloudflare. Дополнительные секреты в GitHub не нужны. Имя Worker в `wrangler.jsonc` совпадает с именем в Cloudflare.
+The existing Cloudflare build token is used. No additional GitHub secrets are needed. The Worker name in `wrangler.jsonc` matches the name in Cloudflare.
 
-GitHub Actions (`ci.yml`) независимо проверяет синтаксис, правила, сборку и настоящие онлайн-комнаты при push и pull request. Отдельный workflow публикации удалён, чтобы не запускать два механизма деплоя. Результат публикации и логи доступны в Cloudflare → Deployments.
+GitHub Actions (`ci.yml`) independently checks syntax, rules, builds, and real online rooms on pushes and pull requests. The separate deployment workflow was removed to avoid running two deployment mechanisms. Deployment results and logs are available in Cloudflare → Deployments.
 
-Основной и единственный целевой Worker проекта — `shishki-online`. При ручной публикации `npm run deploy` обновляет его же. Основной адрес игры: https://shishki.pp.ua.
+The project's primary and only target Worker is `shishki-online`. Manual deployment with `npm run deploy` updates the same Worker. The primary game URL is https://shishki.pp.ua.
 
-Для нового репозитория, если origin ещё не настроен:
+For a new repository without an `origin` remote:
 
 ```bash
 git remote add origin https://github.com/YOUR_NAME/shishki-online.git
 git push -u origin main
 ```
 
-## Устройство проекта
+## Project structure
 
 ```text
 public/
-  index.html       Интерфейс
-  style.css        Адаптивное оформление
-  app.js           Игра, комнаты, переподключение
-  game.js          Общие чистые функции правил для браузера и сервера
-  _headers         Заголовки безопасности
-src/worker.js      HTTP API и Durable Object на каждую комнату
-tests/            Правила и онлайн-интеграция
-wrangler.jsonc    Конфигурация Cloudflare
-.github/workflows/ Проверки и публикация
+  index.html        User interface
+  style.css         Responsive styling
+  app.js            Games, rooms, and reconnection
+  game.js           Shared pure rules functions for browser and server
+  _headers          Security headers
+src/worker.js       HTTP API and one Durable Object per room
+tests/              Rules and online integration tests
+wrangler.jsonc      Cloudflare configuration
+.github/workflows/  CI checks
 ```
 
-## Хранение и ограничения
+## Storage and limitations
 
-- Комнаты доступны знающим код. В комнате ровно два места, зрителей и подбора случайного соперника нет.
-- Гостевое место защищено случайным секретом в localStorage; после очистки браузера оно недоступно. Место вошедшего игрока дополнительно требует действующую сессию его аккаунта и восстанавливается по ссылке комнаты.
-- Пароли хешируются scrypt (N=32768, r=8, p=3) со случайной солью. Сессии на 30 дней хранятся в HttpOnly/Secure/SameSite cookie; в D1 находится только хеш токена. Выход отзывает текущую сессию. Запросы входа ограничены по IP и адресу почты.
-- Google использует authorization code, PKCE, state, nonce и проверку подписи ID-токена. Google access/refresh tokens не сохраняются. При регистрации по паролю почта не подтверждается письмом; восстановление забытого пароля пока не реализовано.
-- Сервер не доверяет клиентской доске: проверяет роль, очередь, ревизию и допустимость каждого хода.
-- Комната удаляется через 1 час без игровых действий. Создание, присоединение второго игрока и принятые игровые команды запускают отсчёт заново; повторный вход, sync и ping/pong не продлевают срок. Открытая вкладка не мешает удалению. Уход со страницы не означает сдачу. Старые комнаты переходят на новый срок при следующем пробуждении Durable Object; до этого их ранее назначенная очистка остаётся в очереди.
-- Для крупного публичного запуска стоит настроить ограничения частоты создания комнат на Cloudflare. Сейчас ограничен размер запросов, частота игровых команд и число соединений на игрока; глобального лимита комнат нет.
-- Стили каждой страницы встроены в HTML при сборке и разрешены точным SHA-256-хешем CSP. Отдельные CSS-запросы не нужны для оформления. Golos Text хранится на своём домене в `public/fonts` вместе с лицензией SIL OFL; при недоступности шрифта используется системный.
-- `sharp` в инструментах разработки закреплён через override на исправленную версию 0.35.5+.
+- Rooms are accessible to anyone who knows their code. Each room has exactly two seats and no spectator mode. Matchmaking is described below.
+- Guest seats are protected by a random secret in localStorage and become inaccessible after clearing browser data. A signed-in player's seat also requires an active account session and can be restored from the room link.
+- Passwords are hashed with scrypt (N=32768, r=8, p=3) and a random salt. Sessions last 30 days and use an HttpOnly/Secure/SameSite cookie; D1 stores only the token hash. Signing out revokes the current session. Sign-in requests are rate-limited by IP and email address.
+- Google sign-in uses an authorization code, PKCE, state, nonce, and ID-token signature verification. Google access and refresh tokens are not stored. Password registration does not verify email through a confirmation message; forgotten-password recovery is not yet implemented.
+- The server does not trust the client's board. It checks the player's role, turn, revision, and legality of every move.
+- Rooms are deleted after one hour without game actions. Creation, the second player joining, and accepted game commands restart the timer. Rejoining, sync, and ping/pong do not extend it. An open tab does not prevent deletion. Leaving the page does not count as resignation. Older rooms adopt the new expiry period when their Durable Object next wakes; until then, their previously scheduled cleanup remains queued.
+- For a large public launch, configure room-creation rate limits in Cloudflare. Request size, game-command frequency, and connections per player are already limited; there is no global room limit.
+- Each page's styles are embedded in its HTML during the build and allowed by an exact SHA-256 CSP hash. Separate CSS requests are not required for styling. Golos Text is self-hosted in `public/fonts` with its SIL OFL license; the browser falls back to a system font if it is unavailable.
+- The development dependency `sharp` is pinned through an override to a patched version, 0.35.5 or later.
 
-Шахматный движок — chess.js (BSD-2-Clause). `scripts/sync-vendor.mjs` копирует ESM-сборку и лицензию в `public/vendor` перед запуском и сборкой. Сервер и браузер используют одну версию правил. Переводы игрового интерфейса находятся в `public/locales.js`; никнеймы, почта и нотация ходов не переводятся.
+The chess engine is chess.js (BSD-2-Clause). `scripts/sync-vendor.mjs` copies its ESM build and license into `public/vendor` before development and builds. The server and browser use the same rules version. Game interface translations live in `public/locales.js`; nicknames, email addresses, and move notation are not translated.
 
-## Профиль и статистика
+## Profile and statistics
 
-`/profile` — отдельная страница аккаунта: аватар, никнейм, почта, дата регистрации, способы входа, статистика по пяти режимам и последние 20 партий. Переход — через «Профиль» в меню аватара. Статистика начинается после этого обновления, локальные партии и отдельные раунды Чапаева не учитываются. Результат фиксирует сервер; уникальная пара user_id/match_id исключает дубли при переподключении. Durable Object хранит очередь результатов при недоступности D1 и повторяет запись через минуту.
+`/profile` is a dedicated account page with an avatar, nickname, email, registration date, sign-in methods, statistics by game mode, and the latest 20 games. Open it through “Profile” in the avatar menu. Statistics are collected from the profile update onward; local games and individual Chapaev rounds do not count. Results are recorded by the server, and a unique `user_id`/`match_id` pair prevents duplicates on reconnect. If D1 is unavailable, the Durable Object queues results and retries after one minute.
 
-Перед публикацией версии с профилем примените миграции к существующей базе:
+Before deploying the profile feature, apply migrations to the existing database:
 
 ```bash
 npx wrangler d1 migrations apply AUTH_DB --remote
 ```
 
-`0003_account_stats.sql` добавляет результаты и связи аккаунтов с комнатами. База уже привязана к Worker через `wrangler.jsonc`; создавать другую базу не нужно.
+`0003_account_stats.sql` adds results and links between accounts and rooms. The database is already bound to the Worker through `wrangler.jsonc`; no new database is needed.
 
-Самостоятельное удаление в профиле требует почту, слово DELETE и текущий пароль, если он установлен. Сервер проверяет сессию, Origin и лимит попыток. Каскадно удаляются профиль, сессии, OAuth-привязки в процессе входа и личные результаты; активные комнаты получают запрос обезличивания. Старые комнаты без связи в новой таблице очищаются по обычному часовому сроку. Статистика соперника не содержит имени или ID удалённого пользователя. Повторный вход через Google после удаления создаёт новый аккаунт с пустой статистикой.
-## Монеты и магазин
+Deleting an account from the profile requires the email address, the word DELETE, and the current password if one is set. The server checks the session, Origin, and attempt limit. The profile, sessions, pending OAuth links, and personal results are deleted through cascades; active rooms receive an anonymization request. Older rooms without a link in the new table expire after the normal one-hour period. Opponents' statistics do not contain the deleted user's name or ID. Signing in with Google after deletion creates a new account with empty statistics.
 
-`/shop` — магазин и коллекция аккаунта, доступные через меню аватара и профиль. Каждый аккаунт получает 100 стартовых монет. Завершённая онлайн-партия после минимум четырёх ходов или ударов приносит 30 монет за победу, 15 за ничью и 10 за поражение. Локальные партии и отдельные раунды Чапаева монет не дают.
+## Coins and shop
 
-Предметы теперь выдаются только из кейсов: путешественника (100 монет), мастера (250) и королевского (500). Прямая покупка через UI и /api/auth/shop/buy отключена. Старые коллекции сохраняются; полный доступ администратора продолжает действовать. Скины шашек, модели кораблей, кии и эффекты имеют обычную, редкую, эпическую или легендарную редкость. Таблицы вероятностей и компенсации дубликатов находятся в public/cases.js и показаны до открытия. Предметы внутри редкости равновероятны. Только игровые монеты, без денежных платежей.
+`/shop` provides the account's shop and collection, accessible through the avatar menu and profile. Each account starts with 100 coins. Completed online games with at least four moves or shots award 30 coins for a win, 15 for a draw, and 10 for a loss. Local games and individual Chapaev rounds do not award coins.
 
-Опыт выдаётся за завершённые онлайн-матчи от 4 ходов: победа 100 XP, ничья 60 XP, поражение 40 XP. Уровень = 1 + floor(XP / 200). На каждом десятом уровне выдаётся кейс: на кратных 50 — королевский, иначе на кратных 20 — мастера, иначе путешественника. Неоткрытые наградные кейсы накапливаются. Миграция 0011_cases_levels.sql засчитывает прошлые результаты и добавляет триггер опыта для новых; повторы результата не выдают опыт повторно.
+Items are now obtained only from cases: Traveler (100 coins), Master (250), and Royal (500). Direct purchases through the UI and `/api/auth/shop/buy` are disabled. Existing collections are preserved, and administrator full access still works. Draughts skins, ship models, cues, and effects have common, rare, epic, or legendary rarity. Drop probabilities and duplicate compensation are defined in `public/cases.js` and displayed before opening. Items within each rarity have equal chances. Only in-game coins are used; there are no real-money payments.
 
-Перед публикацией примените npx wrangler d1 migrations apply AUTH_DB --remote. Открытие /api/auth/shop/open принимает caseId, source (coins/reward/access), requestId. Результат выбирается серверным crypto.getRandomValues; идемпотентный requestId сохраняется в браузере до успешного ответа. Триггеры D1 атомарно списывают стоимость или наградной кейс, записывают предмет и компенсацию. Смена вкладки и повторные запросы не дают повторных списаний. История открытий доступна в магазине. Удаление аккаунта удаляет прогресс, кейсы и коллекцию.
+Completed online matches with at least four moves award experience: 100 XP for a win, 60 XP for a draw, and 40 XP for a loss. Level = 1 + floor(XP / 200). Every tenth level awards a case: Royal at multiples of 50, otherwise Master at multiples of 20, otherwise Traveler. Unopened reward cases accumulate. Migration `0011_cases_levels.sql` credits past results and adds an experience trigger for new ones; duplicate results do not award experience again.
 
-Обычная победа и сдача имеют независимый выбор эффекта в магазине. Один приобретённый эффект можно назначить обоим событиям. Миграция `0005_victory_effect.sql` добавляет выбор для обычной победы. Он применяется при мате, победе по времени, взятии/блокировке шашек и завершении всего матча Чапаева; ничьи и промежуточные раунды без финальной анимации. Последний удар Чапаева доигрывается перед эффектом. В коллекции эффекты из кейсов, включая триумф, фейерверк, портал, метель, сакуру и затмение.
+Before deploying, run `npx wrangler d1 migrations apply AUTH_DB --remote`. The `/api/auth/shop/open` endpoint accepts `caseId`, `source` (`coins`/`reward`/`access`), and `requestId`. The server selects the result using `crypto.getRandomValues`; the idempotent `requestId` is saved in the browser until a successful response. D1 triggers atomically deduct coins or a reward case and record the item and compensation. Switching tabs and retrying requests cannot cause duplicate charges. Opening history is available in the shop. Deleting an account removes its progress, cases, and collection.
 
-Финальные эффекты взаимодействуют с фигурами: ударная волна, сдвиг по траектории кометы, втягивание в портал, мороз, ветер и праздничные прыжки. Координаты партий не меняются: DOM-доски используют временные визуальные копии, Чапаев — преобразования canvas при рисовании. После эффекта и при отмене возвращается точная финальная позиция. При reduced motion фигуры остаются неподвижными.
+Normal victories and resignations have independent effect selections in the shop. One owned effect can be assigned to both events. Migration `0005_victory_effect.sql` adds the normal-victory selection. It applies to checkmate, wins on time, capturing or blocking all opposing draughts pieces, and completing an entire Chapaev match. Draws and intermediate rounds do not play a final effect. The last Chapaev shot finishes before the effect begins. Case effects include Triumph, Fireworks, Portal, Blizzard, Sakura, and Eclipse.
 
-Миграция `0006_shop_access.sql` предоставляет существующему подтверждённому через Google аккаунту владельца полный доступ к каталогу. Серверный флаг `users.shop_access` разрешает выбор любых текущих и будущих предметов без списания монет; клиент не может его установить. При удалении аккаунта флаг удаляется вместе с ним.
+Final effects interact with pieces through shock waves, movement along a comet's path, portal suction, frost, wind, and celebratory jumps. Game coordinates do not change: DOM boards use temporary visual copies, while Chapaev uses canvas transformations during rendering. Completing or canceling an effect restores the exact final position. Pieces stay still with reduced motion enabled.
 
-## Админ-панель
+Migration `0006_shop_access.sql` grants full catalog access to the owner's existing Google-verified account. The server-side `users.shop_access` flag allows selecting any current or future item without spending coins; clients cannot set it. Deleting the account also deletes the flag.
 
-/admin использует уровни: 0 — игрок, 1 — наблюдатель (просмотр), 2 — управляющий (доступ к магазину и выдача монет младшим аккаунтам), 3 — главный администратор (также назначение уровней 0–3 и управление своим аккаунтом). Чужие равные и старшие уровни менять нельзя. Главный может понизить себя, в том числе до игрока; права меняются сразу. Снятие уровня удаляет полный доступ, но сохраняет предметы коллекции и баланс.
+## Admin panel
 
-Миграция 0012_admin_levels.sql переводит существующих администраторов на уровень 2 и назначает существующему подтверждённому аккаунту kkoallqq@gmail.com уровень 3. Новый аккаунт с той же почтой автоматически права не получает. is_admin остаётся совместимым флагом и синхронизируется из admin_level. Перед выкладкой: npx wrangler d1 migrations apply AUTH_DB --remote.
+`/admin` uses these levels: 0 — player; 1 — observer (read-only); 2 — manager (shop access and coin grants to lower-level accounts); 3 — head administrator (also assigns levels 0–3 and manages their own account). Administrators cannot change other accounts at equal or higher levels. The head administrator can demote themselves, including to player; permissions change immediately. Removing privileges revokes full access but preserves owned items and the coin balance.
 
-Выдача монет: найдите аккаунт, нажмите «Выдать монеты», укажите целое количество от 1 до 1000000 и подтвердите. Количество добавляется к текущему балансу (включая обычные стартовые 100 монет при отсутствии кошелька). Запросы /api/auth/admin/coins идемпотентны по requestId администратора; триггер D1 атомарно проверяет иерархию, записывает журнал и увеличивает баланс. Незавершённые запросы сохраняются в браузере для безопасного повтора. Уровни /api/auth/admin/level используют expected для защиты от устаревшей панели. Все изменения проверяют сессию и Origin; журнал хранит переходы уровней и суммы выдач, а при удалении аккаунтов обнуляет ссылки.
+Migration `0012_admin_levels.sql` moves existing administrators to level 2 and assigns level 3 to the existing verified account `kkoallqq@gmail.com`. A new account with the same email does not automatically receive privileges. `is_admin` remains a compatibility flag synchronized from `admin_level`. Before deploying, run `npx wrangler d1 migrations apply AUTH_DB --remote`.
 
-## Поиск соперника
+To grant coins, find an account, choose “Grant coins,” enter an integer from 1 to 1,000,000, and confirm. The amount is added to the current balance, including the usual starting 100 coins if no wallet exists yet. Requests to `/api/auth/admin/coins` are idempotent per administrator `requestId`; a D1 trigger atomically checks the hierarchy, writes an audit entry, and increases the balance. Pending requests are saved in the browser for safe retries. Level updates through `/api/auth/admin/level` use `expected` to guard against stale panel data. All changes validate the session and Origin. Audit logs record level changes and coin grants; account deletion clears their account references.
 
-На главной выберите «Найти соперника», режим игры и нажмите основную кнопку. Поиск доступен гостям и аккаунтам во всех восьми режимах. Игроки одного режима подбираются по времени ожидания; стороны распределяются случайно. Одному аккаунту (или гостю в одном браузере) нельзя занять оба места. При подборе открывается обычная онлайн-комната с чатом, переподключением, реваншем и статистикой аккаунта.
+## Matchmaking
 
-Очередь хранится в Durable Object `Matchmaker` (binding `MATCHMAKER`, миграция Workers `v3`). Обновление разворачивается командой `npm run deploy`; дополнительных таблиц D1 для поиска не требуется. Браузер обновляет поиск раз в 3 секунды, запись без обновлений удаляется через 45 секунд. Перезагрузка восстанавливает поиск; если срок истёк, интерфейс предлагает начать снова. Можно отменить ожидание; если сервер уже подобрал пару, оба игрока переходят в созданную партию. Зафиксированная пара и личные токены мест сохраняются на 10 минут для восстановления после потерянного ответа. Токен соперника клиенту не передаётся.
+On the home screen, choose “Find an opponent,” select a game mode, and press the main button. Matchmaking is available to guests and signed-in accounts in all supported modes. Players in the same mode are paired by waiting time, with sides assigned randomly. One account, or one guest in the same browser, cannot occupy both seats. A match opens a normal online room with chat, reconnection, rematches, and account statistics.
 
-Новые звуки начала, отмены и успешного поиска используют общие настройки звука. Анимация поиска учитывает reduced motion и скрытие страницы. Проверки: `tests/matchmaking.test.js`, `tests/matchmaking-ui.test.js` и `tests/matchmaking-online.test.js`; онлайн-тесты запускаются только на локальном тестовом сервере, чтобы не занимать очередь настоящих игроков.
+The queue is stored in the `Matchmaker` Durable Object (`MATCHMAKER` binding, Workers migration `v3`). Deploy the update with `npm run deploy`; matchmaking needs no additional D1 tables. The browser refreshes its search every three seconds, and entries expire after 45 seconds without an update. Reloading restores the search; if it has expired, the interface offers to start again. Players can cancel while waiting. If the server has already paired them, both enter the created game. Confirmed pairings and private seat tokens are retained for ten minutes to recover from a lost response. The opponent's token is never sent to the client.
 
-## Личные шалости владельца
+Sounds for starting, canceling, and completing a search use the shared sound settings. Search animation respects reduced motion and page visibility. Tests: `tests/matchmaking.test.js`, `tests/matchmaking-ui.test.js`, and `tests/matchmaking-online.test.js`. Online tests run only against a local test server to avoid entering real players' queues.
 
-В меню партии «⋯ → Шалость владельца» есть по одному действию для каждого режима: дамка в обычных и больших шашках, дополнительная минута в шахматах, дубль 6–6 в нардах, подкрепление в Чапаеве, автоматическая серия битка со всеми шарами в бильярде, обмен кости с базаром в домино и точное попадание в морском бое. Действия доступны в свой ход без ограничения количества применений. Сохраняются условия действия: например, для короны нужна простая шашка, а для подкрепления — выбитая. Реванш начинает новую обычную партию.
+## Owner-only pranks
 
-Действие запускается сразу из меню, без подтверждения, баннера и всплывающего сообщения. Звуки действий сохранены. В бильярде оба игрока видят одинаковую серию: биток подкатывается к шарам, ударяет их в лузы, раскрывает плотные скопления настоящими столкновениями и забивает восьмёрку последней. Вращение, звуки ударов и падения в лузы привязаны к кадрам; победа показывается по завершении серии. Партии с шалостями не попадают в статистику и не дают опыт или монеты. Выбор выключенного звука, громкости и набора звуков сохраняется; reduced motion отключает движение эффекта, уход со страницы завершает эффект и звук.
+The game menu's “⋯ → Owner prank” entry offers mode-specific actions: a king in standard and large draughts, an extra minute in chess, double sixes in nardy, reinforcements in Chapaev, an automatic cue-ball run through all balls in pool, a tile exchange with the boneyard in dominoes, and an accurate hit in Battleship. Actions can be used without a count limit on the owner's turn. Their preconditions still apply: crowning requires an ordinary piece, for example, and reinforcements require an eliminated piece. A rematch starts a normal new game.
 
-Миграция 0014_owner_pranks.sql выдаёт отдельное право только существующему подтверждённому через Google аккаунту kkoallqq@gmail.com. Это не уровень администратора: админ-панель не позволяет передать право, новый аккаунт с той же почтой его не наследует. Сервер при каждом применении проверяет действующую сессию, право в базе, почту, очередь, ревизию и условия конкретной игры; данные клиента не дают доступ. Перед публикацией примените npx wrangler d1 migrations apply AUTH_DB --remote.
+Actions run immediately from the menu without a confirmation, banner, or toast. Action sounds are preserved. In pool, both players see the same sequence: the cue ball approaches other balls, sends them into pockets, breaks up tight clusters through actual collisions, and pockets the eight ball last. Rotation, collision sounds, and pocket sounds follow the frames; victory appears after the sequence ends. Games using pranks do not count toward statistics or award experience or coins. Mute, volume, and sound-pack preferences are respected. Reduced motion disables effect movement, and leaving the page stops the effect and its sound.
 
-В бильярде группы игроков, счётчик оставшихся шаров, отметки забитых шаров и история удара обновляются после завершения его анимации. При reduced motion и переходе в скрытую вкладку сразу показывается конечное состояние.
+Migration `0014_owner_pranks.sql` grants this separate permission only to the existing Google-verified account `kkoallqq@gmail.com`. It is not an administrator level: the admin panel cannot transfer it, and a new account with the same email does not inherit it. On every use, the server checks the active session, database permission, email, turn, revision, and game-specific conditions. Client data cannot grant access. Before deploying, run `npx wrangler d1 migrations apply AUTH_DB --remote`.
 
-## Сборка оформления
+In pool, player groups, remaining-ball counts, pocketed-ball markers, and shot history update after the shot animation ends. With reduced motion enabled, or when the tab becomes hidden, the final state appears immediately.
 
-Wrangler перед dev, dry-run и deploy запускает `scripts/prepare-assets.mjs`. Исходники остаются в `public`; публикация идёт из автоматически пересоздаваемой `.site-assets`. Скрипт сохраняет порядок CSS каждой страницы, нормализует переносы строк и добавляет точные хеши стилей в `_headers`, не разрешая произвольные inline-стили или скрипты. Файл `safari.css` содержит запасные цвета и размытие для старых Safari. Не редактируйте `.site-assets` вручную.
+## Building styles and assets
 
-Проверки доставки стилей и локальных шрифтов: `tests/assets.test.js`; HTTP-проверка опубликованной сборки: `node scripts/check-assets.mjs https://shishki.pp.ua`.
+Before development, dry runs, and deployment, Wrangler runs `scripts/prepare-assets.mjs`. Source files remain in `public`; deployment uses the automatically regenerated `.site-assets` directory. The script preserves each page's CSS order, normalizes line endings, and adds exact style hashes to `_headers` without allowing arbitrary inline styles or scripts. `safari.css` provides fallback colors and blur for older Safari versions. Do not edit `.site-assets` manually.
 
-### Проверка карт и обновление схемы
+Style delivery and local font tests: `tests/assets.test.js`. To check a deployed build over HTTP, run `node scripts/check-assets.mjs https://shishki.pp.ua`.
 
-`npm run test:browser` проверяет реальную отрисовку фонов и анимации карт в отдельном headless Chromium (нужен запущенный `npm run dev`; при необходимости задайте `BROWSER_BIN` и `TEST_BASE_URL`). `npm run test:integration` включает онлайн-партии всех подтипов «Дурака» и продажу предмета через API.
+### Card checks and schema updates
 
-Перед публикацией этой версии примените миграции `0015_card_skin.sql` и `0016_item_sales.sql` к целевой D1-базе обычной командой `npx wrangler d1 migrations apply AUTH_DB --remote`, затем публикуйте Worker. Локально `npm run dev` применяет миграции автоматически.
+`npm run test:browser` checks actual background rendering and card animations in a separate headless Chromium instance. Keep `npm run dev` running; set `BROWSER_BIN` and `TEST_BASE_URL` if needed. `npm run test:integration` includes online games for every Durak variant and item sales through the API.
+
+Before deploying this version, apply migrations `0015_card_skin.sql` and `0016_item_sales.sql` to the target D1 database with `npx wrangler d1 migrations apply AUTH_DB --remote`, then deploy the Worker. Locally, `npm run dev` applies migrations automatically.
