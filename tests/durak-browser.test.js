@@ -101,3 +101,37 @@ test('the last cards finish flying before the result, and a rematch deals twelve
     assert.deepEqual(browser.errors,[]);
   }finally{await browser.close();}
 });
+
+test('both online perspectives animate transfers, taking and drawing without revealing the opponent hand',{skip:!browserPath,timeout:30000},async()=>{
+  const browser=await openChromium(),{cdp,evaluate}=browser;
+  try{
+    await cdp('Emulation.setDeviceMetricsOverride',{width:1366,height:1400,deviceScaleFactor:1,mobile:false});
+    await cdp('Page.navigate',{url:base});
+    await evaluate(`new Promise((resolve,reject)=>{let n=0;const timer=setInterval(()=>{if(document.querySelector('#start-form')?.onsubmit){clearInterval(timer);resolve()}else if(++n>150){clearInterval(timer);reject(Error('App did not start'))}},30)})`);
+    await evaluate(`(async()=>{
+      const {newDurak,actDurak,durakView}=await import('/durak.js'),{createDurakBoard}=await import('/durak-board.js');
+      const host=document.createElement('div');host.id='motion-test';host.style.cssText='display:flex;gap:12px;position:absolute;top:0;left:0;background:var(--theme-bg);z-index:2000;width:1300px';document.body.append(host);
+      let game=newDurak('durak-transfer',Array.from({length:36},(_,i)=>i));const sounds=[];
+      const views=['white','black'].map(role=>{const root=document.createElement('div');root.id='motion-'+role;root.style.cssText='position:relative;width:640px';host.append(root);return {root,role,board:createDurakBoard(root,()=>{},(kind,delay)=>{sounds.push({role,kind,delay});return ()=>{};})};});
+      const render=live=>views.forEach(({board,role})=>board.render(durakView(game,role),{mode:'online',roomCode:'one',role,enabled:game.turn===role,live,skins:{white:'astral',black:'koi'}}));render(false);
+      window.cardMotionTest={sounds,advance(action,live=true){game=actDurak(game,game.turn,action);render(live);},repeat(){render(true);}};
+    })()`);
+    await evaluate(`cardMotionTest.advance({type:'durak-attack',card:0})`);
+    await evaluate(`new Promise(r=>setTimeout(r,420))`);
+    await evaluate(`cardMotionTest.advance({type:'durak-transfer',card:9})`);
+    assert.equal(await evaluate(`['white','black'].every(role=>document.querySelector('#motion-'+role+' [data-table-card="9"]').getAnimations().length>0)`),true);
+    await evaluate(`new Promise(r=>setTimeout(r,420))`);
+    await evaluate(`cardMotionTest.advance({type:'durak-take'});cardMotionTest.advance({type:'durak-finish'});`);
+    const state=await evaluate(`['white','black'].map(role=>{const root=document.querySelector('#motion-'+role);return {take:root.querySelectorAll('[data-flight="take"]').length,draw:root.querySelectorAll('[data-flight="draw"]').length,backs:root.querySelectorAll('[data-flight="draw"] .card-back').length,hand:[...root.querySelectorAll('[data-card]')].map(el=>Number(el.dataset.card)),delays:[...root.querySelectorAll('[data-flight="draw"]')].map(el=>el.getAnimations()[0].effect.getTiming().delay)}})`);
+    assert.deepEqual(state.map(s=>s.take),[2,2]);assert.deepEqual(state.map(s=>s.draw),[1,1]);assert.deepEqual(state.map(s=>s.backs),[1,0]);
+    assert.ok(state[0].hand.includes(9));assert.ok(!state[0].hand.includes(12));assert.ok(state[1].hand.includes(12));assert.ok(!state[1].hand.includes(9));
+    assert.ok(state.every(s=>s.delays[0]>=400));
+    const sounds=await evaluate(`cardMotionTest.sounds.length`);await evaluate(`cardMotionTest.repeat()`);assert.equal(await evaluate(`cardMotionTest.sounds.length`),sounds);
+    await evaluate(`new Promise(r=>setTimeout(r,1000))`);
+    assert.equal(await evaluate(`document.querySelectorAll('#motion-test .durak-flight,#motion-test .durak-motion-hidden').length`),0);
+    await evaluate(`cardMotionTest.advance({type:'durak-attack',card:6},false)`);
+    assert.equal(await evaluate(`document.querySelector('#motion-test').getAnimations({subtree:true}).length`),0,'restored single-step snapshots stay still');
+    assert.equal(await evaluate(`cardMotionTest.sounds.length`),sounds,'restores stay silent');
+    assert.deepEqual(browser.errors,[]);
+  }finally{await browser.close();}
+});

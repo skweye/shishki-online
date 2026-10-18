@@ -43,12 +43,20 @@ test('action sounds share preferences, use distinct cues and stop when the page 
   window.AudioContext=Audio;
   Object.assign(globalThis,{document,window,CustomEvent:window.CustomEvent,localStorage:{getItem:()=>null,setItem(){}}});
   const $=id=>document.getElementById(id);Object.defineProperty($('sound-pack'),'value',{writable:true,value:'wood'});
-  createSounds();actionSound('case-open');assert.equal(contexts,0);
+  const sounds=createSounds();actionSound('case-open');sounds.play('card-deal',.5);assert.equal(contexts,0);
   document.dispatchEvent(new window.Event('pointerdown'));assert.equal(contexts,1);
   for(const kind of Object.keys(ACTION_NOTES))actionSound(kind);
   assert.ok(voices.length > Object.keys(ACTION_NOTES).length);
   for(const kind of ['rocket','comet','lightning']){const before=voices.length;actionSound(kind);assert.ok(voices.length>before,kind);}
   assert.notDeepEqual(ACTION_NOTES['case-common'],ACTION_NOTES['case-legendary']);
+  const beforeCards=voices.length;
+  const cards=newGame('durak-simple');
+  const next={...cards,revision:1,lastAction:{type:'durak-attack',revision:1}};
+  sounds.transition(cards,next,null,false,true);
+  assert.equal(voices.length,beforeCards,'card motion owns its audio; generic transitions must not double it');
+  const stop=sounds.play('card-deal',.6),scheduled=voices.slice(beforeCards);
+  assert.equal(scheduled.length,ACTION_NOTES['card-deal'].length);
+  stop();assert.ok(scheduled.every(voice=>voice.stops===2),'cancel also stops delayed card sounds');
   let count=voices.length;actionSound('select');actionSound('select');assert.equal(voices.length,count);
   document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));assert.ok(voices.every(voice=>voice.stops>=1));
   actionSound('case-epic');assert.equal(voices.length,count);
