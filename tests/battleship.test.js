@@ -51,7 +51,7 @@ test('local handoff hides both grids and online targeting never draws hidden shi
   game={...game,turn:'black',revision:game.revision+1};board.render(game,{mode:'local',enabled:true});assert.equal(root.querySelectorAll('.sea-cell').length,0);
   board.render(battleshipView(game,'white'),{mode:'online',role:'white',enabled:false});assert.equal(root.querySelectorAll('[data-sea-own="false"]:not([disabled])').length,0);
   const html=parseHTML(readFileSync(new URL('../public/index.html',import.meta.url),'utf8')).document;
-  assert.equal(html.querySelectorAll('[name="variant"][value="battleship"]').length,1);assert.ok(html.querySelector('[value="battleship"]').closest('.arcade-options'));assert.ok(html.querySelector('[data-scene="battleship"]'));
+  assert.equal(html.querySelectorAll('[name="variant"][value="battleship"]').length,1);assert.ok(html.querySelector('[value="battleship"]').closest('.lobby-arcade'));assert.ok(html.querySelector('[data-scene="battleship"]'));
 });
 
 test('drag deployment rotates around the grabbed segment, rejects invalid drops and survives opponent readiness',async()=>{

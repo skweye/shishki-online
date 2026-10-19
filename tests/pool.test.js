@@ -89,7 +89,7 @@ test('every mode has a background and non-board modes live in the lower selector
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   for(const [id,mode] of Object.entries(VARIANTS)){
     assert.ok(html.includes(`data-scene="${id}"`),'Missing background for '+id);
-    const fieldset=mode.category==='arcade'?html.match(/<fieldset class="arcade-options">[\s\S]*?<\/fieldset>/)[0]:html.match(/<fieldset class="variant-options">[\s\S]*?<\/fieldset>/)[0];
+    const fieldset=mode.category==='arcade'?html.match(/<fieldset class="lobby-arcade"[^>]*>[\s\S]*?<\/fieldset>/)[0]:html.match(/<fieldset class="lobby-board-games"[^>]*>[\s\S]*?<\/fieldset>/)[0];
     assert.ok(fieldset.includes(`value="${id}"`));
   }
 });

@@ -226,6 +226,8 @@ In pool, player groups, remaining-ball counts, pocketed-ball markers, and shot h
 
 ## Building styles and assets
 
+The home screen uses an illustrated shelf for board games, a separate lower group for off-board games, and three direct launch actions: matchmaking, an invite room, or a local match. There is no duplicate quick-start list. The selected game, artwork and background stay synchronized across both groups. Selection uses shared sound preferences. The shelf scrolls horizontally on phones. Sources: `public/lobby.css` and `public/art`.
+
 Before development, dry runs, and deployment, Wrangler runs `scripts/prepare-assets.mjs`. Source files remain in `public`; deployment uses the automatically regenerated `.site-assets` directory. The script preserves each page's CSS order, normalizes line endings, and adds exact style hashes to `_headers` without allowing arbitrary inline styles or scripts. `safari.css` provides fallback colors and blur for older Safari versions. Do not edit `.site-assets` manually.
 
 Style delivery and local font tests: `tests/assets.test.js`. To check a deployed build over HTTP, run `node scripts/check-assets.mjs https://shishki.pp.ua`.

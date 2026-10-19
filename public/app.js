@@ -566,22 +566,40 @@ document.addEventListener('visibilitychange', pauseAmbient);
 pauseAmbient();
 function updateStart() {
   updateBackdrop();
-  const search = $('start-form').elements['play-mode'].value === 'search';
-  const local = $('start-form').elements['play-mode'].value === 'local';
-  const saved = localGames[$('start-form').elements.variant.value];
-  const resume = local && (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || ['narde','battleship'].includes(saved.variant) && saved.revision > 0);
-  $('start-button').innerHTML = `${search ? 'Найти соперника' : local ? resume ? 'Продолжить партию' : 'Начать партию' : 'Создать комнату'} <span aria-hidden="true">↗</span>`;
-  $('start-hint').textContent = search ? 'Подберём соперника в выбранном режиме. Поиск можно отменить.' : local ? resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : durakVariant($('start-form').elements.variant.value) ? 'Начинает игрок с младшим козырем. Передавайте устройство с закрытыми картами.' : $('start-form').elements.variant.value==='domino' ? 'Первый ход — старший дубль. Если дублей нет — старшая кость.' : 'Белые начинают. Передавайте ход друг другу.' : 'Комната будет готова сразу. Останется пригласить друга.';
+  const variant = $('start-form').elements.variant.value, saved = localGames[variant];
+  const resume = (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || ['narde','battleship'].includes(saved.variant) && saved.revision > 0);
+  $('local-start-label').textContent = resume ? 'Продолжить партию' : 'На одном устройстве';
+  $('local-start-description').textContent = resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : 'Для двоих игроков рядом.';
+  $('start-hint').textContent = VARIANTS[variant].name;
+  document.querySelectorAll('.lobby-game').forEach(card => card.classList.toggle('is-selected', [...card.querySelectorAll('input')].some(input => input.value === variant)));
+  const preview = $('lobby-preview-image'), src = '/art/lobby-' + (durakVariant(variant) ? 'durak' : variant) + '.svg';
+  if (preview.getAttribute('src') !== src) preview.setAttribute('src', src);
+  document.querySelector('.lobby-preview-caption').textContent = VARIANTS[variant].category === 'arcade' ? VARIANTS[variant].name : 'ОДНА ДОСКА — ДВЕ СТРАТЕГИИ';
+}
+function startBusy(busy) {
+  $('start-form').setAttribute('aria-busy', String(busy));
+  document.querySelectorAll('#start-form [data-play-mode],#start-form input[name="variant"]').forEach(control => control.disabled = busy);
+  $('home-join-button').disabled = busy;
 }
 $('home-button').onclick = goHome;
 $('menu-home').onclick = () => { closeAccountMenu(); goHome(); };
 document.querySelector('.brand').onclick = event => { event.preventDefault(); goHome(); };
-$('start-form').onchange = updateStart;
+$('start-form').onchange = event => { if(event?.target?.name === 'variant')sounds.play('select'); updateStart(); };
+document.querySelectorAll('[data-play-mode]').forEach(button => button.addEventListener('click', () => {
+  // Keep a fallback for browsers without SubmitEvent.submitter.
+  $('start-form').elements['play-mode'].value = button.dataset.playMode;
+}));
+document.querySelectorAll('.lobby-nav a').forEach(link => link.addEventListener('click', () => sounds.play('select')));
 $('start-form').onsubmit = async event => {
   event.preventDefault();
   if ($('start-button').disabled) return;
+  if (event.submitter?.dataset.playMode) $('start-form').elements['play-mode'].value = event.submitter.dataset.playMode;
   const variant = $('start-form').elements.variant.value;
-  if ($('start-form').elements['play-mode'].value === 'search') { await searchGame.start(variant); return; }
+  if ($('start-form').elements['play-mode'].value === 'search') {
+    startBusy(true);
+    try { await searchGame.start(variant); } finally { startBusy(false); updateStart(); }
+    return;
+  }
   if ($('start-form').elements['play-mode'].value === 'local') {
     mode = 'local'; game = localGames[variant]; savedLocal = game; cardUpdateLive = false;
     if (game.winner && game.reason !== 'round') { game = newGame(variant); if(isCards())freshCardDeals.add(game.dealId); localSave(); }
@@ -591,11 +609,11 @@ $('start-form').onsubmit = async event => {
     selected = game.forced; flipped = false; showScreen('game'); render();
     return;
   }
-  $('start-button').disabled = true; $('home-join-button').disabled = true;
-  $('start-button').textContent = 'Создаём комнату…';
+  startBusy(true);
+  $('online-start-label').textContent = 'Создаём комнату…';
   try { const data = await api('/api/rooms', { variant }); enterRoom(data.code, data); sounds.play('start'); }
   catch (error) { toast(error.message || 'Не удалось создать комнату. Попробуйте ещё раз.'); }
-  finally { $('start-button').disabled = false; $('home-join-button').disabled = false; updateStart(); }
+  finally { startBusy(false); $('online-start-label').textContent = 'Игра с другом'; updateStart(); }
 };
 $('flip-button').onclick = () => { flipped = !flipped; render(); };
 $('prank-button').onclick=()=>{

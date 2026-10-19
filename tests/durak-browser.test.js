@@ -13,7 +13,7 @@ test('live cards animate under CSP, fit mobile/desktop, and stop for reduced mot
     await evaluate(`(async()=>{const {newDurak}=await import('/durak.js');const hand=[0,9,18,27,5,7,1,10,19,28,4,8];const deck=[...hand,...Array.from({length:36},(_,i)=>i).filter(i=>!hand.includes(i))];const game=newDurak('durak-transfer',deck);game.attacker='white';game.defender='black';game.turn='white';localStorage.setItem('shashki-local-durak-transfer-v1',JSON.stringify(game));})()`);
     await cdp('Page.reload');
     await evaluate(`new Promise((resolve,reject)=>{let n=0;const timer=setInterval(()=>{if(document.querySelector('#start-form')?.onsubmit){clearInterval(timer);resolve(true)}else if(++n>200){clearInterval(timer);reject(Error('App did not restart'))}},30)})`);
-    await evaluate(`(async()=>{const f=document.querySelector('#start-form');f.querySelector('[value="durak-transfer"]').checked=true;f.querySelector('[value="local"]').checked=true;f.onchange();await f.onsubmit({preventDefault(){}});document.querySelector('#durak-board [data-control="reveal"]').click();})()`);
+    await evaluate(`(async()=>{const f=document.querySelector('#start-form');f.querySelector('[value="durak-transfer"]').checked=true;f.onchange();await f.onsubmit({preventDefault(){},submitter:document.querySelector('#local-start-button')});document.querySelector('#durak-board [data-control="reveal"]').click();})()`);
     assert.equal(await evaluate(`document.querySelector('#durak-board').hidden`),false);
     assert.equal(await evaluate(`document.querySelectorAll('#durak-board [data-card]').length`),6);
     await evaluate(`new Promise(r=>setTimeout(r,260))`);
@@ -80,7 +80,7 @@ test('the last cards finish flying before the result, and a rematch deals twelve
     await cdp('Page.navigate',{url:base});await ready();
     await evaluate(`(async()=>{const {newDurak}=await import('/durak.js');const game=newDurak('durak-simple');Object.assign(game,{hands:{white:[0],black:[1]},stock:[],discard:Array.from({length:34},(_,i)=>i+2),trump:35,attacker:'white',defender:'black',turn:'white'});localStorage.setItem('shashki-local-durak-simple-v1',JSON.stringify(game));})()`);
     await cdp('Page.reload');await ready();
-    await evaluate(`(async()=>{const f=document.querySelector('#start-form');f.querySelector('[value="durak-simple"]').checked=true;f.querySelector('[value="local"]').checked=true;f.onchange();await f.onsubmit({preventDefault(){}});})()`);
+    await evaluate(`(async()=>{const f=document.querySelector('#start-form');f.querySelector('[value="durak-simple"]').checked=true;f.onchange();await f.onsubmit({preventDefault(){},submitter:document.querySelector('#local-start-button')});})()`);
     assert.equal(await evaluate(`document.querySelectorAll('[data-flight="deal"]').length`),0,'restoring a saved deal does not replay it');
     await evaluate(`document.querySelector('#durak-board [data-control="reveal"]').click();document.querySelector('#durak-board [data-card="0"]').click();document.querySelector('#durak-board [data-action="durak-attack"]').click()`);
     await evaluate(`new Promise(r=>setTimeout(r,420))`);

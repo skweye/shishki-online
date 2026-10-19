@@ -18,6 +18,16 @@ test('complete app starts every local mode with one menu and state-specific cont
   const gradient={addColorStop(){}};
   const context=new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),getImageData:(x,y,w,h)=>({data:new Uint8ClampedArray(w*h*4)}),createLinearGradient:()=>gradient,createRadialGradient:()=>gradient,measureText:()=>({width:30})},{get:(target,key)=>key in target?target[key]:()=>{}});
   window.HTMLCanvasElement.prototype.getContext=()=>context;
+  let audioContexts=0;const voices=[];
+  const audioParam=()=>({value:0,setValueAtTime(){},exponentialRampToValueAtTime(){},linearRampToValueAtTime(){},setTargetAtTime(){}});
+  const audioNode=()=>({connect(){},disconnect(){},gain:audioParam(),frequency:audioParam(),Q:{value:0}});
+  window.AudioContext=class {
+    constructor(){audioContexts++;this.state='running';this.currentTime=10;this.sampleRate=100;this.destination={};}
+    createGain(){return audioNode();}createBiquadFilter(){return audioNode();}
+    createBuffer(){return {getChannelData:()=>new Float32Array(14)};}
+    createBufferSource(){return this.createOscillator();}
+    createOscillator(){const voice={...audioNode(),start(){},stop(){}};voices.push(voice);return voice;}
+  };
   const intervals=[],realInterval=globalThis.setInterval;
   let channel,roomData,creations=0;const searches=[];
   class Channel{
@@ -62,13 +72,27 @@ test('complete app starts every local mode with one menu and state-specific cont
   // The shell is mounted by auth dependencies before the app starts.
   try{
     await import('../public/app.js');
+    assert.equal(audioContexts,0,'the lobby does not autoplay');
+    document.body.dispatchEvent(new window.Event('pointerdown',{bubbles:true}));
+    assert.equal(audioContexts,1);
+    assert.equal(document.querySelectorAll('#start-form button[type="submit"]').length,3);
+    assert.equal(document.querySelectorAll('#start-form input[name="variant"]').length,11);
+    assert.equal(document.querySelector('.home-hero,.start-row'),null,'no duplicate hero or quick-start area');
     for(const name of ['russian','russian12','chess','narde','pool8','chapaev','domino','battleship','durak-simple','durak-throw','durak-transfer']){
-      variant.value=name;$('start-form').onchange();
+      variant.value=name;const count=voices.length;
+      $('start-form').onchange({target:{name:'variant'}});
+      assert.ok(voices.length>count,'selection has shared sound feedback');
+      assert.equal(document.querySelectorAll('.lobby-game.is-selected').length,1);
+      assert.ok(document.querySelector('.lobby-game.is-selected [value="'+name+'"]'));
+      assert.equal($('lobby-preview-image').getAttribute('src'),'/art/lobby-'+(name.startsWith('durak-')?'durak':name)+'.svg');
       assert.equal(document.querySelectorAll('.ambient-mode.is-active').length,1);
       assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,name,'home background follows selected game');
-      await $('start-form').onsubmit({preventDefault(){}});
+      playMode.value='online';
+      await $('start-form').onsubmit({preventDefault(){},submitter:$('local-start-button')});
+      assert.equal(playMode.value,'local');
       assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,name,'match keeps the selected background');
       document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));
+      const hiddenVoices=voices.length;$('start-form').onchange({target:{name:'variant'}});assert.equal(voices.length,hiddenVoices);
       assert.equal(document.body.classList.contains('ambient-paused'),true);
       document.hidden=false;document.dispatchEvent(new window.Event('visibilitychange'));
       assert.equal(document.body.classList.contains('ambient-paused'),false);
@@ -96,6 +120,8 @@ test('complete app starts every local mode with one menu and state-specific cont
       if(name==='pool8')assert.equal($('pool-shoot').hidden,false);
       if(name==='russian'){
         $('board').querySelector('.available').click();$('board').querySelector('.legal').click();
+        await menuClick('home-button');assert.equal($('local-start-label').textContent,'Продолжить партию');
+        await $('start-form').onsubmit({preventDefault(){},submitter:$('local-start-button')});
         assert.equal($('new-button').hidden,false);await menuClick('new-button');assert.equal($('confirm-dialog').open,true);
         $('confirm-yes').click();assert.equal($('new-button').hidden,true);
         await menuClick('resign-button');$('confirm-yes').click();assert.equal($('result-dialog').open,true);
@@ -111,7 +137,12 @@ test('complete app starts every local mode with one menu and state-specific cont
       }
       await menuClick('home-button');assert.equal($('home-screen').hidden,false);
     }
-    playMode.value='online';variant.value='chapaev';await $('start-form').onsubmit({preventDefault(){}});
+    playMode.value='local';variant.value='chapaev';
+    const creating=$('start-form').onsubmit({preventDefault(){},submitter:$('start-button')});
+    for(const button of document.querySelectorAll('[data-play-mode]'))assert.equal(button.disabled,true,'all launches lock during room creation');
+    await $('start-form').onsubmit({preventDefault(){},submitter:$('start-button')});
+    await creating;
+    for(const button of document.querySelectorAll('[data-play-mode]'))assert.equal(button.disabled,false);
     assert.equal(creations,1);assert.equal($('room-controls').open,true);assert.equal($('resign-button').hidden,true);assert.equal($('shot-controls').hidden,true);
     const snapshot=()=>channel.onmessage({data:JSON.stringify({type:'state',...roomData})});
     roomData.ready=true;roomData.online.black=true;snapshot();assert.equal($('room-controls').open,false);assert.equal($('shot-controls').hidden,false);
@@ -130,9 +161,9 @@ test('complete app starts every local mode with one menu and state-specific cont
     snapshot(); // Server state clears pending for the following disconnection check.
     channel.close();assert.equal($('resign-button').disabled,true);assert.equal($('chat-input').disabled,true);
     await menuClick('home-button');$('confirm-yes').click();assert.equal($('home-screen').hidden,false);
-    playMode.value='search';variant.value='chess';$('start-form').onchange();
-    assert.match($('start-button').textContent,/Найти соперника/);
-    await $('start-form').onsubmit({preventDefault(){}});
+    playMode.value='online';variant.value='chess';$('start-form').onchange();
+    assert.match($('search-start-button').textContent,/Найти соперника/);
+    await $('start-form').onsubmit({preventDefault(){},submitter:$('search-start-button')});
     assert.deepEqual(searches.map(s=>s.action),['join','ack']);assert.equal(creations,1);
     assert.equal($('game-screen').hidden,false);assert.equal($('search-dialog').open,false);assert.equal($('room-controls').open,false);
     assert.equal(store.has('shishki-search-v1'),false);assert.equal(store.get('shashki-room-112233445566'),'found-seat');

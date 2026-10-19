@@ -1,0 +1,137 @@
+/* A compact game shelf and three direct ways to play. */
+.lobby-page { --layout-width:1160px; }
+.lobby-page .site-header { height:76px; min-height:76px; gap:38px; -webkit-backdrop-filter:none; backdrop-filter:none; }
+.lobby-page .site-header .brand { font-size:28px; }
+.lobby-page .header-actions { margin-left:auto; flex:none; }
+.lobby-nav { display:flex; align-items:center; gap:32px; }
+.lobby-nav a,.lobby-nav #rules-button { display:inline-flex; align-items:center; min-height:44px; padding:0; font-size:12px; font-weight:400; color:var(--theme-muted); text-decoration:none; white-space:nowrap; }
+.lobby-nav a:hover,.lobby-nav #rules-button:hover { color:var(--theme-text); background:none; }
+.in-match .lobby-nav { display:none; }
+.lobby-page:not(.in-match) .ambient-scene { opacity:.9; }
+.lobby-form { padding:38px 0 0; }
+.lobby-form fieldset { padding:0; margin:0; border:0; min-width:0; }
+.lobby-top { display:grid; grid-template-columns:minmax(0,1fr) 230px; gap:36px; align-items:stretch; }
+.lobby-section-title { display:flex; align-items:center; gap:11px; padding:0; margin:0 0 20px; font-size:11px; line-height:1.5; font-weight:500; text-transform:uppercase; letter-spacing:.17em; color:var(--theme-secondary); }
+.lobby-section-title>span:first-child { width:4px; height:4px; flex:none; border-radius:50%; background:var(--theme-accent); box-shadow:0 0 9px #e9bc7c44; }
+.lobby-section-title:focus { outline:none; }
+.lobby-section-title:focus-visible { outline:2px solid var(--theme-accent); outline-offset:6px; }
+.lobby-game-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+.lobby-game { display:block; margin:0; min-width:0; position:relative; cursor:pointer; }
+.lobby-game input { position:absolute; width:1px; height:1px; padding:0; margin:0; border:0; opacity:0; }
+.lobby-game-surface { position:relative; display:flex; flex-direction:column; min-height:202px; height:100%; padding:8px 12px 17px; border:1px solid var(--design-line); border-radius:9px; background:#ffffff03; transition:background .18s,border-color .18s,box-shadow .18s; }
+.lobby-game:hover .lobby-game-surface { background:var(--design-wash); border-color:var(--theme-strong-border); }
+.lobby-game.is-selected .lobby-game-surface,.lobby-game input:checked+.lobby-game-surface { border-color:var(--theme-accent); background:linear-gradient(145deg,#f2c29c14,#ffffff02); box-shadow:inset 0 0 0 1px #f5dbb912,0 6px 25px #0000000a; }
+.lobby-game input:focus-visible+.lobby-game-surface { outline:2px solid var(--theme-accent); outline-offset:4px; }
+.lobby-game img { display:block; width:calc(100% + 20px); max-width:none; height:123px; margin:0 -10px 6px; object-fit:contain; pointer-events:none; transition:transform .2s; }
+.lobby-game:hover img { transform:translateY(-3px); }
+.lobby-game-copy { display:block; margin-top:auto; }
+.lobby-game-copy strong { display:block; font-size:12px; font-weight:550; line-height:1.45; color:var(--theme-text); }
+.lobby-game-copy small { display:block; margin-top:5px; font-size:10px; line-height:1.55; color:var(--theme-muted); }
+.lobby-game-check { position:absolute; top:8px; right:9px; display:grid; place-items:center; width:16px; height:16px; font-size:10px; color:var(--theme-accent); opacity:0; }
+.lobby-game.is-selected .lobby-game-check,.lobby-game input:checked+.lobby-game-surface .lobby-game-check { opacity:1; }
+.lobby-preview { display:flex; flex-direction:column; justify-content:center; align-items:center; position:relative; min-width:0; border-left:1px solid var(--design-line); padding-left:20px; overflow:hidden; }
+.lobby-preview-glow { position:absolute; inset:8% -20% 0; background:radial-gradient(ellipse,var(--design-wash),transparent 67%); pointer-events:none; }
+.lobby-preview img { position:relative; display:block; width:260px; height:205px; max-width:125%; object-fit:contain; transform:rotate(-9deg); filter:drop-shadow(5px 16px 12px #0002); }
+.lobby-preview-caption { position:relative; max-width:210px; margin:2px 0 0; font-size:8px; line-height:1.8; letter-spacing:.17em; text-align:center; color:var(--theme-secondary); }
+.lobby-play { padding:29px 0 0; margin-top:32px; border-top:1px solid var(--design-line); }
+.lobby-play-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.lobby-launch { display:flex; align-items:center; gap:17px; width:100%; min-width:0; min-height:88px; padding:16px; border:1px solid var(--design-line); border-radius:9px; background:#ffffff03; color:var(--theme-text); text-align:left; transition:border-color .18s,background .18s; }
+.lobby-launch:hover { border-color:var(--theme-strong-border); background:var(--design-wash); }
+.lobby-launch:active { border-color:var(--theme-accent); }
+.lobby-launch:disabled { opacity:.5; }
+.lobby-mode-icon { display:grid; place-items:center; width:46px; height:46px; flex:none; color:var(--theme-accent); border-radius:12px; background:var(--design-wash); }
+.lobby-mode-icon svg { width:26px; height:26px; }
+.lobby-mode-copy { min-width:0; }
+.lobby-mode-copy strong { display:block; font-size:13px; font-weight:500; line-height:1.4; }
+.lobby-mode-copy small { display:block; margin-top:6px; font-size:11px; line-height:1.5; color:var(--theme-muted); }
+.lobby-arrow { margin-left:auto; font-size:23px; font-weight:300; color:var(--theme-muted); }
+.lobby-invite { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; padding:12px 0 0; color:var(--theme-muted); font-size:11px; }
+.lobby-invite .link-button { min-height:36px; padding:4px; font-size:11px; color:var(--theme-secondary); }
+.lobby-form .lobby-arcade { margin-top:21px; }
+.lobby-form .lobby-arcade legend { float:left; width:100%; }
+.lobby-arcade-grid { clear:both; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.lobby-game-wide .lobby-game-surface { flex-direction:row; align-items:center; min-height:108px; padding:8px 18px 8px 6px; gap:9px; }
+.lobby-game-wide img { width:106px; height:90px; flex:none; margin:0; }
+.lobby-game-wide .lobby-game-copy { margin:0; }
+.lobby-game-wide .lobby-game-copy strong { font-size:13px; }
+.lobby-game-wide .lobby-game-copy small { font-size:11px; }
+.lobby-durak { grid-column:1/-1; }
+.lobby-durak .lobby-game-surface { min-height:88px; }
+.lobby-durak img { width:96px; height:76px; }
+.lobby-durak-options { display:flex; gap:7px; margin-left:auto; padding-left:16px; }
+.lobby-durak-options label { margin:0; cursor:pointer; position:relative; }
+.lobby-durak-options label>span { display:flex; align-items:center; justify-content:center; min-height:44px; padding:10px 15px; border:1px solid var(--design-line); border-radius:6px; font-size:12px; color:var(--theme-muted); }
+.lobby-durak-options input:checked+span { color:var(--theme-text); border-color:var(--theme-accent); background:var(--design-wash); }
+.lobby-durak-options input:focus-visible+span { outline:2px solid var(--theme-accent); outline-offset:3px; }
+.lobby-note { display:flex; align-items:center; justify-content:space-between; gap:16px; padding-top:26px; font-size:11px; line-height:1.7; color:var(--theme-muted); }
+.lobby-note span:last-child { display:flex; align-items:center; gap:8px; }
+.lobby-note i { width:5px; height:5px; border-radius:50%; background:#9bb383; }
+.lobby-page:not(.in-match) footer { margin-top:30px; }
+@media(min-width:1500px) {
+  .lobby-form { padding-top:55px; }
+  .lobby-game-surface { min-height:219px; }
+  .lobby-game img { height:138px; }
+  .lobby-play { margin-top:40px; padding-top:34px; }
+  .lobby-form .lobby-arcade { margin-top:32px; }
+}
+@media(max-width:1100px) {
+  .lobby-top { grid-template-columns:minmax(0,1fr) 180px; gap:24px; }
+  .lobby-game-surface { padding:6px 9px 13px; min-height:188px; }
+  .lobby-game img { height:108px; }
+  .lobby-preview { padding-left:10px; }
+  .lobby-preview img { width:230px; height:180px; }
+  .lobby-launch { gap:12px; padding:13px; }
+  .lobby-mode-icon { width:38px; height:42px; }
+  .lobby-mode-copy strong { font-size:12px; }
+  .lobby-mode-copy small { font-size:10px; }
+}
+@media(max-width:900px) {
+  .lobby-top { display:block; }
+  .lobby-preview { display:none; }
+  .lobby-game img { height:120px; }
+  .lobby-page .site-header { gap:28px; }
+  .lobby-nav { gap:24px; }
+  .lobby-play-grid { gap:10px; }
+  .lobby-game-wide img { width:78px; height:76px; }
+  .lobby-game-wide .lobby-game-copy small { font-size:10px; }
+}
+@media(max-width:640px) {
+  .lobby-page .site-header { min-height:70px; height:70px; gap:12px; }
+  .lobby-page .site-header .brand { font-size:24px; }
+  .lobby-nav { gap:0; margin-left:auto; }
+  .lobby-nav>a { display:none; }
+  .lobby-nav #rules-button { font-size:11px; }
+  .lobby-page .header-actions { margin-left:0; }
+  .lobby-form { padding-top:27px; }
+  .lobby-section-title { font-size:10px; letter-spacing:.13em; margin-bottom:16px; }
+  .lobby-game-grid { grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:142px; gap:10px; overflow-x:auto; padding:4px 3px 12px; margin:-4px -3px -12px; scroll-snap-type:x mandatory; scrollbar-width:thin; scrollbar-color:var(--theme-border) transparent; }
+  .lobby-game { scroll-snap-align:start; }
+  .lobby-game-surface { min-height:181px; }
+  .lobby-game img { height:108px; }
+  .lobby-play { margin-top:26px; padding-top:24px; }
+  .lobby-play-grid { grid-template-columns:1fr; gap:9px; }
+  .lobby-launch { min-height:75px; gap:16px; padding:12px 16px; }
+  .lobby-mode-icon { width:42px; height:42px; }
+  .lobby-mode-copy strong { font-size:13px; }
+  .lobby-mode-copy small { font-size:11px; margin-top:4px; }
+  .lobby-invite { justify-content:flex-start; gap:0 6px; padding-top:13px; }
+  .lobby-form .lobby-arcade { margin-top:25px; }
+  .lobby-arcade-grid { grid-template-columns:1fr; gap:8px; }
+  .lobby-game-wide .lobby-game-surface { min-height:83px; padding:5px 14px; gap:12px; }
+  .lobby-game-wide img { width:86px; height:74px; }
+  .lobby-game-wide .lobby-game-copy small { font-size:11px; }
+  .lobby-durak .lobby-game-surface { flex-wrap:wrap; gap:0 12px; }
+  .lobby-durak-options { width:100%; padding:2px 0 9px; margin:0; }
+  .lobby-durak-options label { flex:1; }
+  .lobby-durak-options label>span { padding:10px 5px; font-size:11px; }
+  .lobby-note { display:block; font-size:10px; }
+  .lobby-note span:last-child { margin-top:7px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .lobby-game-surface,.lobby-game img,.lobby-launch { transition:none; }
+  .lobby-game:hover img { transform:none; }
+}
+:root[data-low-performance=true] .lobby-preview img { filter:none; }
+@media(forced-colors:active) {
+  .lobby-game input:checked+.lobby-game-surface { outline:2px solid Highlight; }
+}
