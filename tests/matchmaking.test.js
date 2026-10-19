@@ -6,6 +6,18 @@ register('./helpers/cloudflare-loader.js',import.meta.url);
 globalThis.WebSocketRequestResponsePair=class{};
 const {Matchmaker,SEARCH_LEASE,handleMatchmaking}=await import('../src/matchmaking.js');
 const {GameRoom}=await import('../src/worker.js');
+test('presence counts unique visitors, removes signed-in guest duplicates and expires durable leases',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:1800000000000});
+  const f=fixture(),guest=crypto.randomUUID();
+  async function beat(actor,extra={}){const response=await f.coordinator.fetch(new Request('https://internal/api/presence',{method:'POST',headers:{'X-Match-Actor':actor,...extra},body:'{}'}));return response.json();}
+  assert.equal((await beat('guest:'+guest)).online,1);assert.equal((await beat('guest:'+guest)).online,1);
+  assert.equal((await beat('account:a',{'X-Presence-Guest':guest})).online,1);
+  assert.equal((await beat('account:a')).online,1);assert.equal((await beat('account:b')).online,2);
+  await f.call('account:b','join',crypto.randomUUID());assert.equal((await beat('account:a')).searching,1);
+  t.mock.timers.tick(61000);f.coordinator=new Matchmaker(f.ctx,f.env);
+  const state=await beat('guest:new');assert.equal(state.online,1);assert.equal(state.searching,0);
+  assert.deepEqual(Object.keys(state).sort(),['online','searching','windowSeconds']);
+});
 function context(){
   const data=new Map();let queue=Promise.resolve();
   return {data,blockConcurrencyWhile(fn){const result=queue.then(fn);queue=result.catch(()=>{});return result;},
@@ -92,4 +104,7 @@ test('server derives actor from account or secure guest cookie instead of suppli
   const cookie=first.headers.get('set-cookie').split(';')[0];assert.equal((await (await post(cookie,null,'status')).json()).status,'waiting');
   assert.equal((await post(null,null,'cancel')).status,403);
   assert.equal((await post(cookie,{id:'another'},'status')).status,403);
+  const presence=await handleMatchmaking(new Request('https://game.test/api/presence',{method:'POST',body:'{}'}),f.env,null);
+  assert.match(presence.headers.get('set-cookie'),/^__Host-shishki-visitor=/);
+  assert.match(cookie,/^__Host-shishki-search=/,'a parallel presence response cannot replace the search identity');
 });

@@ -1,4 +1,4 @@
-/* A compact game shelf and three direct ways to play. */
+/* A mode-first home and a shared game shelf for local, search and friend rooms. */
 .lobby-page { --layout-width:1160px; }
 .lobby-page .site-header { height:76px; min-height:76px; gap:38px; -webkit-backdrop-filter:none; backdrop-filter:none; }
 .lobby-page .site-header .brand { font-size:28px; }
@@ -132,6 +132,102 @@
   .lobby-game:hover img { transform:none; }
 }
 :root[data-low-performance=true] .lobby-preview img { filter:none; }
+/* Start with the people; the game shelf belongs to the next step. */
+.hub-intro { display:flex; align-items:center; justify-content:space-between; gap:32px; padding:48px 0 32px; }
+.hub-intro h1 { font-size:clamp(32px,4.3vw,52px); line-height:1.12; letter-spacing:-.04em; margin:0 0 20px; font-weight:550; }
+.hub-intro .lobby-section-title { margin-bottom:18px; }
+.hub-lead { max-width:500px; color:var(--theme-muted); font-size:16px; line-height:1.65; margin:0; }
+.hub-art { width:280px; height:185px; object-fit:contain; transform:rotate(-8deg); filter:drop-shadow(5px 14px 15px #0002); }
+#home-hub .lobby-launch { min-height:112px; padding:20px; }
+#home-hub .lobby-mode-copy strong { font-size:17px; }
+#home-hub .lobby-mode-copy small { font-size:12px; }
+.hub-information { display:grid; grid-template-columns:1fr 1fr; gap:55px; margin-top:40px; padding:32px 0; border-top:1px solid var(--design-line); border-bottom:1px solid var(--design-line); }
+.hub-community,.hub-account { min-width:0; }
+.hub-counters { display:flex; gap:32px; padding-top:6px; }
+.hub-counters>div { min-width:0; }
+.hub-counters strong { display:block; font-size:34px; line-height:1.2; font-weight:500; color:var(--theme-text); font-variant-numeric:tabular-nums; }
+.hub-counters span { display:block; margin-top:12px; font-size:12px; color:var(--theme-muted); }
+.online-dot { display:inline-block; width:6px; height:6px; margin-right:4px; border-radius:50%; background:#98b589; }
+.hub-footnote { color:var(--theme-muted); font-size:11px; line-height:1.65; margin:22px 0 0; }
+.hub-identity { display:flex; gap:15px; align-items:center; }
+.hub-identity>div { min-width:0; }
+.hub-identity strong { font-size:18px; overflow-wrap:anywhere; }
+.hub-identity p { margin:7px 0 0; font-size:12px; line-height:1.6; color:var(--theme-muted); }
+.hub-avatar { display:grid; place-items:center; flex:none; width:48px; height:48px; border-radius:50%; background:var(--design-wash); overflow:hidden; color:var(--theme-accent); }
+.hub-avatar img { width:100%; height:100%; object-fit:cover; }
+.hub-level { display:flex; flex-direction:column; justify-content:center; align-items:center; gap:6px; min-width:64px; min-height:50px; padding:8px 11px; margin-left:auto; border:1px solid var(--theme-strong-border); border-radius:9px; color:var(--theme-accent); text-decoration:none; }
+.hub-level span { font-size:19px; font-weight:600; }
+.hub-level progress { display:block; width:46px; height:3px; border:0; border-radius:5px; overflow:hidden; background:var(--design-line); accent-color:var(--theme-accent); }
+.hub-level progress::-webkit-progress-bar { background:var(--design-line); }
+.hub-level progress::-webkit-progress-value { background:var(--theme-accent); }
+.hub-level progress::-moz-progress-bar { background:var(--theme-accent); }
+.hub-level.has-reward { box-shadow:0 0 20px #d5b27038; border-color:var(--theme-accent); }
+.hub-stats { display:flex; gap:30px; margin:20px 0 0 63px; }
+.hub-stats>div { display:flex; flex-direction:column-reverse; gap:4px; }
+.hub-stats dt { font-size:11px; color:var(--theme-muted); }
+.hub-stats dd { margin:0; font-size:18px; font-variant-numeric:tabular-nums; }
+#hub-login { margin:18px 0 0 63px; font-size:12px; }
+.hub-guide { display:grid; grid-template-columns:1fr 1fr; gap:55px; padding-top:24px; }
+.hub-guide p { margin:0; }
+.hub-guide strong { display:block; font-size:13px; font-weight:500; }
+.hub-guide span { display:block; margin-top:8px; font-size:12px; line-height:1.7; color:var(--theme-muted); max-width:440px; }
+.picker-heading { display:flex; align-items:center; gap:24px; padding-top:26px; }
+.picker-heading .lobby-section-title { margin:0; }
+.picker-heading button { padding-left:0; min-height:44px; }
+.picker-footer { display:flex; align-items:center; justify-content:space-between; gap:22px; border-top:1px solid var(--design-line); margin-top:28px; padding:24px 0 10px; }
+.picker-footer strong { font-size:15px; font-weight:500; }
+.picker-footer p { font-size:12px; color:var(--theme-muted); margin:8px 0 0; line-height:1.6; }
+.picker-footer button { min-height:48px; min-width:190px; }
+.friend-heading { display:flex; justify-content:space-between; gap:24px; align-items:center; padding-top:36px; }
+.friend-heading h1 { font-size:32px; letter-spacing:-.025em; margin:0; }
+.friend-heading .lobby-section-title { margin-bottom:12px; }
+.friend-heading p:last-child { color:var(--theme-muted); font-size:13px; line-height:1.6; }
+.friend-heading button { min-width:44px; min-height:44px; }
+.friend-invite { display:flex; align-items:center; flex-wrap:wrap; gap:16px; padding:16px 0 24px; border-bottom:1px solid var(--design-line); }
+.friend-invite code { letter-spacing:.1em; color:var(--theme-accent); font-size:15px; }
+.friend-invite button { min-height:44px; font-size:12px; }
+#friend-connection { margin-left:auto; font-size:12px; color:var(--theme-muted); }
+.friend-players { display:grid; grid-template-columns:1fr 1fr; gap:28px; padding-top:24px; }
+.friend-player { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; min-height:40px; }
+.friend-player strong { font-size:15px; overflow-wrap:anywhere; }
+.friend-player small { order:1; font-size:10px; color:var(--theme-accent); }
+.friend-player>span { margin-left:auto; font-size:12px; color:var(--theme-muted); }
+#friend-status { font-size:12px; color:var(--theme-muted); line-height:1.6; }
+#friend-screen .lobby-form { padding-top:20px; }
+#friend-chat { margin-top:18px; border-top:1px solid var(--design-line); padding-top:16px; }
+#friend-chat summary { min-height:44px; cursor:pointer; font-size:13px; }
+#friend-chat-host { max-width:760px; }
+#friend-chat-host .chat-messages { max-height:260px; }
+.lobby-game:has(input:disabled) { cursor:wait; opacity:.65; }
+@media(max-width:760px) {
+  .hub-intro { padding:32px 0 28px; gap:0; }
+  .hub-art { width:180px; height:145px; }
+  .hub-information { gap:28px; }
+  .hub-counters { gap:20px; }
+  .hub-counters strong { font-size:28px; }
+  .hub-counters span { font-size:10px; }
+  .hub-stats { margin-left:0; }
+}
+@media(max-width:640px) {
+  .hub-art { display:none; }
+  .hub-intro h1 { font-size:34px; margin-bottom:14px; }
+  .hub-lead { font-size:14px; }
+  #home-hub .lobby-launch { min-height:86px; padding:15px; }
+  #home-hub .lobby-mode-copy strong { font-size:16px; }
+  .hub-information { grid-template-columns:1fr; gap:28px; margin-top:25px; padding:26px 0; }
+  .hub-account { border-top:1px solid var(--design-line); padding-top:26px; }
+  .hub-counters { justify-content:space-between; max-width:400px; }
+  .hub-guide { grid-template-columns:1fr; gap:22px; }
+  .hub-stats { margin-left:63px; }
+  .picker-footer { flex-direction:column; align-items:stretch; gap:16px; }
+  .picker-footer button { width:100%; }
+  .friend-players { gap:18px; }
+  .friend-player { align-content:start; }
+  .friend-player>span { width:100%; margin:0; order:2; }
+  .friend-heading { padding-top:26px; }
+  .friend-heading h1 { font-size:28px; }
+  #friend-connection { width:100%; margin:0; }
+}
 @media(forced-colors:active) {
   .lobby-game input:checked+.lobby-game-surface { outline:2px solid Highlight; }
 }

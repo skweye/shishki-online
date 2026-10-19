@@ -5,6 +5,7 @@ import { newGame } from '../public/game.js';
 import { actBattleship, randomFleet } from '../public/battleship.js';
 import {actDurak,durakActions,DURAK_VARIANTS} from '../public/durak.js';
 import { createClock } from '../public/time-control.js';
+import {createLobby,friendAction} from '../src/friend-room.js';
 
 import { isFinishTransition } from '../public/rocket.js';
 import { matchCoins } from '../public/shop-catalog.js';
@@ -67,6 +68,31 @@ async function roomWith(saved = fixture(), env = {}) {
   return { room, ws, values, alarm: () => alarm };
 }
 const join = (room, token) => room.fetch(new Request('https://game.test/join', { method: 'POST', body: JSON.stringify({ token }) }));
+test('rematch invalidates old room-change consent before the new match starts',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  const initial=fixture();initial.lobby={...createLobby('russian'),phase:'playing',returnOffer:'white'};initial.game.winner='draw';initial.game.reason='agreement';
+  const {room,ws}=await roomWith(initial);
+  await room.webSocketMessage(ws,JSON.stringify({type:'rematch',revision:0}));
+  t.mock.timers.tick(100);ws.session.role='black';await room.webSocketMessage(ws,JSON.stringify({type:'rematch',revision:0}));
+  assert.equal(room.room.game.winner,null);assert.equal(room.room.lobby.returnOffer,null);assert.equal(room.room.lobby.revision,1);
+  t.mock.timers.tick(100);await room.webSocketMessage(ws,JSON.stringify({type:'room-lobby',lobbyRevision:0}));
+  assert.equal(ws.messages.at(-2).type,'error');assert.equal(room.room.lobby.phase,'playing');
+});
+test('friend rooms retain separate completed-match records across games and restart with persisted selection',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  const writes=[],env={AUTH_DB:{prepare:()=>({bind:(...values)=>values}),async batch(rows){writes.push(...rows);}}};
+  const initial=fixture();initial.lobby=createLobby('russian');initial.accounts={white:'a',black:'b'};
+  const {room,values}=await roomWith(initial,env);
+  const action=(role,type,data={})=>friendAction(room.room,role,{type,lobbyRevision:room.room.lobby.revision,...data},START);
+  for(const variant of ['russian','chess']){
+    action('black','room-select',{variant});action('white','room-ready',{ready:true});action('black','room-ready',{ready:true});
+    room.room.game.winner='white';room.room.game.reason='resign';room.room.game.history=Array(4).fill({});
+    await room.save();action('black','room-lobby');await room.save();await room.save(false);
+  }
+  assert.equal(writes.length,4);assert.notEqual(writes[0][0],writes[2][0]);assert.equal(writes[0][1],'russian');assert.equal(writes[2][1],'chess');
+  const restored=await roomWith(values.get('room'),env);assert.equal(restored.room.room.lobby.phase,'lobby');assert.equal(restored.room.room.lobby.variant,'chess');assert.equal(restored.room.room.clock,null);
+  await restored.room.save(false);assert.equal(writes.length,4);
+});
 
 test('pool aim is authenticated, bounded, ephemeral and independent of move throttling',async t=>{
   t.mock.timers.enable({apis:['Date'],now:START});

@@ -1,5 +1,6 @@
 import { closeAccountMenu } from './account-menu.js';
 import { t } from './i18n.js';
+import { startPresence } from './presence.js';
 const $ = id => document.getElementById(id);
 export let currentUser = null;
 let googleEnabled = false, loading = false, activeTab = 'login';
@@ -137,6 +138,7 @@ export const authReady = request('session').then(data => {
   $('auth-error').textContent = 'Сервис аккаунтов временно недоступен. Вы можете играть как гость.';
 });
 const url = new URL(location.href), authError = url.searchParams.get('auth_error');
+authReady.then(startPresence);
 if (url.searchParams.get('login') === '1' && !authError) authReady.then(() => {
   if (currentUser && ['profile', 'shop', 'inventory', 'admin', 'privacy', 'terms'].includes(url.searchParams.get('returnTo'))) location.assign('/' + url.searchParams.get('returnTo'));
   else openAuth();

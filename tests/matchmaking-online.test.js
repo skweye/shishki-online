@@ -5,6 +5,13 @@ import {once} from 'node:events';
 import {setTimeout as delay} from 'node:timers/promises';
 import {VARIANTS,legalMoves} from '../public/game.js';
 const base=process.env.TEST_BASE_URL||'http://127.0.0.1:8787';
+test('public presence sets a private guest cookie and reuses it across visits without exposing identities',async()=>{
+  const user=player();const first=await user.post('/api/presence',{});assert.equal(first.status,200);assert.ok(first.data.online>=1);assert.ok(user.cookie.includes('shishki-visitor='));
+  const repeated=await user.post('/api/presence',{}, {'X-Match-Actor':'account:forged','X-Presence-Guest':crypto.randomUUID()});
+  assert.equal(repeated.status,200);assert.equal(repeated.data.online,first.data.online);
+  assert.deepEqual(Object.keys(repeated.data).sort(),['online','searching','windowSeconds']);
+  const blocked=await fetch(base+'/api/presence',{method:'POST',headers:{Origin:'https://elsewhere.test','Content-Type':'application/json'},body:'{}'});assert.equal(blocked.status,403);
+});
 function player(cookie=''){
   const cookies=new Map(cookie?cookie.split('; ').map(c=>c.split('=')):[]);
   return {async post(path,body,headers={}){

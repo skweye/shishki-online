@@ -1,5 +1,66 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
-const rows = `Перетащите сюда для перевода|Drop here to transfer|Перетягніть сюди для переведення
+const rows = `Главная|Home|Головна
+Партий|Games|Партій
+Побед|Wins|Перемог
+Монет|Coins|Монет
+Начать игру|Start game|Почати гру
+Хорошая компания. Отличная партия.|Good company. Great games.|Гарна компанія. Чудова партія.
+Как будем играть?|How shall we play?|Як будемо грати?
+За одним столом, с новым соперником или со своим другом.|At one table, with a new opponent or with a friend.|За одним столом, з новим суперником або зі своїм другом.
+Локально|Local|Локально
+Онлайн|Online|Онлайн
+С другом|With a friend|З другом
+Сейчас на сайте|Live on the site|Зараз на сайті
+Игроков онлайн|Players online|Гравців онлайн
+Ищут соперника|Looking for a match|Шукають суперника
+Вариантов игры|Game variants|Варіантів гри
+Активные игроки за последнюю минуту. Гости тоже учитываются.|Active players in the last minute. Guests are included.|Активні гравці за останню хвилину. Гості теж враховуються.
+Счётчик временно недоступен. Играть можно как обычно.|The counter is temporarily unavailable. You can still play.|Лічильник тимчасово недоступний. Грати можна як завжди.
+Ваш игровой путь|Your game journey|Ваш ігровий шлях
+Играйте без регистрации или войдите, чтобы сохранять прогресс.|Play as a guest or sign in to save your progress.|Грайте без реєстрації або увійдіть, щоб зберігати прогрес.
+Ваш прогресс и награды — в профиле.|Find your progress and rewards in your profile.|Ваш прогрес і нагороди — у профілі.
+Уровень и награды|Level and rewards|Рівень і нагороди
+Войти и сохранить прогресс|Sign in and save progress|Увійти та зберегти прогрес
+Статистика завершённых онлайн-партий.|Statistics from completed online games.|Статистика завершених онлайн-партій.
+Часть данных недоступна. Обновим при возвращении на главную.|Some data is unavailable. We will refresh it when you return home.|Частина даних недоступна. Оновимо після повернення на головну.
+Одна комната — разные игры.|One room, many games.|Одна кімната — різні ігри.
+Пригласите друга один раз. Выбирайте игры вместе и оставайтесь на связи между партиями.|Invite a friend once. Choose games together and stay connected between matches.|Запросіть друга один раз. Обирайте ігри разом і залишайтеся на зв’язку між партіями.
+Играйте в своём стиле.|Play in your own style.|Грайте у своєму стилі.
+Опыт, наградные кейсы и коллекция предметов доступны в вашем профиле.|Experience, reward cases and your collection are in your profile.|Досвід, нагородні кейси та колекція предметів доступні у вашому профілі.
+Выберите игру и начните партию.|Choose a game and start playing.|Оберіть гру та почніть партію.
+Начать игру ↗|Start game ↗|Почати гру ↗
+Два игрока на одном устройстве.|Two players on one device.|Двоє гравців на одному пристрої.
+Найдём игрока для выбранной игры.|We will find an opponent for your chosen game.|Знайдемо суперника для обраної гри.
+Ваша комната|Your room|Ваша кімната
+Ссылка и участники сохраняются при смене игры.|Keep the same link and players when switching games.|Посилання та учасники зберігаються при зміні гри.
+Скопировать приглашение ↗|Copy invitation ↗|Скопіювати запрошення ↗
+Чат комнаты|Room chat|Чат кімнати
+Смена игры|Change game|Зміна гри
+Соперник предлагает выбрать другую игру|Your opponent suggests a different game|Суперник пропонує обрати іншу гру
+Текущая партия закончится без результата. Комната и чат сохранятся.|This game will end without a result. The room and chat will stay.|Поточна партія закінчиться без результату. Кімната та чат збережуться.
+Выбрать другую игру|Choose another game|Обрати іншу гру
+Остаться в партии|Keep playing|Залишитися в партії
+Предложение сменить игру отправлено|Game change requested|Пропозицію змінити гру надіслано
+Отменить предложение|Cancel request|Скасувати пропозицію
+Пригласите друга. Игру можно выбрать уже сейчас.|Invite a friend. You can choose a game now.|Запросіть друга. Гру можна обрати вже зараз.
+Вы готовы. Ждём второго игрока.|You are ready. Waiting for the other player.|Ви готові. Чекаємо на другого гравця.
+Выберите игру вместе и подтвердите готовность.|Choose a game together and confirm you are ready.|Оберіть гру разом і підтвердьте готовність.
+Игрок 1|Player 1|Гравець 1
+Игрок 2|Player 2|Гравець 2
+Место для друга|A seat for your friend|Місце для друга
+✓ Готов|✓ Ready|✓ Готовий
+● В комнате|● In the room|● У кімнаті
+Отменить готовность|Not ready|Скасувати готовність
+Готов играть ✓|Ready to play ✓|Готовий грати ✓
+Смена игры сбрасывает готовность обоих игроков.|Changing the game clears both players' readiness.|Зміна гри скидає готовність обох гравців.
+Выбрать другую игру?|Choose another game?|Обрати іншу гру?
+Предложим сопернику вернуться в комнату. При согласии текущая партия закончится без результата.|Ask your opponent to return to the room. If accepted, this game ends without a result.|Запропонуємо супернику повернутися в кімнату. За згоди поточна партія закінчиться без результату.
+Предложить смену игры|Request a game change|Запропонувати зміну гри
+Выбор игры изменился. Повторите действие.|The game selection changed. Please try again.|Вибір гри змінився. Повторіть дію.
+Выбор игры доступен в комнате между партиями.|Choose games in the room between matches.|Обирайте гру в кімнаті між партіями.
+Сначала выберите игру и подтвердите готовность.|First choose a game and confirm you are ready.|Спершу оберіть гру та підтвердьте готовність.
+Счётчик временно недоступен.|The counter is temporarily unavailable.|Лічильник тимчасово недоступний.
+Перетащите сюда для перевода|Drop here to transfer|Перетягніть сюди для переведення
 Перетащите сюда для атаки|Drop here to attack|Перетягніть сюди для атаки
 Перетащите карту на стол или выберите её кликом.|Drag a card onto the table or select it with a click.|Перетягніть карту на стіл або виберіть її кліком.
 Перетащите свою карту на карту соперника, чтобы отбить. Для перевода — на свободное место стола. Можно играть и кликами.|Drag your card onto an opponent's card to cover it. To transfer, drop it onto an open area of the table. Click controls also work.|Перетягніть свою карту на карту суперника, щоб відбити. Для переведення — на вільне місце столу. Також можна грати кліками.

@@ -8,6 +8,44 @@ import { applyPoolShot } from '../public/pool.js';
 import { dominoMoves } from '../public/domino.js';
 import { dominoPlacements } from '../public/domino-layout.js';
 
+test('friend room selects before play, validates both seats and changes games without losing invitation or chat', {timeout:30000}, async t=>{
+  const {data:r,status}=await post('/api/rooms',{kind:'friend'});assert.equal(status,201);assert.equal(r.lobby.phase,'lobby');assert.equal(r.clock,null);
+  const a=client(r.code,r.token);t.after(()=>a.ws.close());await a.wait(m=>m.type==='state');
+  await a.send({type:'room-select',variant:'chess',lobbyRevision:0});
+  const selection=await a.wait(m=>m.type==='state'&&m.lobby.variant==='chess');assert.equal(selection.lobby.revision,1);
+  const {data:joined}=await post(`/api/rooms/${r.code}/join`);assert.equal(joined.clock,null);assert.equal(joined.lobby.variant,'chess');
+  const b=client(r.code,joined.token);t.after(()=>b.ws.close());await b.wait(m=>m.type==='state'&&m.ready);
+  await a.send({type:'move',from:42,to:35,revision:0});await a.wait(m=>m.type==='error'&&m.message.includes('готовность'));
+  await a.send({type:'room-ready',ready:true,lobbyRevision:0});await a.wait(m=>m.type==='error'&&m.message.includes('изменился'));
+  await a.send({type:'room-ready',ready:true,lobbyRevision:1});await b.wait(m=>m.type==='state'&&m.lobby.ready.includes('white'));
+  await b.send({type:'room-select',variant:'durak-transfer',lobbyRevision:1});
+  const changed=await a.wait(m=>m.type==='state'&&m.lobby.variant==='durak-transfer');assert.deepEqual(changed.lobby.ready,[]);
+  await a.send({type:'room-ready',ready:true,lobbyRevision:2});await b.wait(m=>m.type==='state'&&m.lobby.ready.includes('white'));
+  await b.send({type:'room-ready',ready:true,lobbyRevision:2});
+  const started=await a.wait(m=>m.type==='state'&&m.lobby.phase==='playing');assert.equal(started.game.variant,'durak-transfer');assert.equal(started.game.revision,1);
+  assert.deepEqual(started.game.hands.black,[]);assert.equal(started.game.stock,undefined);
+  await a.send({type:'room-select',variant:'pool8',lobbyRevision:3});await a.wait(m=>m.type==='error');
+  await a.send({type:'chat',text:'One room, many games'});await b.wait(m=>m.type==='chat');
+  await a.send({type:'room-lobby',lobbyRevision:3});await b.wait(m=>m.type==='state'&&m.lobby.returnOffer==='white');
+  await a.send({type:'room-lobby',lobbyRevision:3});
+  const own=await a.wait(m=>m.type==='state'&&m.lobby.returnOffer==='white');assert.equal(own.lobby.phase,'playing');
+  await b.send({type:'room-stay',lobbyRevision:3});await a.wait(m=>m.type==='state'&&m.lobby.phase==='playing'&&!m.lobby.returnOffer);
+  await b.send({type:'room-lobby',lobbyRevision:3});await a.wait(m=>m.type==='state'&&m.lobby.returnOffer==='black');
+  await a.send({type:'room-lobby',lobbyRevision:3});
+  const lobby=await b.wait(m=>m.type==='state'&&m.lobby.phase==='lobby'&&m.lobby.revision===4);assert.equal(lobby.clock,null);assert.equal(lobby.chat.length,1);
+  const {data:restored}=await post(`/api/rooms/${r.code}/join`,{token:r.token});assert.equal(restored.role,'white');assert.equal(restored.token,r.token);assert.deepEqual(restored.lobby,lobby.lobby);
+  await b.send({type:'room-select',variant:'chess',lobbyRevision:4});await a.wait(m=>m.type==='state'&&m.lobby.revision===5);
+  await a.send({type:'room-ready',ready:true,lobbyRevision:5});await b.wait(m=>m.type==='state'&&m.lobby.ready.includes('white'));
+  await b.send({type:'room-ready',ready:true,lobbyRevision:5});
+  const chess=await a.wait(m=>m.type==='state'&&m.lobby.phase==='playing'&&m.game.variant==='chess');assert.equal(chess.game.revision,3);assert.ok(chess.clock.startedAt);
+  await b.send({type:'resign',revision:3});await a.wait(m=>m.type==='state'&&m.game.winner==='white');
+  await a.send({type:'room-lobby',lobbyRevision:6});
+  const finished=await b.wait(m=>m.type==='state'&&m.lobby.phase==='lobby'&&m.lobby.revision===7);assert.equal(finished.game.winner,'white');assert.equal(finished.chat[0].text,'One room, many games');
+  const {data:normal}=await post('/api/rooms',{variant:'russian'});const c=client(normal.code,normal.token);t.after(()=>c.ws.close());await c.wait(m=>m.type==='state');
+  await c.send({type:'room-select',variant:'chess',lobbyRevision:0});await c.wait(m=>m.type==='error');
+  assert.equal((await post(`/api/rooms/${normal.code}/join`,{token:normal.token})).data.game.variant,'russian');
+});
+
 test('domino keeps hands private through HTTP, sockets, rejected moves and reconnects; synchronizes rounds and rematches', {timeout:60000}, async()=>{
   const {data:room,status}=await post('/api/rooms',{variant:'domino'});assert.equal(status,201);assert.equal(room.clock,null);
   const {data:joined}=await post(`/api/rooms/${room.code}/join`);

@@ -35,6 +35,7 @@ export function actionSound(kind) {
   return event.stopSound;
 }
 export const ACTION_NOTES = Object.freeze({
+  'room-ready':[349,523,659], 'room-unready':[523,349], 'room-join':[392,494,659], 'room-invite':[440,659], 'room-change':[330,440,587],
   'sell-open':[349,440], 'sell':[659,523,784],
   'card-play':[330,262], 'card-cover':[440,330], 'card-transfer':[330,494,392], 'card-take':[392,294,220], 'card-clear':[523,659], 'card-deal':[294,349,440], 'card-reveal':[349,523],
   'case-open': [196, 294, 392], 'case-common': [392, 494],

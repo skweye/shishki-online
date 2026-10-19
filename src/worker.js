@@ -1,6 +1,7 @@
 import {actDurak,durakView} from '../public/durak.js';
 import {applyOwnerPrank,OWNER_EMAIL} from '../public/pranks.js';
 import { handleMatchmaking } from './matchmaking.js';
+import { createLobby, friendAction, friendCommands } from './friend-room.js';
 export { Matchmaker } from './matchmaking.js';
 import { DurableObject } from 'cloudflare:workers';
 import { validPoolAim } from '../public/pool-aim.js';
@@ -60,13 +61,13 @@ export default {
         try { data = await bodyOf(request); } catch { return fail('Некорректный запрос.'); }
         request = new Request(request.url, { method: 'POST', headers: request.headers, body: JSON.stringify(data) });
       }
-      if (url.pathname === '/api/matchmaking') return await handleMatchmaking(request,env,identity);
+      if (['/api/matchmaking','/api/presence'].includes(url.pathname)) return await handleMatchmaking(request,env,identity);
       if (url.pathname === '/api/rooms' && request.method === 'POST') {
         const data = await request.json();
         const variant = data?.variant ?? 'russian';
         if (!data || typeof data !== 'object' || Array.isArray(data) || !validVariant(variant)) return fail('Неизвестный режим игры.');
         const code = crypto.randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
-        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code + '&variant=' + variant, { method: 'POST', headers }));
+        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code + '&variant=' + variant + (data.kind === 'friend' ? '&kind=friend' : ''), { method: 'POST', headers }));
       }
       const match = url.pathname.match(/^\/api\/rooms\/([A-F0-9]{12})\/(join|socket)$/);
       if (!match) return fail('Комната не найдена.', 404);
@@ -159,7 +160,7 @@ export class GameRoom extends DurableObject {
       game: durakView(battleshipView(dominoView(this.room.game, role), role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
       poolAim: this.poolAim && Date.now()-this.poolAimAt<3000 && validPoolAim(this.poolAim,this.room.game,this.poolAim.role) ? this.poolAim : null,
       online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
-      rematch: this.room.rematch, drawOffer: this.room.drawOffer,
+      rematch: this.room.rematch, drawOffer: this.room.drawOffer, lobby: this.room.lobby || null,
       names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
     };
   }
@@ -213,6 +214,7 @@ export class GameRoom extends DurableObject {
         const token = crypto.randomUUID();
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         this.room.clock = createClock(variant); this.room.chat = [];
+        if (url.searchParams.get('kind') === 'friend') { this.room.lobby = createLobby(variant); this.room.clock = null; }
         this.room.code = url.searchParams.get('code');
         this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', cue: identity?.cueSkin || 'classic', ship: identity?.shipSkin || 'classic', card: identity?.cardSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
@@ -279,7 +281,7 @@ export class GameRoom extends DurableObject {
         messageType = data.type;
         const actionNow = Date.now();
         if(data.type==='pool-aim'){
-          if(!this.room.players.black||!validPoolAim(data,this.room.game,role)||actionNow-(session.lastAim||0)<60)return;
+          if(this.room.lobby?.phase==='lobby'||!this.room.players.black||!validPoolAim(data,this.room.game,role)||actionNow-(session.lastAim||0)<60)return;
           session.lastAim=actionNow;ws.serializeAttachment(session);
           this.poolAim={type:'pool-aim',role,revision:data.revision,angle:data.angle,power:data.power,placing:data.placing};this.poolAimAt=actionNow;
           for(const peer of this.ctx.getWebSockets())if(peer.deserializeAttachment()?.role!==role){try{peer.send(JSON.stringify(this.poolAim));}catch{}}
@@ -299,6 +301,11 @@ export class GameRoom extends DurableObject {
         if (actionNow - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
         session.lastMessage = actionNow; ws.serializeAttachment(session);
         if (data.type === 'sync') { ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) })); return; }
+        if (friendCommands.has(data.type)) {
+          friendAction(this.room, role, data, actionNow); this.poolAim = null;
+          await this.save(); this.broadcast(); return;
+        }
+        if (this.room.lobby?.phase === 'lobby') throw new Error('Сначала выберите игру и подтвердите готовность.');
         if (!this.room.players.black) throw new Error('Дождитесь второго игрока.');
         // Independent fleets may be submitted against the same setup snapshot.
         // The setup base prevents delayed commands from an earlier match entering a rematch.
@@ -355,6 +362,7 @@ export class GameRoom extends DurableObject {
             this.room.game = this.room.game.reason === 'round' ? nextChapaevRound(this.room.game) : newGame(variantOf(this.room.game)); this.room.game.revision = revision;
             this.room.clock = createClock(variantOf(this.room.game), actionNow);
             this.room.rematch = []; this.room.drawOffer = null;
+            if(this.room.lobby){this.room.lobby.revision++;this.room.lobby.returnOffer=null;}
           }
         } else throw new Error('Действие сейчас недоступно.');
         if (data.type!=='owner-prank' && !previous.winner && this.room.game.revision !== previous.revision) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, actionNow);

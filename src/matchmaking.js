@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { validVariant } from '../public/game.js';
 
 export const SEARCH_LEASE = 45000;
+export const PRESENCE_LEASE = 60000;
 const RECEIPT_TTL = 10 * 60 * 1000;
 const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value);
 const json = (data, status = 200) => Response.json(data, {status, headers:{'Cache-Control':'no-store'}});
@@ -18,7 +19,13 @@ export class Matchmaker extends DurableObject {
     if(expired.length) await this.ctx.storage.delete(expired);
     return rows;
   }
-  async alarm(){await this.ctx.blockConcurrencyWhile(async()=>{const rows=await this.entries();if(rows.size)await this.ctx.storage.setAlarm(Date.now()+SEARCH_LEASE);});}
+  async presenceRows(now = Date.now()) {
+    const rows=await this.ctx.storage.list({prefix:'presence:'}),expired=[];
+    for(const [key,expiry] of rows)if(expiry<=now){expired.push(key);rows.delete(key);}
+    if(expired.length)await this.ctx.storage.delete(expired);
+    return rows;
+  }
+  async alarm(){await this.ctx.blockConcurrencyWhile(async()=>{const rows=await this.entries(),presence=await this.presenceRows();if(rows.size||presence.size)await this.ctx.storage.setAlarm(Date.now()+SEARCH_LEASE);});}
   async result(entry) {
     if(entry.status === 'matched' || entry.status === 'complete') {
       const pair = entry.pair;
@@ -35,6 +42,17 @@ export class Matchmaker extends DurableObject {
     return this.ctx.blockConcurrencyWhile(async()=>{
       const actor=request.headers.get('X-Match-Actor');
       if(!actor) return json({error:'Не удалось подтвердить поиск.'},403);
+      if(new URL(request.url).pathname==='/api/presence'){
+        const now=Date.now(),rows=await this.presenceRows(now),key='presence:'+actor;
+        if(rows.size>=5000&&!rows.has(key))return json({error:'Счётчик временно недоступен.'},503);
+        await this.ctx.storage.put(key,now+PRESENCE_LEASE);rows.set(key,now+PRESENCE_LEASE);
+        // On sign-in this browser stops being counted as a separate guest.
+        const guest=request.headers.get('X-Presence-Guest');
+        if(actor.startsWith('account:')&&uuid(guest)){const guestKey='presence:guest:'+guest;await this.ctx.storage.delete(guestKey);rows.delete(guestKey);}
+        const entries=await this.entries(now);
+        await this.ctx.storage.setAlarm(now+SEARCH_LEASE);
+        return json({online:rows.size,searching:[...entries.values()].filter(row=>row.status==='waiting').length,windowSeconds:PRESENCE_LEASE/1000});
+      }
       const data=await request.json();
       if(!data || !['join','status','cancel','ack'].includes(data.action) || !uuid(data.ticket))return json({error:'Некорректный запрос поиска.'},400);
       if(data.action==='join'&&!validVariant(data.variant))return json({error:'Неизвестный режим игры.'},400);
@@ -82,10 +100,12 @@ export class Matchmaker extends DurableObject {
 export async function handleMatchmaking(request,env,identity){
   if(request.method!=='POST')return json({error:'Недоступный запрос.'},405);
   const url=new URL(request.url),local=['localhost','127.0.0.1','[::1]'].includes(url.hostname);
-  const name=(local?'':'__Host-')+'shishki-search';
+  // Presence must not race a first queue join and overwrite its seat cookie.
+  const name=(local?'':'__Host-')+(url.pathname==='/api/presence'?'shishki-visitor':'shishki-search');
   let guest=request.headers.get('Cookie')?.split(';').map(v=>v.trim()).find(v=>v.startsWith(name+'='))?.slice(name.length+1);
   const fresh=!uuid(guest);if(fresh)guest=crypto.randomUUID();
   const headers=new Headers(request.headers);headers.set('X-Match-Actor',identity?'account:'+identity.id:'guest:'+guest);
+  headers.set('X-Presence-Guest',guest);
   const response=await env.MATCHMAKER.getByName('public-queue-v1').fetch(new Request(request,{headers}));
   const result=new Response(response.body,response);
   if(fresh)result.headers.append('Set-Cookie',name+'='+guest+'; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000'+(local&&url.protocol==='http:'?'':'; Secure'));

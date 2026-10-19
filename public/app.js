@@ -1,3 +1,5 @@
+import { createHomeHub } from './home-hub.js';
+import { t } from './i18n.js';
 import {isDurak as durakVariant,actDurak,validateDurakSave} from './durak.js';
 import {createDurakBoard} from './durak-board.js';
 import {PRANKS,applyOwnerPrank,ownerPranks} from './pranks.js';
@@ -30,6 +32,8 @@ import { createDominoBoard } from './domino-board.js';
 
 const $ = id => document.getElementById(id);
 const matchUI=createMatchUI();
+const homeHub=createHomeHub();
+const chatHome=$('chat-panel').parentElement;
 const names = { white: 'Белые', black: 'Чёрные' };
 const sounds = createSounds();
 const prankEffect=createPrankEffect(kind=>sounds.play(kind));
@@ -94,7 +98,8 @@ function confirm(title, message, action, label = 'Продолжить') {
 }
 function localSave() { savedLocal = game; localGames[variantOf(game)] = game; storage.set(localKey(variantOf(game)), JSON.stringify(game)); }
 function serverTime() { return clockSync.now + performance.now() - clockSync.received; }
-function canPlay() { if(isSea()&&game.phase==='setup'&&mode==='online')return !animating&&!game.winner&&!!room?.ready&&connected&&!pending&&!game.ready[room.role]; return !animating && !game.winner && !expiredSide(mode === 'local' ? game.clock : room?.clock, game, mode === 'local' ? Date.now() : serverTime()) && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
+const inFriendLobby=()=>room?.lobby?.phase==='lobby';
+function canPlay() { if(inFriendLobby())return false; if(isSea()&&game.phase==='setup'&&mode==='online')return !animating&&!game.winner&&!!room?.ready&&connected&&!pending&&!game.ready[room.role]; return !animating && !game.winner && !expiredSide(mode === 'local' ? game.clock : room?.clock, game, mode === 'local' ? Date.now() : serverTime()) && (mode === 'local' || (room && room.ready && connected && room.role === game.turn && !pending)); }
 function expireLocal() {
   if (mode !== 'local') return false;
   const now = Date.now(), loser = expiredSide(game.clock, game, now);
@@ -231,6 +236,18 @@ function renderHistory() {
 }
 function render() {
   updateBackdrop();
+  $('room-games').hidden=$('result-games').hidden=!room?.lobby;
+  $('room-games').disabled=$('result-games').disabled=!connected||pending;
+  const offer=room?.lobby?.returnOffer;
+  $('lobby-offer').hidden=!offer||inFriendLobby();
+  $('lobby-offer-title').textContent=offer===room?.role?'Предложение сменить игру отправлено':'Соперник предлагает выбрать другую игру';
+  $('lobby-accept').hidden=offer===room?.role;
+  $('lobby-decline').textContent=offer===room?.role?'Отменить предложение':'Остаться в партии';
+  $('lobby-accept').disabled=$('lobby-decline').disabled=!connected||pending;
+  if(inFriendLobby()){
+    matchUI.update({mode,room,game,animating:false,flipped,playable:false});
+    roomChat.update(room,connected);renderFriend();return;
+  }
   $('prank-button').hidden=!ownerPranks(currentUser)||!PRANKS[game.variant];
   $('prank-button').disabled=!canPlay();
   $('prank-button').title=PRANKS[game.variant]?.description||'';
@@ -267,7 +284,7 @@ function render() {
 
 function renderResult() {
   const dialog = $('result-dialog');
-  if (!game.winner || animating || $('game-screen').hidden) {
+  if (!game.winner || animating || $('game-screen').hidden || room?.lobby?.returnOffer) {
     dialog.close(); shownResult = null; return;
   }
   const result = matchResult(game, room?.role);
@@ -450,9 +467,21 @@ function disconnect() {
   connected = false; pending = false;
 }
 function applySnapshot(data, audible = true) {
-  const changed = game.revision !== data.game.revision;
-  acceptGame(data.game, audible);
-  Object.assign(room, { ready: data.ready, online: data.online, rematch: data.rematch, drawOffer: data.drawOffer, names: data.names, cosmetics: data.cosmetics, accountBound: data.accountBound, clock: data.clock, chat: data.chat });
+  const before=room.lobby, changed=game.revision!==data.game.revision, phaseChanged=before?.phase!==data.lobby?.phase;
+  Object.assign(room, { ready:data.ready, online:data.online, rematch:data.rematch, drawOffer:data.drawOffer, names:data.names, cosmetics:data.cosmetics, accountBound:data.accountBound, clock:data.clock, chat:data.chat, lobby:data.lobby });
+  if(inFriendLobby()||phaseChanged){
+    game=data.game;selected=null;shownResult=null;promotionMove=null;confirmAction=null;
+    if(phaseChanged){
+      document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
+      if(!inFriendLobby()&&isCards())freshCardDeals.add(game.dealId);
+      showScreen(inFriendLobby()?'friend':'game');
+      if(audible)sounds.play(inFriendLobby()?'room-change':'start');
+    }else if(audible&&before){
+      if(before.variant!==data.lobby.variant)sounds.play('select');
+      else if(JSON.stringify(before.ready)!==JSON.stringify(data.lobby.ready))sounds.play(data.lobby.ready.length>before.ready.length?'room-ready':'room-unready');
+    }
+  }else acceptGame(data.game,audible);
+  if(audible&&!before?.returnOffer&&data.lobby?.returnOffer)sounds.play('room-change');
   if (Number.isFinite(data.serverNow)) clockSync = { now: data.serverNow, received: performance.now() };
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
   pending = false; render();
@@ -465,7 +494,7 @@ function connect() {
   socket = ws; let lastPong = Date.now(), firstSnapshot = true;
   ws.onopen = () => {
     if (socket !== ws) return;
-    connected = true; retry = 0; render(); clearInterval(heartbeat);
+    connected = true; retry = 0; room.connectionError=null; render(); clearInterval(heartbeat);
     heartbeat = setInterval(() => {
       if (socket !== ws || ws.readyState !== WebSocket.OPEN) return;
       if (Date.now() - lastPong > 65000) { ws.close(); return; }
@@ -479,7 +508,7 @@ function connect() {
       const data = JSON.parse(event.data);
       if (data.type === 'state') { applySnapshot(data, !firstSnapshot); firstSnapshot = false; }
       if (data.type === 'pool-aim' && isPool() && data.role !== room.role) poolBoard.receiveAim(data);
-      if (data.type === 'chat') { room.chat = roomChat.receive(data.message); matchUI.chat(room.chat); }
+      if (data.type === 'chat') { room.chat = roomChat.receive(data.message); if(!inFriendLobby())matchUI.chat(room.chat); }
       if (data.type === 'error') {
         if (data.context === 'chat') roomChat.error(data.message);
         else { pending = false; toast(data.message); render(); }
@@ -489,6 +518,7 @@ function connect() {
   ws.onclose = event => {
     if (socket !== ws) return;
     clearInterval(heartbeat); connected = false; pending = false; poolBoard.receiveAim(null); render();
+    if([4001,4003,4004].includes(event.code)){room.connectionError=event.code===4003?'Сессия закончилась. Войдите снова и откройте ссылку на комнату.':event.code===4001?'Игра в другой вкладке':'Комната закрыта';if(inFriendLobby())renderFriend();}
     if (event.code === 4003) {
       $('status-title').textContent = 'Войдите в аккаунт';
       $('status-text').textContent = 'Сессия закончилась. Войдите снова и откройте ссылку на комнату.';
@@ -505,7 +535,7 @@ function connect() {
 }
 function send(data) {
   if (!connected || socket?.readyState !== WebSocket.OPEN || pending) return toast('Подождите соединения с комнатой.');
-  pending = true; socket.send(JSON.stringify({ ...data, revision: game.revision })); render();
+  pending = true; socket.send(JSON.stringify({ ...data, revision: game.revision, ...(room?.lobby?{lobbyRevision:room.lobby.revision}:{}) })); render();
 }
 function enterRoom(code, data) {
   disconnect();
@@ -517,7 +547,7 @@ function enterRoom(code, data) {
   storage.set('shashki-room-' + code, data.token);
   selected = game.forced; flipped = room.role === 'black';
   const url = new URL(location.href); url.searchParams.set('room', code); history.replaceState(null, '', url);
-  showScreen('game'); render(); connect();
+  showScreen(inFriendLobby()?'friend':'game'); render(); connect();
 }
 async function join(code) {
   const data = await api(`/api/rooms/${code}/join`, { token: storage.get('shashki-room-' + code) });
@@ -541,12 +571,16 @@ function showScreen(screen) {
   chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
   boardDrag.cancel();
   seaBoard.hide();
+  $('friend-screen').hidden=screen!=='friend';
+  (screen==='friend'?$('friend-picker-host'):$('home-picker-host')).append($('start-form'));
+  (screen==='friend'?$('friend-chat-host'):chatHome).append($('chat-panel'));
+  if(screen==='home'){$('home-hub').hidden=false;$('home-picker').hidden=true;homeHub.update(currentUser);}
   $('home-screen').hidden = screen !== 'home';
   $('game-screen').hidden = screen !== 'game';
   updateBackdrop();
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (screen === 'home') { updateStart(); $('home-title').focus({ preventScroll: true }); }
-  else $('variant-title').focus({ preventScroll: true });
+  else $(screen==='friend'?'friend-title':'variant-title').focus({preventScroll:true});
 }
 function goHome() {
   const action = () => {
@@ -557,7 +591,7 @@ function goHome() {
   else action();
 }
 function updateBackdrop() {
-  const variant = $('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
+  const variant = inFriendLobby()?room.lobby.variant:$('game-screen').hidden ? $('start-form').elements.variant.value : variantOf(game);
   document.querySelectorAll('[data-scene]').forEach(scene=>scene.classList.toggle('is-active',scene.dataset.scene===variant));
   if (document.body.dataset.backdrop !== variant) document.body.dataset.backdrop = variant;
 }
@@ -568,8 +602,11 @@ function updateStart() {
   updateBackdrop();
   const variant = $('start-form').elements.variant.value, saved = localGames[variant];
   const resume = (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || ['narde','battleship'].includes(saved.variant) && saved.revision > 0);
-  $('local-start-label').textContent = resume ? 'Продолжить партию' : 'На одном устройстве';
-  $('local-start-description').textContent = resume ? 'Ваша партия сохранена. Продолжите с последнего хода.' : 'Для двоих игроков рядом.';
+  const type=$('start-form').elements['play-mode'].value;
+  if(!inFriendLobby()){
+    $('play-selected').textContent=type==='search'?'Найти соперника':resume?'Продолжить партию':'Начать игру ↗';
+    $('picker-hint').textContent=type==='search'?'Найдём игрока для выбранной игры.':resume?'Ваша партия сохранена. Продолжите с последнего хода.':'Два игрока на одном устройстве.';
+  }
   $('start-hint').textContent = VARIANTS[variant].name;
   document.querySelectorAll('.lobby-game').forEach(card => card.classList.toggle('is-selected', [...card.querySelectorAll('input')].some(input => input.value === variant)));
   const preview = $('lobby-preview-image'), src = '/art/lobby-' + (durakVariant(variant) ? 'durak' : variant) + '.svg';
@@ -578,22 +615,59 @@ function updateStart() {
 }
 function startBusy(busy) {
   $('start-form').setAttribute('aria-busy', String(busy));
-  document.querySelectorAll('#start-form [data-play-mode],#start-form input[name="variant"]').forEach(control => control.disabled = busy);
+  document.querySelectorAll('[data-play-mode],#play-selected,#start-form input[name="variant"],#picker-back').forEach(control => control.disabled = busy);
   $('home-join-button').disabled = busy;
 }
 $('home-button').onclick = goHome;
 $('menu-home').onclick = () => { closeAccountMenu(); goHome(); };
 document.querySelector('.brand').onclick = event => { event.preventDefault(); goHome(); };
-$('start-form').onchange = event => { if(event?.target?.name === 'variant')sounds.play('select'); updateStart(); };
-document.querySelectorAll('[data-play-mode]').forEach(button => button.addEventListener('click', () => {
-  // Keep a fallback for browsers without SubmitEvent.submitter.
-  $('start-form').elements['play-mode'].value = button.dataset.playMode;
+function renderFriend(){
+  if(!inFriendLobby())return;
+  const lobby=room.lobby,ready=lobby.ready.includes(room.role);
+  $('start-form').elements.variant.value=lobby.variant;updateStart();
+  $('friend-code').textContent=room.code;
+  $('friend-connection').textContent=connected?'● На связи':'○ Нет связи';
+  $('friend-status').textContent=room.connectionError||(!connected?'Восстанавливаем соединение с комнатой…':!room.ready?'Пригласите друга. Игру можно выбрать уже сейчас.':ready?'Вы готовы. Ждём второго игрока.':'Выберите игру вместе и подтвердите готовность.');
+  $('friend-players').replaceChildren(...['white','black'].map(side=>{
+    const item=document.createElement('div');item.className='friend-player';
+    const name=document.createElement('strong');name.dataset.noTranslate='';name.textContent=room.names?.[side]||t(side==='white'?'Игрок 1':room.ready?'Игрок 2':'Место для друга');
+    const state=document.createElement('span');state.textContent=lobby.ready.includes(side)?'✓ Готов':room.online?.[side]?'● В комнате':side==='black'&&!room.ready?'Пригласите друга':'Не в сети';
+    if(side===room.role){const you=document.createElement('small');you.textContent='это вы';item.append(you);}
+    item.append(name,state);return item;
+  }));
+  document.querySelectorAll('#start-form input[name="variant"]').forEach(input=>input.disabled=!connected||pending);
+  $('play-selected').disabled=!connected||pending;
+  $('play-selected').textContent=ready?'Отменить готовность':'Готов играть ✓';
+  $('play-selected').className=ready?'secondary-button':'primary-button';
+  $('picker-hint').textContent='Смена игры сбрасывает готовность обоих игроков.';
+}
+function showPicker(type){
+  $('start-form').elements['play-mode'].value=type;
+  $('home-hub').hidden=true;$('home-picker').hidden=false;
+  $('picker-mode').textContent=type==='local'?'Локально':'Онлайн';
+  $('play-selected').className='primary-button';updateStart();$('game-choice-title').focus();
+}
+$('picker-back').onclick=()=>{sounds.play('select');$('home-hub').hidden=false;$('home-picker').hidden=true;$('home-title').focus();};
+$('friend-leave').onclick=goHome;
+$('start-form').onchange=event=>{
+  if(event?.target?.name!=='variant')return;
+  if(inFriendLobby()){send({type:'room-select',variant:$('start-form').elements.variant.value});return;}
+  sounds.play('select');updateStart();
+};
+document.querySelectorAll('[data-play-mode]').forEach(button=>button.addEventListener('click',async()=>{
+  if(button.disabled)return;
+  sounds.play('select');const type=button.dataset.playMode;
+  if(type!=='online'){showPicker(type);return;}
+  startBusy(true);$('online-start-label').textContent='Создаём комнату…';
+  try{const data=await api('/api/rooms',{kind:'friend'});enterRoom(data.code,data);sounds.play('room-join');}
+  catch(error){toast(error.message||'Не удалось создать комнату. Попробуйте ещё раз.');sounds.play('error');}
+  finally{startBusy(false);$('online-start-label').textContent='С другом';render();}
 }));
-document.querySelectorAll('.lobby-nav a').forEach(link => link.addEventListener('click', () => sounds.play('select')));
+document.querySelectorAll('.lobby-nav a').forEach(link=>link.addEventListener('click',event=>{event.preventDefault();goHome();sounds.play('select');}));
 $('start-form').onsubmit = async event => {
   event.preventDefault();
-  if ($('start-button').disabled) return;
-  if (event.submitter?.dataset.playMode) $('start-form').elements['play-mode'].value = event.submitter.dataset.playMode;
+  if ($('play-selected').disabled) return;
+  if(inFriendLobby()){send({type:'room-ready',ready:!room.lobby.ready.includes(room.role)});return;}
   const variant = $('start-form').elements.variant.value;
   if ($('start-form').elements['play-mode'].value === 'search') {
     startBusy(true);
@@ -609,11 +683,6 @@ $('start-form').onsubmit = async event => {
     selected = game.forced; flipped = false; showScreen('game'); render();
     return;
   }
-  startBusy(true);
-  $('online-start-label').textContent = 'Создаём комнату…';
-  try { const data = await api('/api/rooms', { variant }); enterRoom(data.code, data); sounds.play('start'); }
-  catch (error) { toast(error.message || 'Не удалось создать комнату. Попробуйте ещё раз.'); }
-  finally { startBusy(false); $('online-start-label').textContent = 'Игра с другом'; updateStart(); }
 };
 $('flip-button').onclick = () => { flipped = !flipped; render(); };
 $('prank-button').onclick=()=>{
@@ -645,12 +714,12 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
 $('confirm-yes').onclick = () => { const action = confirmAction; confirmAction = null; $('confirm-dialog').close(); action?.(); };
 $('join-form').onsubmit = async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
-  try { await join(extractCode($('join-code').value)); $('join-dialog').close(); }
+  try { await join(extractCode($('join-code').value)); $('join-dialog').close(); sounds.play('room-join'); }
   catch (error) { $('join-error').textContent = error.message; }
   finally { button.disabled = false; }
 };
-$('copy-button').onclick = async () => {
-  try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); }
+$('friend-copy').onclick = $('copy-button').onclick = async () => {
+  try { await navigator.clipboard.writeText(location.origin + '/?room=' + room.code); toast('Приглашение скопировано. Отправьте его другу.'); sounds.play('room-invite'); }
   catch { toast('Скопируйте адрес страницы из адресной строки и отправьте другу.'); }
 };
 function resetLocal() { prankEffect.cancel(); rocketEffect.cancel(); dominoBoard.hide(); cardBoard.hide(); nardeBoard.cancel(); chapaevBoard.cancel(); poolBoard.cancel(); animating = false; game = newGame(variantOf(game)); if(isCards())freshCardDeals.add(game.dealId); cardUpdateLive = false; game.clock = createClock(variantOf(game), Date.now()); selected = null; localSave(); sounds.play('start'); render(); }
@@ -699,7 +768,18 @@ $('draw-button').onclick = () => {
 $('accept-draw').onclick = () => send({ type: 'draw' });
 $('decline-draw').onclick = () => send({ type: 'decline-draw' });
 
+function changeRoomGame(){
+  if(!room?.lobby||pending||!connected)return;
+  $('result-dialog').close();
+  if(game.winner&&game.reason!=='round'){send({type:'room-lobby'});return;}
+  const code=room.code;
+  confirm('Выбрать другую игру?', 'Предложим сопернику вернуться в комнату. При согласии текущая партия закончится без результата.',()=>{if(room?.code===code)send({type:'room-lobby'});},'Предложить смену игры');
+}
+$('room-games').onclick=$('result-games').onclick=changeRoomGame;
+$('lobby-accept').onclick=()=>send({type:'room-lobby'});
+$('lobby-decline').onclick=()=>{sounds.play('room-unready');send({type:'room-stay'});};
 document.addEventListener('accountchange', async () => {
+  homeHub.update(currentUser);
   if (!room) { render(); return; }
   const code = room.code;
   disconnect();
@@ -713,7 +793,7 @@ setInterval(() => {
 }, 200);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('game-screen').hidden) { expireLocal(); updateClock(); } });
 await authReady;
-render();
+homeHub.update(currentUser);render();
 const invite = new URL(location.href).searchParams.get('room');
 if(!invite)await searchGame.resume();
 if (invite) {
