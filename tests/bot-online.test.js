@@ -14,7 +14,7 @@ async function post(path, body = {}) {
 function client(code, token) {
   const ws = new WebSocket(base.replace(/^http/, 'ws') + '/api/rooms/' + code + '/socket', ['checkers',token]), messages = [];
   ws.addEventListener('message', event => { if (event.data !== 'pong') messages.push(JSON.parse(event.data)); });
-  return { ws, async wait(predicate) {
+  return { ws, assertNoErrors() { assert.deepEqual(messages.filter(m=>m.type==='error'),[]); }, async wait(predicate) {
     const end = Date.now() + 22000;
     while (Date.now() < end) { const index = messages.findIndex(predicate); if (index >= 0) return messages.splice(index,1)[0]; await delay(25); }
     throw Error('Bot socket timeout: ' + JSON.stringify(messages));
@@ -90,4 +90,19 @@ test('bot draw, rematch and surrender work with the actual Worker', {timeout:300
     assert.equal(state.game.variant,'chess');assert.equal(state.game.history.length,0);
     await a.send({type:'resign',revision:state.game.revision});state=await a.wait(m=>m.type==='state'&&m.game.winner==='black');assert.equal(state.game.reason,'resign');
   } finally {a.ws.close();}
+});
+
+test('pool shot and automatic sync can arrive together in either order without rate-limit errors', {timeout:30000}, async()=>{
+  for(const syncFirst of [true,false]){
+    const {status,data:r}=await post('/api/rooms',{kind:'bot',variant:'pool8'});assert.equal(status,201);
+    const a=client(r.code,r.token);
+    try{
+      await a.wait(m=>m.type==='state');
+      const shot={type:'pool-shot',revision:0,dx:.4,dy:0},sync={type:'sync'};
+      for(const packet of syncFirst?[sync,sync,shot,sync]:[shot,sync,sync])a.ws.send(JSON.stringify(packet));
+      const moved=await a.wait(m=>m.type==='state'&&m.game.revision===1);
+      assert.equal(moved.game.lastShot.dx,.4);assert.equal(moved.game.lastShot.dy,0);
+      await delay(150);a.assertNoErrors();
+    }finally{a.ws.close();}
+  }
 });

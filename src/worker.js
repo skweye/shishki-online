@@ -331,13 +331,17 @@ export class GameRoom extends DurableObject {
           for (const peer of this.ctx.getWebSockets()) { try { peer.send(JSON.stringify({ type: 'chat', message: item })); } catch {} }
           return;
         }
-        if (actionNow - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
-        session.lastMessage = actionNow; ws.serializeAttachment(session);
         if (data.type === 'sync') {
+          // Background recovery must neither block a player's action nor report
+          // a gameplay error when both packets arrive together.
+          if (session.lastSync !== undefined && actionNow - session.lastSync < 500) return;
+          session.lastSync = actionNow; ws.serializeAttachment(session);
           // Also repair an overdue bot alarm without requiring the user to reload.
           if (this.room.bot) { await this.save(false); await this.runBot(); }
           ws.send(JSON.stringify({ type: 'state', ...this.snapshot(role) })); return;
         }
+        if (actionNow - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
+        session.lastMessage = actionNow; ws.serializeAttachment(session);
         if (friendCommands.has(data.type)) {
           friendAction(this.room, role, data, actionNow); this.poolAim = null;
           await this.save(); this.broadcast(); return;

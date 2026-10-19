@@ -1,4 +1,4 @@
-import { TABLE, POCKETS, pocketGeometry, simulatePool } from './pool.js';
+import { TABLE, POCKETS, pocketGeometry, simulatePool, ballGroup } from './pool.js';
 
 const R=TABLE.radius, GAP=2*R, FPS=60;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -42,8 +42,9 @@ function along(path,t){
   return path.at(-1);
 }
 
-function sweepCandidates(balls,cue){
-  const objects=balls.filter(b=>b.id!==0),targets=objects.some(b=>b.id!==8)?objects.filter(b=>b.id!==8):objects,candidates=[];
+function sweepCandidates(balls,cue,group){
+  const objects=balls.filter(b=>b.id!==0),own=objects.filter(b=>ballGroup(b.id)&&(!group||ballGroup(b.id)===group));
+  const targets=own.length?own:objects.filter(b=>b.id===8),candidates=[];
     for(const ball of targets)for(let pocket=0;pocket<POCKETS.length;pocket++){
       const end=pocketGeometry(POCKETS[pocket]),length=distance(ball,end);
       const direction={x:(end.x-ball.x)/length,y:(end.y-ball.y)/length};
@@ -63,6 +64,13 @@ export function simulatePoolSweep(state,collectFrames=false){
   if(state.variant!=='pool8'||state.winner)throw Error('Удар сейчас недоступен.');
   const balls=state.balls.map(b=>({...b}));let cue=balls.find(b=>b.id===0),nudges=0;
   if(!cue)throw Error('Сначала поставьте биток на стол.');
+  // On an open table choose one group once, before any collision. The preview
+  // and authoritative result make the same choice from the same position.
+  let group=state.groups[state.turn];
+  if(!group){
+    const first=sweepCandidates(balls,cue)[0]?.ball||balls.filter(b=>ballGroup(b.id)).sort((a,b)=>distance(cue,a)-distance(cue,b)||a.id-b.id)[0];
+    group=ballGroup(first?.id)||'solid';
+  }
   const frames=[],events=[],potted=[],shots=[];let elapsed=0;
   const frame=()=>balls.map(({id,x,y})=>({id,x,y}));
   if(collectFrames)frames.push(frame());
@@ -72,20 +80,21 @@ export function simulatePoolSweep(state,collectFrames=false){
     else update(1);
     elapsed+=steps/FPS;
   }
-  while(balls.some(b=>b.id!==0)){
-    const objects=balls.filter(b=>b.id!==0),candidates=sweepCandidates(balls,cue);
+  while(balls.some(b=>b.id===8||ballGroup(b.id)===group)){
+    const objects=balls.filter(b=>b.id!==0),candidates=sweepCandidates(balls,cue,group);
     let shot;
     for(const candidate of candidates){const route=cueRoute({...cue},candidate.ready,objects);if(route){shot={...candidate,route};break;}}
     if(!shot){
       // Open a tight cluster with a real collision before resuming the guided
-      // sequence. Reject nudges that scratch or pocket the eight prematurely.
+      // sequence. Opposing balls can move on contact, but must stay on the table.
+      // Reject scratches, opposing pockets and premature eights.
       let impulse;
       const targets=objects.filter(b=>b.id!==8).sort((a,b)=>distance(cue,a)-distance(cue,b));
       const position={...state,balls,winner:null,ballInHand:null};
       if(nudges++<12)outer:for(const target of targets)for(const power of [.35,.65,1])for(const offset of [0,.12,-.12]){
         const angle=Math.atan2(target.y-cue.y,target.x-cue.x)+offset,dx=Math.cos(angle)*power,dy=Math.sin(angle)*power;
         const result=simulatePool(position,dx,dy);
-        if(result.potted.some(b=>b.id===0||b.id===8)||!sweepCandidates(result.balls,result.balls.find(b=>b.id===0)).length)continue;
+        if(result.potted.some(b=>b.id===0||b.id===8||ballGroup(b.id)!==group)||!sweepCandidates(result.balls,result.balls.find(b=>b.id===0),group).length)continue;
         impulse={dx,dy};break outer;
       }
       if(!impulse)throw Error('Не удалось проложить путь битка. Сделайте обычный удар.');
@@ -108,5 +117,5 @@ export function simulatePoolSweep(state,collectFrames=false){
     if(collectFrames)frames[frames.length-1]=frame();
     animate(.12,()=>{});
   }
-  return {balls:frame(),frames,events,potted,shots};
+  return {balls:frame(),frames,events,potted,shots,group};
 }

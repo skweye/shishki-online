@@ -1,24 +1,29 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {newPool,simulatePool,TABLE,pocketGeometry,POCKETS} from '../public/pool.js';
+import {newPool,simulatePool,TABLE,pocketGeometry,POCKETS,ballGroup} from '../public/pool.js';
 import {simulatePoolSweep} from '../public/pool-sweep.js';
 import {applyOwnerPrank} from '../public/pranks.js';
 import {parseHTML} from 'linkedom';
 import {createPoolBoard} from '../public/pool-board.js';
 
-test('sweep rolls through the rack, pockets both groups and the eight last without scratching or teleporting',()=>{
-  for(let i=0;i<12;i++){
+test('sweep pockets only the active player\'s group and the eight last, preserving every opponent ball throughout playback',()=>{
+  for(const group of [null,'solid','stripe'])for(let i=0;i<12;i++){
     const state=newPool();
+    state.turn=i%2?'black':'white';
+    if(group)state.groups=state.turn==='white'?{white:group,black:group==='solid'?'stripe':'solid'}:{black:group,white:group==='solid'?'stripe':'solid'};
     if(i)state.balls=simulatePool(state,.5+(i%5)*.1,(i-6)*.012).balls;
     if(!state.balls.some(b=>b.id===0))continue;
     const before=structuredClone(state),result=simulatePoolSweep(state,true),authoritative=simulatePoolSweep(state);
     assert.deepEqual(state,before);assert.deepEqual(authoritative.balls,result.balls);assert.deepEqual(authoritative.potted,result.potted);
     assert.deepEqual(result.frames[0],state.balls);assert.deepEqual(result.frames.at(-1),result.balls);
-    assert.deepEqual(result.potted.map(b=>b.id).sort((a,b)=>a-b),state.balls.filter(b=>b.id).map(b=>b.id).sort((a,b)=>a-b));
-    assert.equal(result.potted.at(-1).id,8);assert.equal(result.balls.length,1);assert.equal(result.balls[0].id,0);
+    if(group)assert.equal(result.group,group);
+    assert.deepEqual(result.potted.map(b=>b.id).sort((a,b)=>a-b),state.balls.filter(b=>b.id===8||ballGroup(b.id)===result.group).map(b=>b.id).sort((a,b)=>a-b));
+    const opponent=state.balls.filter(b=>ballGroup(b.id)&&ballGroup(b.id)!==result.group).map(b=>b.id);
+    assert.equal(result.potted.at(-1).id,8);assert.deepEqual(result.balls.map(b=>b.id).sort((a,b)=>a-b),[0,...opponent].sort((a,b)=>a-b));
     let last=new Map(state.balls.map(b=>[b.id,b]));
     for(const frame of result.frames){
       assert.ok(frame.some(b=>b.id===0),'the cue never disappears');
+      for(const id of opponent)assert.ok(frame.some(b=>b.id===id),'opponent balls never disappear, even during cluster collisions');
       for(const ball of frame){
         assert.ok(Number.isFinite(ball.x)&&Number.isFinite(ball.y));
         assert.ok(last.has(ball.id),'pocketed balls never reappear');
@@ -29,7 +34,7 @@ test('sweep rolls through the rack, pockets both groups and the eight last witho
     const pockets=result.events.filter(e=>e.kind==='pocket');assert.equal(pockets.length,result.potted.length);
     for(const event of pockets){const end=pocketGeometry(POCKETS[event.pocket]);assert.ok(Math.hypot(event.x-end.x,event.y-end.y)<TABLE.pocket);}
     assert.ok(result.events.some(e=>e.kind==='ball'));assert.ok(result.frames.length<3600,'bounded animation duration');
-    const next=applyOwnerPrank(state,'white');assert.equal(next.winner,'white');assert.deepEqual(next.balls,result.balls);assert.equal(next.lastShot.kind,'sweep');
+    const next=applyOwnerPrank(state,state.turn);assert.equal(next.winner,state.turn);assert.deepEqual(next.balls,result.balls);assert.equal(next.lastShot.kind,'sweep');assert.equal(next.groups[state.turn],result.group);
   }
 });
 
@@ -54,7 +59,7 @@ test('sweep playback schedules collision sounds, holds results and cleans up on 
   board.render(before,false,true);board.animate(before,next,complete);board.render(next,false,false);
   assert.equal(finished,0);assert.equal(board.presentationState(),before);assert.equal(sounds.length,0);
   for(let time=0;time<=6000;time+=16)run(time);
-  assert.equal(finished,1);assert.equal(board.presentationState(),null);assert.equal(sounds.filter(k=>k==='pocket').length,3);assert.equal(sounds.filter(k=>k==='ball').length,3);
+  assert.equal(finished,1);assert.equal(board.presentationState(),null);assert.equal(sounds.filter(k=>k==='pocket').length,2);assert.equal(sounds.filter(k=>k==='ball').length,2);
   board.render(before,false,true);board.animate(before,next,complete);run(0);
   const count=sounds.length;document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));
   assert.equal(finished,2);assert.equal(frames.size,0);run(60000);assert.equal(sounds.length,count);assert.equal(board.presentationState(),null);

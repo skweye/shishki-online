@@ -24,7 +24,7 @@ assert.throws(()=>applyOwnerPrank(game,side==='white'?'black':'white'));
     if(variant==='chess')assert.equal(next.fen,game.fen);
     if(variant==='narde')assert.deepEqual(next.dice,[6,6,6,6]);
     if(variant==='chapaev')assert.equal(next.pieces.length,16);
-    if(variant==='pool8'){assert.equal(next.balls.length,1);assert.equal(next.balls[0].id,0);assert.equal(next.winner,side);assert.equal(next.lastShot.kind,'sweep');}
+    if(variant==='pool8'){assert.deepEqual(next.balls.map(b=>b.id).sort((a,b)=>a-b),[0,9,10,11,12,13,14,15]);assert.equal(next.winner,side);assert.equal(next.lastShot.kind,'sweep');}
     if(variant==='domino'){assert.equal(new Set([...next.hands.white,...next.hands.black,...next.stock,...next.chain.map(t=>t.id)]).size,28);const weight=g=>g.hands[side].reduce((n,id)=>n+DOMINOES[id][0]+DOMINOES[id][1],0);assert.ok(weight(next)<=weight(game));}
     if(variant==='battleship'){assert.equal(next.shots[side].length,1);assert.equal(battleshipView(next,side).fleets.black.flat().length<=1,true);}
     for(const text of [PRANKS[variant].name,PRANKS[variant].description])assert.ok(translations[text]?.en&&translations[text]?.uk,text);

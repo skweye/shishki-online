@@ -1,5 +1,4 @@
 import { simulatePoolSweep } from './pool-sweep.js';
-import { ballGroup } from './pool.js';
 import { newChess } from './chess-game.js';
 import { rollNarde } from './narde.js';
 import { chapaevLineup } from './chapaev.js';
@@ -13,7 +12,7 @@ export const PRANKS=Object.freeze({
   chess:{name:'Королевская минута',description:'Добавляет минуту к вашим часам.',symbol:'♚'},
   narde:{name:'Счастливые шестёрки',description:'Вместо следующего броска выпадает дубль 6–6.',symbol:'⚅'},
   chapaev:{name:'Подкрепление',description:'Возвращает одну вашу выбитую шашку на свободное место в начальном ряду.',symbol:'◉'},
-  pool8:{name:'Биток на автопилоте',description:'Биток забивает все шары, оставляя восьмёрку напоследок.',symbol:'⑧'},
+  pool8:{name:'Биток на автопилоте',description:'Биток забивает только ваши шары, затем восьмёрку.',symbol:'⑧'},
   domino:{name:'Карманный базар',description:'Меняет вашу самую тяжёлую кость на самую лёгкую из базара.',symbol:'⚁'},
   battleship:{name:'Точная торпеда',description:'Автоматически поражает одну ещё не подбитую клетку корабля соперника.',symbol:'⚓'}
 });
@@ -39,7 +38,7 @@ export function applyOwnerPrank(state,side){
   }else if(state.variant==='pool8'){
     const result=simulatePoolSweep(state);
     next.balls=result.balls;next.breaking=false;next.foul=null;next.ballInHand=null;next.winner=side;next.reason='eight-ball';
-    if(!next.groups[side]){next.groups[side]=ballGroup(result.potted.find(b=>ballGroup(b.id))?.id)||'solid';next.groups[enemy]=next.groups[side]==='solid'?'stripe':'solid';}
+    if(!next.groups[side]){next.groups[side]=result.group;next.groups[enemy]=result.group==='solid'?'stripe':'solid';}
     next.lastShot={kind:'sweep',revision:state.revision+1,potted:result.potted,foul:null};
   }else if(state.variant==='domino'){
     if(!state.chain.length||!state.stock.length)throw Error('Нужны начатая цепочка и непустой базар.');

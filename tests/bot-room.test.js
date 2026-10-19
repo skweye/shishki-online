@@ -122,6 +122,26 @@ test('sync repairs a missed alarm and streams preview then move without rejoinin
   const revision=h.room.room.game.revision;t.mock.timers.tick(100);await h.send({type:'sync'});assert.equal(h.room.room.game.revision,revision);
 });
 
+test('automatic sync and pool shots do not consume each other\'s rate limit',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  for(const bot of [true,false])for(const syncFirst of [true,false]){
+    const saved=fixture('pool8');saved.bot=bot;
+    const h=await setup(saved),shot={type:'pool-shot',dx:.85,dy:0};
+    if(syncFirst)await h.send({type:'sync'});
+    await h.send(shot);
+    if(!syncFirst)await h.send({type:'sync'});
+    assert.equal(h.room.room.game.revision,1,'the shot is accepted even at the exact sync timestamp');
+    assert.equal(h.ws.messages.filter(m=>m.type==='error').length,0,'background sync never raises an action-rate error');
+    const count=h.ws.messages.length;
+    for(let i=0;i<20;i++)await h.send({type:'sync'});
+    assert.equal(h.ws.messages.length,count,'duplicate sync requests have a separate silent throttle');
+    await h.send({type:'resign'});
+    assert.match(h.ws.messages.at(-2).message,/Слишком быстро/,'actual repeated actions are still limited');
+    t.mock.timers.tick(500);await h.send({type:'sync'});
+    assert.equal(h.ws.messages.at(-1).type,'state');
+  }
+});
+
 test('resignation and draw offers cancel a prepared action before execution',async t=>{
   t.mock.timers.enable({apis:['Date'],now:START});
   for(const type of ['resign','draw']){

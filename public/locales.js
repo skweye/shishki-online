@@ -183,7 +183,7 @@ const rows = `Бот прицеливается…|The bot is aiming…|Бот �
 Подкрепление|Reinforcements|Підкріплення
 Возвращает одну вашу выбитую шашку на свободное место в начальном ряду.|Returns one of your knocked-out pieces to a free spot in your starting row.|Повертає одну вашу вибиту шашку на вільне місце в початковому ряду.
 Биток на автопилоте|Cue ball on autopilot|Биток на автопілоті
-Биток забивает все шары, оставляя восьмёрку напоследок.|The cue ball pockets every ball, leaving the eight until last.|Биток забиває всі кулі, залишаючи вісімку наостанок.
+Биток забивает только ваши шары, затем восьмёрку.|The cue ball pockets only your group, then the eight ball.|Биток забиває лише ваші кулі, потім вісімку.
 Не удалось проложить путь битка. Сделайте обычный удар.|No route for the cue ball. Take a normal shot.|Не вдалося прокласти шлях битка. Зробіть звичайний удар.
 Карманный базар|Pocket boneyard|Кишеньковий базар
 Меняет вашу самую тяжёлую кость на самую лёгкую из базара.|Swaps your highest-value tile for the lowest-value tile in the boneyard.|Міняє вашу найважчу кістку на найлегшу з базару.
