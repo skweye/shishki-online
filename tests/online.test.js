@@ -20,7 +20,7 @@ test('friend room selects before play, validates both seats and changes games wi
   await a.send({type:'room-ready',ready:true,lobbyRevision:1});await b.wait(m=>m.type==='state'&&m.lobby.ready.includes('white'));
   await b.send({type:'room-select',variant:'durak-transfer',lobbyRevision:1});
   const changed=await a.wait(m=>m.type==='state'&&m.lobby.variant==='durak-transfer');assert.deepEqual(changed.lobby.ready,[]);
-  await a.send({type:'room-ready',ready:true,lobbyRevision:2});await b.wait(m=>m.type==='state'&&m.lobby.ready.includes('white'));
+  await a.send({type:'room-ready',ready:true,lobbyRevision:2});await b.wait(m=>m.type==='state'&&m.lobby.revision===2&&m.lobby.ready.includes('white'));
   await b.send({type:'room-ready',ready:true,lobbyRevision:2});
   const started=await a.wait(m=>m.type==='state'&&m.lobby.phase==='playing');assert.equal(started.game.variant,'durak-transfer');assert.equal(started.game.revision,1);
   assert.deepEqual(started.game.hands.black,[]);assert.equal(started.game.stock,undefined);
@@ -29,13 +29,13 @@ test('friend room selects before play, validates both seats and changes games wi
   await a.send({type:'room-lobby',lobbyRevision:3});await b.wait(m=>m.type==='state'&&m.lobby.returnOffer==='white');
   await a.send({type:'room-lobby',lobbyRevision:3});
   const own=await a.wait(m=>m.type==='state'&&m.lobby.returnOffer==='white');assert.equal(own.lobby.phase,'playing');
-  await b.send({type:'room-stay',lobbyRevision:3});await a.wait(m=>m.type==='state'&&m.lobby.phase==='playing'&&!m.lobby.returnOffer);
+  await b.send({type:'room-stay',lobbyRevision:3});await a.wait(m=>m.type==='state'&&m.serverNow>own.serverNow&&m.lobby.phase==='playing'&&!m.lobby.returnOffer);
   await b.send({type:'room-lobby',lobbyRevision:3});await a.wait(m=>m.type==='state'&&m.lobby.returnOffer==='black');
   await a.send({type:'room-lobby',lobbyRevision:3});
   const lobby=await b.wait(m=>m.type==='state'&&m.lobby.phase==='lobby'&&m.lobby.revision===4);assert.equal(lobby.clock,null);assert.equal(lobby.chat.length,1);
   const {data:restored}=await post(`/api/rooms/${r.code}/join`,{token:r.token});assert.equal(restored.role,'white');assert.equal(restored.token,r.token);assert.deepEqual(restored.lobby,lobby.lobby);
   await b.send({type:'room-select',variant:'chess',lobbyRevision:4});await a.wait(m=>m.type==='state'&&m.lobby.revision===5);
-  await a.send({type:'room-ready',ready:true,lobbyRevision:5});await b.wait(m=>m.type==='state'&&m.lobby.ready.includes('white'));
+  await a.send({type:'room-ready',ready:true,lobbyRevision:5});await b.wait(m=>m.type==='state'&&m.lobby.revision===5&&m.lobby.ready.includes('white'));
   await b.send({type:'room-ready',ready:true,lobbyRevision:5});
   const chess=await a.wait(m=>m.type==='state'&&m.lobby.phase==='playing'&&m.game.variant==='chess');assert.equal(chess.game.revision,3);assert.ok(chess.clock.startedAt);
   await b.send({type:'resign',revision:3});await a.wait(m=>m.type==='state'&&m.game.winner==='white');

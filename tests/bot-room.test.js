@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { register } from 'node:module';
 import { newGame, applyMove, legalMoves } from '../public/game.js';
 import { applyPoolShot } from '../public/pool.js';
-import { botDelay } from '../src/bot-room.js';
+import { botDelay, botPreview, botPreviewDuration } from '../src/bot-room.js';
+import { actDurak, durakActions } from '../public/durak.js';
 register('./helpers/cloudflare-loader.js', import.meta.url);
 globalThis.WebSocketRequestResponsePair = class {};
 const { GameRoom } = await import('../src/worker.js');
@@ -50,7 +51,13 @@ test('one durable bot action per turn, restoration, stale move rejection and off
   h.ws.readyState = 3; await h.room.webSocketClose(h.ws);
   t.mock.timers.tick(2000); await h.room.alarm(); assert.equal(h.room.room.game.revision, 1, 'no unattended bot moves');
   const restored = await setup(h.values.get('room')); await due(t, restored);
+  assert.equal(restored.room.room.game.revision, 1, 'preview does not change the position');
+  assert.equal(restored.room.snapshot('white').botPreview.kind, 'move');
+  const planned = structuredClone(restored.room.room.botPlan.action);
+  await due(t, restored);
   assert.equal(restored.room.room.game.revision, 2); assert.equal(restored.room.room.game.turn, 'white');
+  assert.equal(restored.room.room.game.history.at(-1).from, planned.from);
+  assert.equal(restored.room.room.game.history.at(-1).to, planned.to);
   assert.equal(restored.room.room.updatedAt, START, 'automatic turns do not extend room retention');
   await restored.room.alarm(); assert.equal(restored.room.room.game.revision, 2, 'duplicate alarm is idempotent');
   t.mock.timers.tick(100); await restored.send({ type: 'move', ...move, revision: 0 });
@@ -77,7 +84,53 @@ test('pool bot waits until the human shot animation has finished', async t => {
   const h = await setup(saved), delay = botDelay(saved.game);
   assert.ok(delay > saved.game.lastShot.duration * 1000);
   t.mock.timers.tick(delay - 100); await h.room.alarm(); assert.equal(h.room.room.game.revision, 1);
+  await due(t, h); assert.equal(h.room.room.game.revision, 1);
+  const preview=h.room.snapshot('white').botPreview;
+  assert.equal(preview.kind,'pool-shot');assert.ok(preview.power>=.05&&preview.power<=1);
+  assert.ok(preview.executeAt-Date.now()<=420);
+  const planned=structuredClone(h.room.room.botPlan.action);
   await due(t, h); assert.equal(h.room.room.game.revision, 2);
+  assert.equal(h.room.room.game.lastShot.dx,planned.dx);assert.equal(h.room.room.game.lastShot.dy,planned.dy);
+  assert.equal(h.room.snapshot('white').botPreview,null);
+});
+
+test('bot previews never disclose private cards, tiles or fleet placement',()=>{
+  for(const action of [{type:'durak-attack',card:17},{type:'durak-defend',card:9,target:0},{type:'domino-play',id:23,end:'left'},{type:'fleet-ready',fleet:[[11,12,13]]}]){
+    const room=fixture('russian');room.botPlan={revision:0,action,executeAt:START+100};
+    const preview=botPreview(room);assert.equal(preview.kind,action.type);
+    for(const key of ['card','id','fleet','action'])assert.equal(preview[key],undefined);
+    room.game.revision++;assert.equal(botPreview(room),null);
+  }
+});
+
+test('shorter bot pauses preserve dice, shot and card clearing animations',()=>{
+  const g=newGame('russian');assert.ok(botDelay(g)+botPreviewDuration({type:'move'})<400);
+  assert.ok(botDelay({...newGame('narde'),lastAction:{kind:'roll'}})>=1190);
+  let cards=newGame('durak-simple');
+  const played=actDurak(cards,cards.turn,durakActions(cards)[0]);assert.equal(botDelay(played,cards),400);
+  const taken=actDurak(played,played.turn,{type:'durak-take'});assert.ok(botDelay(taken,played)>=800);
+  const next={...newGame('chapaev'),round:2};assert.ok(botDelay(next)>=850);
+});
+
+test('sync repairs a missed alarm and streams preview then move without rejoining',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});const h=await setup(fixture('russian'));
+  await h.send({type:'move',...legalMoves(h.room.room.game)[0]});
+  t.mock.timers.tick(2000);await h.send({type:'sync'});
+  assert.equal(h.room.room.game.revision,1);assert.equal(h.ws.messages.at(-1).botPreview.kind,'move');
+  t.mock.timers.tick(1000);await h.send({type:'sync'});
+  assert.equal(h.ws.messages.at(-1).game.revision,2);assert.equal(h.ws.messages.at(-1).botPreview,null);
+  const revision=h.room.room.game.revision;t.mock.timers.tick(100);await h.send({type:'sync'});assert.equal(h.room.room.game.revision,revision);
+});
+
+test('resignation and draw offers cancel a prepared action before execution',async t=>{
+  t.mock.timers.enable({apis:['Date'],now:START});
+  for(const type of ['resign','draw']){
+    const saved=fixture('russian');saved.updatedAt=Date.now();saved.game=applyMove(saved.game,42,35);
+    const h=await setup(saved);await due(t,h);assert.ok(h.room.room.botPlan);
+    t.mock.timers.tick(100);await h.send({type});assert.equal(h.room.room.botPlan,null);
+    if(type==='draw')await due(t,h);
+    assert.equal(h.room.room.game.history.length,1);assert.equal(h.room.room.game.winner,type==='draw'?'draw':'black');
+  }
 });
 
 test('only the human account receives normal completed-match statistics once', async t => {

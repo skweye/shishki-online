@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
-import {newGame} from '../public/game.js';
+import {newGame,applyMove,legalMoves} from '../public/game.js';
 import {applyOwnerPrank} from '../public/pranks.js';
 import {applyPoolShot} from '../public/pool.js';
 
@@ -30,7 +30,7 @@ test('complete app starts every local mode with one menu and state-specific cont
     createBufferSource(){return this.createOscillator();}
     createOscillator(){const voice={...audioNode(),start(){},stop(){}};voices.push(voice);return voice;}
   };
-  const intervals=[],realInterval=globalThis.setInterval;
+  const intervals=[],intervalCallbacks=new Map(),realInterval=globalThis.setInterval;
   let channel,roomData,creations=0;const searches=[];
   let resolveInvite,inviteRequested;
   const inviteStarted=new Promise(resolve=>{inviteRequested=resolve;});
@@ -66,7 +66,7 @@ test('complete app starts every local mode with one menu and state-specific cont
       }
       return {ok:true,json:async()=>({user:{id:'owner',name:'Owner',email:'kkoallqq@gmail.com',emailVerified:true,ownerPranks:true},googleEnabled:false})};
     },
-    setInterval:(...args)=>{const id=realInterval(...args);id.unref();intervals.push(id);return id;}
+    setInterval:(...args)=>{intervalCallbacks.set(args[1],args[0]);const id=realInterval(...args);id.unref();intervals.push(id);return id;}
   });
   window.scrollTo=()=>{};
   for(const dialog of document.querySelectorAll('dialog')){dialog.showModal=()=>{dialog.open=true;};dialog.close=()=>{if(dialog.open){dialog.open=false;dialog.dispatchEvent(new window.Event('close'));}};}
@@ -264,8 +264,26 @@ test('complete app starts every local mode with one menu and state-specific cont
       assert.equal($('chat-tab').hidden,true);assert.equal($('room-controls').hidden,true);assert.equal($('room-games').hidden,true);
       assert.match($('top-player').textContent,/Бот/);assert.ok(voices.length>before,'bot launch has shared audio');
       if(name==='russian'){
-        roomData.game.turn='black';roomData.game.revision++;snapshot();assert.equal($('status-title').textContent,'Ход бота');
+        const human=legalMoves(roomData.game)[0];
+        roomData.game=applyMove(roomData.game,human.from,human.to);snapshot();assert.equal($('status-title').textContent,'Ход бота');
         assert.equal(document.querySelectorAll('#board .legal-move').length,0);
+        const reply=legalMoves(roomData.game)[0],beforePreview=voices.length;
+        roomData.botPreview={kind:'move',role:'black',revision:roomData.game.revision,...reply,executeAt:Date.now()+180};snapshot();
+        assert.ok($('board').querySelector(`[data-index="${reply.from}"].bot-source`));
+        assert.ok($('board').querySelector(`[data-index="${reply.to}"].bot-target`));
+        assert.ok(voices.length>beforePreview,'live bot selection has sound');
+        const afterPreview=voices.length;snapshot();assert.equal(voices.length,afterPreview,'repeated preview is silent');
+        // Drop the move broadcast. The app must ask for the state itself.
+        intervalCallbacks.get(200)();
+        const realNow=Date.now,late=realNow()+2100;
+        try{Date.now=()=>late;intervalCallbacks.get(200)();}finally{Date.now=realNow;}
+        assert.equal(JSON.parse(channel.lastMessage).type,'sync','waiting bot games recover a missed update automatically');
+        roomData.game=applyMove(roomData.game,reply.from,reply.to);roomData.botPreview=null;snapshot();
+        assert.equal($('status-title').textContent,'Ваш ход','bot move updates the open board without navigation or reload');
+        assert.ok($('board').querySelector(`[data-index="${reply.to}"] .piece.black`));
+        assert.equal(document.querySelectorAll('.bot-source,.bot-target').length,0);
+        channel.onmessage({data:JSON.stringify({type:'state',...roomData,game:newGame('russian')})});
+        assert.ok($('board').querySelector(`[data-index="${reply.to}"] .piece.black`),'stale state cannot undo the bot move');
       }
       await menuClick('resign-button');$('confirm-yes').click();assert.equal(JSON.parse(channel.lastMessage).type,'resign');
       roomData.game.winner='black';roomData.game.reason='resign';roomData.game.revision++;snapshot();

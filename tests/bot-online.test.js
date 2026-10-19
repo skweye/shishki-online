@@ -26,6 +26,11 @@ function privateState(g) {
   }
   if (g.variant === 'battleship' && !g.winner) assert.deepEqual(g.fleets.black, g.shots.white.filter(s => s.result === 'sunk').map(s => s.sunkCells));
 }
+function privatePreview(p) {
+  const allowed=new Set(['revision','kind','role','executeAt','angle','power','placing','id','dx','dy','from','to','x','y','cell','end','target']);
+  for(const key of Object.keys(p))assert.ok(allowed.has(key),'private preview field: '+key);
+  assert.equal(p.role,'black');assert.ok(Number.isFinite(p.executeAt));
+}
 function humanAction(g) {
   if (g.variant === 'battleship') return g.phase === 'setup' ? { type:'fleet-ready',fleet:randomFleet() } : { type:'sea-fire', cell:Array.from({length:100},(_,i)=>i).find(c => !g.shots.white.some(s=>s.cell===c)) };
   if (isDurak(g.variant)) return durakActions(g)[0];
@@ -49,8 +54,22 @@ test('all 11 bot modes create, play an automatic legal turn and restore a privat
       for(let i=0;i<30&&!acted;i++) {
         const g=state.game;privateState(g);
         const botTurn=g.turn==='black'||variant==='battleship'&&g.phase==='setup'&&g.ready.white;
+        let preview;
+        if(botTurn){
+          preview=(await a.wait(m=>m.type==='state'&&m.botPreview?.revision===g.revision)).botPreview;
+          privatePreview(preview);
+        }
         if(!botTurn)await a.send({...humanAction(g),revision:g.revision});
         state=await a.wait(m=>m.type==='state'&&m.game.revision>g.revision);
+        if(preview?.kind==='pool-shot'){
+          const shot=state.game.lastShot;
+          assert.ok(Math.abs(Math.cos(preview.angle*Math.PI/180)*preview.power-shot.dx)<1e-8);
+          assert.ok(Math.abs(Math.sin(preview.angle*Math.PI/180)*preview.power-shot.dy)<1e-8);
+        }
+        if(preview?.kind==='move'){
+          const move=variant==='narde'?state.game.lastAction:state.game.history.at(-1);
+          assert.equal(move.from,preview.from);assert.equal(move.to,preview.to);
+        }
         acted=botTurn || variant==='battleship'&&state.game.ready.black;
       }
       assert.ok(acted,variant+' bot replied');privateState(state.game);a.ws.close();await delay(100);

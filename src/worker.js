@@ -3,7 +3,7 @@ import {applyOwnerPrank,OWNER_EMAIL} from '../public/pranks.js';
 import { handleMatchmaking } from './matchmaking.js';
 import { createLobby, friendAction, friendCommands } from './friend-room.js';
 import { chooseBotAction } from './bot.js';
-import { botNeeded, botDelay, applyBotAction } from './bot-room.js';
+import { botNeeded, botDelay, applyBotAction, botPreview, botPreviewDuration } from './bot-room.js';
 export { Matchmaker } from './matchmaking.js';
 import { DurableObject } from 'cloudflare:workers';
 import { validPoolAim } from '../public/pool-aim.js';
@@ -100,15 +100,19 @@ export class GameRoom extends DurableObject {
   }
   expired() { return this.room && this.room.updatedAt + TTL <= Date.now(); }
   humanConnected() { return this.ctx.getWebSockets().some(ws => ws.readyState === 1 && ws.deserializeAttachment()?.role === 'white'); }
-  prepareBot() {
+  prepareBot(previous) {
     if (!this.room.bot) return;
     if (this.room.botRevision !== this.room.game.revision) {
       this.room.botRevision = this.room.game.revision;
-      this.room.botNotBefore = Date.now() + botDelay(this.room.game);
+      this.room.botNotBefore = Date.now() + botDelay(this.room.game, previous);
       this.room.botAt = null;
+      this.room.botPlan = null;
     }
-    if (!botNeeded(this.room) || !this.humanConnected()) this.room.botAt = null;
-    else this.room.botAt ||= Math.max(Date.now() + 350, this.room.botNotBefore || 0);
+    if (!botNeeded(this.room) || !this.humanConnected()) { this.room.botAt = null; this.room.botPlan = null; }
+    else {
+      if (this.room.drawOffer || this.room.game.winner) this.room.botPlan = null;
+      this.room.botAt ||= Math.max(Date.now() + 60, this.room.botNotBefore || 0);
+    }
   }
   async scheduleAlarm() {
     const deadline = Math.min(this.room.updatedAt + TTL, clockDeadline(this.room.clock, this.room.game), this.room.pendingResults?.length ? Date.now() + 60000 : Infinity, this.room.botAt || Infinity);
@@ -131,7 +135,7 @@ export class GameRoom extends DurableObject {
     await this.ctx.storage.deleteAlarm();
     await this.ctx.storage.deleteAll(); this.room = null;
   }
-  async save(activity = true) {
+  async save(activity = true, previous = null) {
     if (activity) this.room.updatedAt = Date.now();
     this.room.matchId ||= crypto.randomUUID();
     const game = this.room.game;
@@ -155,7 +159,7 @@ export class GameRoom extends DurableObject {
       });
       this.room.resultRecorded = true;
     }
-    this.prepareBot();
+    this.prepareBot(previous);
     await this.ctx.storage.put('room', this.room);
     try { await this.flushResults(); } catch { /* Keep the durable outbox for retry. */ }
     await this.scheduleAlarm();
@@ -175,6 +179,7 @@ export class GameRoom extends DurableObject {
       game: durakView(battleshipView(dominoView(this.room.game, role), role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
       poolAim: this.poolAim && Date.now()-this.poolAimAt<3000 && validPoolAim(this.poolAim,this.room.game,this.poolAim.role) ? this.poolAim : null,
       bot: !!this.room.bot,
+      botPreview: botPreview(this.room),
       online: Object.fromEntries(['white', 'black'].map(side => [side, side === 'black' && this.room.bot || this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer, lobby: this.room.lobby || null,
       names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
@@ -328,7 +333,11 @@ export class GameRoom extends DurableObject {
         }
         if (actionNow - session.lastMessage < 80) throw new Error('Слишком быстро. Повторите действие.');
         session.lastMessage = actionNow; ws.serializeAttachment(session);
-        if (data.type === 'sync') { ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) })); return; }
+        if (data.type === 'sync') {
+          // Also repair an overdue bot alarm without requiring the user to reload.
+          if (this.room.bot) { await this.save(false); await this.runBot(); }
+          ws.send(JSON.stringify({ type: 'state', ...this.snapshot(role) })); return;
+        }
         if (friendCommands.has(data.type)) {
           friendAction(this.room, role, data, actionNow); this.poolAim = null;
           await this.save(); this.broadcast(); return;
@@ -389,7 +398,7 @@ export class GameRoom extends DurableObject {
           }
         } else throw new Error('Действие сейчас недоступно.');
         if (data.type!=='owner-prank' && !previous.winner && this.room.game.revision !== previous.revision) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, actionNow);
-        await this.save(); this.broadcast();
+        await this.save(true, previous); this.broadcast();
       } catch (error) {
         ws.send(JSON.stringify({ type: 'error', context: messageType === 'chat' ? 'chat' : 'game', message: error instanceof SyntaxError ? 'Некорректное сообщение.' : error.message }));
         if (this.room && messageType !== 'chat') ws.send(JSON.stringify({ type: 'state', ...this.snapshot(ws.deserializeAttachment()?.role) }));
@@ -413,10 +422,22 @@ export class GameRoom extends DurableObject {
     else if (this.room.drawOffer === 'white') {
       this.room.game = { ...previous, winner: 'draw', reason: 'agreement', revision: previous.revision + 1 };
       this.room.drawOffer = null;
-    } else this.room.game = applyBotAction(previous, 'black', chooseBotAction(previous));
+    } else {
+      const plan = this.room.botPlan;
+      if (!plan || plan.revision !== previous.revision) {
+        const action = chooseBotAction(previous);
+        if (!action) throw Error('Bot has no legal action');
+        const executeAt = Date.now() + botPreviewDuration(action);
+        this.room.botPlan = { revision: previous.revision, action, executeAt };
+        this.room.botAt = executeAt;
+        await this.save(false); this.broadcast(); return true;
+      }
+      this.room.game = applyBotAction(previous, 'black', plan.action);
+      this.room.botPlan = null;
+    }
     if (!previous.winner) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, Date.now());
     // Automatic turns must not keep an abandoned room alive indefinitely.
-    await this.save(false); this.broadcast(); return true;
+    await this.save(false, previous); this.broadcast(); return true;
   }
   async webSocketClose(ws) {
     if(this.poolAim?.role===ws.deserializeAttachment()?.role)this.poolAim=null;

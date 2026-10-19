@@ -9,7 +9,7 @@ export function createChapaevBoard({ shoot, impact }) {
   const selector = $('shot-piece'), angle = $('shot-angle'), power = $('shot-power');
   let state, flipped = false, playable = false, selected = null, drag = null, animation = null, raf = 0, shown = [];
   let skins = {};
-  let finishInteraction = null;
+  let finishInteraction = null, remote = null;
   const transform = p => flipped ? { x: 8 - p.x, y: 8 - p.y } : p;
   const point = event => { const r = canvas.getBoundingClientRect(); return transform({ x: (event.clientX - r.left) * 8 / r.width, y: (event.clientY - r.top) * 8 / r.height }); };
   function impulse() {
@@ -47,14 +47,15 @@ export function createChapaevBoard({ shoot, impact }) {
       ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS * .7, 0, Math.PI * 2); ctx.strokeStyle = colors?.[2] || (white ? '#ac967b' : '#9a887a'); ctx.stroke();
       const engraved = drawEngraving(ctx, skins[piece.side], p.x, p.y, RADIUS, piece.side);
       ctx.fillStyle = white ? '#675747' : '#eee1cf'; ctx.font = engraved ? '600 .105px system-ui' : '500 .19px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(piece.id % 8 + 1), p.x, p.y + (engraved ? RADIUS * .9 : 0));
-      if (piece.id === selected && playable && !animation) {
+      if (!animation && (piece.id === selected && playable || remote?.revision === state.revision && piece.id === remote.id && !playable)) {
         ctx.beginPath(); ctx.arc(p.x, p.y, RADIUS + .07, 0, Math.PI * 2); ctx.strokeStyle = accent; ctx.lineWidth = .04; ctx.stroke();
       }
       ctx.restore();
     }
-    const piece = shown.find(p => p.id === selected);
-    if (piece && playable && !animation) {
-      const p = transform(piece), { dx, dy } = drag || impulse(), sign = flipped ? -1 : 1;
+    const aim = !playable && remote?.revision === state?.revision ? remote : null;
+    const piece = shown.find(p => p.id === (aim ? aim.id : selected));
+    if (piece && (playable || aim) && !animation && !finishInteraction && !document.hidden) {
+      const p = transform(piece), { dx, dy } = aim || drag || impulse(), sign = flipped ? -1 : 1;
       const x = p.x + dx * 2 * sign, y = p.y + dy * 2 * sign;
       ctx.strokeStyle = '#fff4d9'; ctx.fillStyle = '#fff4d9'; ctx.lineWidth = .055; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(x, y); ctx.stroke();
@@ -93,9 +94,11 @@ export function createChapaevBoard({ shoot, impact }) {
   $('shot-button').onclick = () => { if (playable && !animation && selected !== null) { const { dx, dy } = impulse(); shoot(selected, dx, dy); } };
   new ResizeObserver(draw).observe(canvas);
   new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-  function cancel() { cancelAnimationFrame(raf); animation = null; cancelDrag(); }
+  function cancel() { cancelAnimationFrame(raf); animation = null; remote = null; cancelDrag(); }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { remote = null; draw(); } });
   return {
     cancel,
+    receiveAim(value) { remote = value && value.revision === state?.revision && value.role === state.turn && !state.winner ? value : null; draw(); },
     setFinishInteraction(value) { finishInteraction = value; draw(); },
     animateRound(previous, next, done) {
       cancel();
@@ -113,6 +116,7 @@ export function createChapaevBoard({ shoot, impact }) {
     },
     render(game, flip, canPlay, selectedSkins = {}) {
       skins = selectedSkins;
+      if (state?.revision !== game.revision) remote = null;
       if (state?.revision !== game.revision || !canPlay || flipped !== flip) cancelDrag();
       if (state?.turn !== game.turn || flipped !== flip) angle.value = (game.turn === 'white') !== flip ? 0 : 180;
       state = game; flipped = flip; playable = canPlay;

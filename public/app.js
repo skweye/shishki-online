@@ -1,4 +1,6 @@
 import { createHomeHub } from './home-hub.js';
+import { createBotPresentation, botActionText } from './bot-presentation.js';
+import { createRoomSync } from './room-sync.js';
 import { t } from './i18n.js';
 import {isDurak as durakVariant,actDurak,validateDurakSave} from './durak.js';
 import {createDurakBoard} from './durak-board.js';
@@ -197,7 +199,7 @@ function status() {
   if (isChess() && game.check) return mode === 'online' && game.turn !== room.role ? ['Шах', 'Король соперника под шахом. Дождитесь его хода.', '♚'] : ['Шах вашему королю', 'Защитите короля: уйдите, закройтесь или возьмите атакующую фигуру.', '♚'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if(isDomino()&&game.roundResult)return ['Раунд завершён.','Подтвердите готовность к следующему раунду.','◈'];
-  if (room?.bot && game.turn !== room.role && !game.roundResult) return ['Ход бота', 'Бот обдумывает ход…', '…'];
+  if (room?.bot && game.turn !== room.role && !game.roundResult) return ['Ход бота', botActionText(room.botPreview), '…'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
   if(isCards())return [mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных',game.taking?'Соперник берёт. Можно подкинуть или завершить заход.':game.turn===game.defender?'Выберите карту и нажмите на карту, которую хотите отбить.':'Атакуйте или завершите отбитый заход.','♠'];
   if(isSea())return [mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных','Выберите клетку на поле соперника.','⚓'];
@@ -254,7 +256,7 @@ function render() {
   $('prank-button').hidden=!ownerPranks(currentUser)||!PRANKS[game.variant];
   $('prank-button').disabled=!canPlay();
   $('prank-button').title=PRANKS[game.variant]?.description||'';
-  renderBoard(); rocketEffect.refresh(); renderHistory();
+  renderBoard(); updateBotPresentation(); rocketEffect.refresh(); renderHistory();
   updateClock(); roomChat.update(mode === 'online' ? room : null, connected);
   $('variant-title').textContent = VARIANTS[variantOf(game)].name;
   document.querySelector('.rule-chip .mini-board').textContent=isCards()?'♠':({pool8:'⑧',narde:'⚄',chess:'♞',domino:'◈',battleship:'⚓',chapaev:'↗'})[variantOf(game)]||'▦';
@@ -377,6 +379,16 @@ const chapaevBoard = createChapaevBoard({
     }
   }
 });
+const botPresentation = createBotPresentation({ pool: poolBoard, chapaev: chapaevBoard, sound: kind => sounds.play(kind) });
+function updateBotPresentation(audible = null) {
+  botPresentation.update({ game, room, active: connected && !animating && !$('game-screen').hidden, audible, now: serverTime() });
+}
+const roomSync = createRoomSync({
+  current: () => ({ active: !!room && !$('game-screen').hidden, code: room?.code, bot: room?.bot, connected, hidden: document.hidden,
+    waiting: pending || !game.winner && (game.turn !== room?.role || isSea() && game.phase === 'setup' && !game.ready.black) || room?.rematch?.length > 0 || !!room?.drawOffer }),
+  send: data => { if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(data)); },
+  reconnect: () => { const ws = socket; disconnect(); render(); try { ws?.close(); } catch {} connect(); }
+});
 function acceptGame(next, audible = true) {
   const previous = game; game = next;
   cardUpdateLive = audible;
@@ -462,6 +474,7 @@ async function api(path, data = {}) {
   return result;
 }
 function disconnect() {
+  botPresentation.clear(); roomSync.reset();
   prankEffect.cancel();
   rocketEffect.cancel();
   chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
@@ -471,8 +484,10 @@ function disconnect() {
   connected = false; pending = false;
 }
 function applySnapshot(data, audible = true) {
+  if (!room || !data.game || data.game.revision < game.revision) return;
+  roomSync.received();
   const before=room.lobby, changed=game.revision!==data.game.revision, phaseChanged=before?.phase!==data.lobby?.phase;
-  Object.assign(room, { bot:data.bot, ready:data.ready, online:data.online, rematch:data.rematch, drawOffer:data.drawOffer, names:data.names, cosmetics:data.cosmetics, accountBound:data.accountBound, clock:data.clock, chat:data.chat, lobby:data.lobby });
+  Object.assign(room, { bot:data.bot, botPreview:data.botPreview, ready:data.ready, online:data.online, rematch:data.rematch, drawOffer:data.drawOffer, names:data.names, cosmetics:data.cosmetics, accountBound:data.accountBound, clock:data.clock, chat:data.chat, lobby:data.lobby });
   if(inFriendLobby()||phaseChanged){
     game=data.game;selected=null;shownResult=null;promotionMove=null;confirmAction=null;
     if(phaseChanged){
@@ -484,12 +499,12 @@ function applySnapshot(data, audible = true) {
       if(before.variant!==data.lobby.variant)sounds.play('select');
       else if(JSON.stringify(before.ready)!==JSON.stringify(data.lobby.ready))sounds.play(data.lobby.ready.length>before.ready.length?'room-ready':'room-unready');
     }
-  }else acceptGame(data.game,audible);
+  }else if(changed) acceptGame(data.game,audible);
   if(audible&&!before?.returnOffer&&data.lobby?.returnOffer)sounds.play('room-change');
   if (Number.isFinite(data.serverNow)) clockSync = { now: data.serverNow, received: performance.now() };
   if (changed || game.forced !== null) selected = game.turn === room.role ? game.forced : null;
-  pending = false; render();
-  poolBoard.receiveAim(isPool()&&data.poolAim?.role!==room.role?data.poolAim:null);
+  pending = false; render(); updateBotPresentation(audible);
+  if (!room.bot) poolBoard.receiveAim(isPool()&&data.poolAim?.role!==room.role?data.poolAim:null);
 }
 function connect() {
   if (!room) return;
@@ -575,6 +590,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
+  botPresentation.clear();
   dominoBoard.hide(); cardBoard.hide();
   nardeBoard.cancel();
   rocketEffect.cancel();
@@ -809,10 +825,12 @@ const invite = new URL(location.href).searchParams.get('room'), initialJoinAttem
 if (invite) showScreen('loading');
 updateStart(); render();
 setInterval(() => {
+  roomSync.check();
+  if (room?.botPreview && room.botPreview.executeAt + 1000 < serverTime()) botPresentation.clear();
   if ($('game-screen').hidden) return;
   if (!expireLocal()) updateClock();
 }, 200);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('game-screen').hidden) { expireLocal(); updateClock(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('game-screen').hidden) { expireLocal(); updateClock(); roomSync.check(true); } });
 await authReady;
 homeHub.update(currentUser);render();
 if(!invite)await searchGame.resume();

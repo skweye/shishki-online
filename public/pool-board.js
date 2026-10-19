@@ -14,7 +14,7 @@ export function createPoolBoard({shoot,place,sound}) {
   root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
   const $=id=>document.getElementById('pool-'+id),canvas=$('canvas'),ctx=canvas.getContext('2d'),paintBall=createBallPainter();
   let state,flipped=false,playable=false,placing=false,shown=null,shotBefore=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
-  let cueSkin='classic',finishInteraction=null,remote=null,remoteFrame=0,remoteTimer;
+  let cueSkin='classic',finishInteraction=null,remote=null,remoteFrame=0,remoteTimer,remotePlacement=null;
   const orientations=new Map();
   const cueAnimation=createCosmeticAnimation(()=>draw(),()=>canvasVisible(canvas)&&animatedCue(cueSkin)&&!shown&&!finishInteraction&&
     (playable&&!placing||!playable&&remote&&!remote.placing&&validPoolAim(remote,state,remote.role)));
@@ -87,6 +87,10 @@ export function createPoolBoard({shoot,place,sound}) {
     if(playable&&!placing&&!shown)guide(balls);
     else if(!playable&&!shown&&!finishInteraction&&remote&&!remote.placing&&validPoolAim(remote,state,remote.role))guide(balls,remote.angle,remote.power,true);
     balls.forEach(b=>ball(b));
+    if(remotePlacement?.revision===state.revision&&!playable&&!shown&&!document.hidden){
+      const p=point(remotePlacement.x,remotePlacement.y);
+      ctx.save();ctx.strokeStyle='#fff4d9';ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.beginPath();ctx.arc(p.x,p.y,TABLE.radius*54+4,0,Math.PI*2);ctx.stroke();ctx.restore();
+    }
     for(const b of sinking)ball(b,1-b.progress*.88,1-b.progress);
     ctx.setTransform(1,0,0,1,0,0);
     cueAnimation.refresh();
@@ -125,19 +129,19 @@ export function createPoolBoard({shoot,place,sound}) {
   function receiveAim(data){
     if(!data){clearRemoteAim();return;}
     if(!state||!validPoolAim(data,state,data.role))return;
-    const old=remote,from=old&&old.revision===data.revision?old:data;
+    const old=remote,from=old&&old.revision===data.revision?old:data.windup?{...data,power:.05}:data;
     cancelAnimationFrame(remoteFrame);clearTimeout(remoteTimer);
     remote={...data};remoteTimer=setTimeout(clearRemoteAim,3000);
     if(document.hidden||lowPerformance()||matchMedia('(prefers-reduced-motion: reduce)').matches){draw();return;}
     const started=performance.now(),delta=angleDelta(from.angle,data.angle);
     function tick(now){
-      const progress=Math.max(0,Math.min(1,(now-started)/100));
+      const progress=Math.max(0,Math.min(1,(now-started)/(data.windup||100)));
       remote={...data,angle:((from.angle+delta*progress+540)%360)-180,power:from.power+(data.power-from.power)*progress};draw();
       if(progress<1)remoteFrame=requestAnimationFrame(tick);else remoteFrame=0;
     }
     remoteFrame=requestAnimationFrame(tick);
   }
-  function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;shotBefore=null;sinking=[];finish=null;input.cancel();clearRemoteAim();}
+  function cancel(){cancelAnimationFrame(raf);raf=0;shown=null;shotBefore=null;sinking=[];finish=null;remotePlacement=null;input.cancel();clearRemoteAim();}
   function animate(before,next,done){
     cancel();
     shotBefore=before;
@@ -160,12 +164,12 @@ export function createPoolBoard({shoot,place,sound}) {
       draw();raf=requestAnimationFrame(tick);
     };raf=requestAnimationFrame(tick);
   }
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){input.cancel();clearRemoteAim();finish?.();}});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){input.cancel();remotePlacement=null;clearRemoteAim();finish?.();}});
   document.addEventListener('performancechange',draw);
   window.addEventListener('blur',()=>input.cancel());
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches){clearRemoteAim();finish?.();}});
   window.addEventListener('resize',draw);
   new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   document.addEventListener('languagechange',()=>{canvas.setAttribute('aria-label',t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.'));controls();});
-  return {presentationState(){return shotBefore;},receiveAim,getAim(){return{angle,power,placing};},setFinishInteraction(value){finishInteraction=value;draw();},render(next,flip,canPlay,skin){cueSkin=validCueSkin(skin);const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){clearRemoteAim();placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
+  return {presentationState(){return shotBefore;},receiveAim,receivePlacement(value){remotePlacement=value;draw();},getAim(){return{angle,power,placing};},setFinishInteraction(value){finishInteraction=value;draw();},render(next,flip,canPlay,skin){cueSkin=validCueSkin(skin);const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){remotePlacement=null;clearRemoteAim();placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};
 }

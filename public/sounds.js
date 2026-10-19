@@ -35,6 +35,7 @@ export function actionSound(kind) {
   return event.stopSound;
 }
 export const ACTION_NOTES = Object.freeze({
+  'bot-aim':[196,247], 'bot-select':[294],
   'bot-start':[330,440,660,880],
   'room-ready':[349,523,659], 'room-unready':[523,349], 'room-join':[392,494,659], 'room-invite':[440,659], 'room-change':[330,440,587],
   'sell-open':[349,440], 'sell':[659,523,784],
