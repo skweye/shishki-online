@@ -32,7 +32,7 @@ test('one creation entry, controls stay by the board, and menu preserves actions
   const {document,window,$,ui}=setup();
   assert.equal($('create-button'),null);assert.equal($('join-button'),null);
   assert.equal(document.querySelectorAll('#home-hub button[data-play-mode="online"]').length,1);
-  assert.equal(document.querySelectorAll('#start-form button[type=submit]').length,1);assert.deepEqual([...document.querySelectorAll('#home-hub [data-play-mode]')].map(button=>button.dataset.playMode),['local','search','online']);
+  assert.equal(document.querySelectorAll('#start-form button[type=submit]').length,1);assert.deepEqual([...document.querySelectorAll('#home-hub [data-play-mode]')].map(button=>button.dataset.playMode),['local','search','online','bot']);
   for(const id of ['draw-button','resign-button','new-button','home-button','flip-button'])assert.ok($('match-menu').contains($(id)),id);
   assert.ok(document.querySelector('.play-area').contains($('status-title')));assert.ok(document.querySelector('.play-area').contains($('clock-panel')));
   $('game-screen').hidden=false;const state=base();state.game.revision=2;ui.update(state);

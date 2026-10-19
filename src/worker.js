@@ -2,6 +2,8 @@ import {actDurak,durakView} from '../public/durak.js';
 import {applyOwnerPrank,OWNER_EMAIL} from '../public/pranks.js';
 import { handleMatchmaking } from './matchmaking.js';
 import { createLobby, friendAction, friendCommands } from './friend-room.js';
+import { chooseBotAction } from './bot.js';
+import { botNeeded, botDelay, applyBotAction } from './bot-room.js';
 export { Matchmaker } from './matchmaking.js';
 import { DurableObject } from 'cloudflare:workers';
 import { validPoolAim } from '../public/pool-aim.js';
@@ -67,7 +69,7 @@ export default {
         const variant = data?.variant ?? 'russian';
         if (!data || typeof data !== 'object' || Array.isArray(data) || !validVariant(variant)) return fail('Неизвестный режим игры.');
         const code = crypto.randomUUID().replaceAll('-', '').slice(0, 12).toUpperCase();
-        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code + '&variant=' + variant + (data.kind === 'friend' ? '&kind=friend' : ''), { method: 'POST', headers }));
+        return env.ROOMS.getByName(code).fetch(new Request(url.origin + '/create?code=' + code + '&variant=' + variant + (['friend','bot'].includes(data.kind) ? '&kind=' + data.kind : ''), { method: 'POST', headers }));
       }
       const match = url.pathname.match(/^\/api\/rooms\/([A-F0-9]{12})\/(join|socket)$/);
       if (!match) return fail('Комната не найдена.', 404);
@@ -89,15 +91,27 @@ export class GameRoom extends DurableObject {
             this.room.clock = createClock(variantOf(this.room.game), this.room.players.black && !this.room.game.winner ? Date.now() : null);
             await ctx.storage.put('room', this.room);
           }
-          await this.expireClock(); await this.scheduleAlarm();
+          await this.expireClock();
+          if (this.room.bot) await this.save(false); else await this.scheduleAlarm();
         }
       }
     });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
   expired() { return this.room && this.room.updatedAt + TTL <= Date.now(); }
+  humanConnected() { return this.ctx.getWebSockets().some(ws => ws.readyState === 1 && ws.deserializeAttachment()?.role === 'white'); }
+  prepareBot() {
+    if (!this.room.bot) return;
+    if (this.room.botRevision !== this.room.game.revision) {
+      this.room.botRevision = this.room.game.revision;
+      this.room.botNotBefore = Date.now() + botDelay(this.room.game);
+      this.room.botAt = null;
+    }
+    if (!botNeeded(this.room) || !this.humanConnected()) this.room.botAt = null;
+    else this.room.botAt ||= Math.max(Date.now() + 350, this.room.botNotBefore || 0);
+  }
   async scheduleAlarm() {
-    const deadline = Math.min(this.room.updatedAt + TTL, clockDeadline(this.room.clock, this.room.game), this.room.pendingResults?.length ? Date.now() + 60000 : Infinity);
+    const deadline = Math.min(this.room.updatedAt + TTL, clockDeadline(this.room.clock, this.room.game), this.room.pendingResults?.length ? Date.now() + 60000 : Infinity, this.room.botAt || Infinity);
     await this.ctx.storage.setAlarm(deadline);
   }
   async expireClock(now = Date.now()) {
@@ -141,6 +155,7 @@ export class GameRoom extends DurableObject {
       });
       this.room.resultRecorded = true;
     }
+    this.prepareBot();
     await this.ctx.storage.put('room', this.room);
     try { await this.flushResults(); } catch { /* Keep the durable outbox for retry. */ }
     await this.scheduleAlarm();
@@ -159,7 +174,8 @@ export class GameRoom extends DurableObject {
     return {
       game: durakView(battleshipView(dominoView(this.room.game, role), role), role), ready: !!this.room.players.black, clock: this.room.clock || null, serverNow: Date.now(), chat: this.room.chat || [],
       poolAim: this.poolAim && Date.now()-this.poolAimAt<3000 && validPoolAim(this.poolAim,this.room.game,this.poolAim.role) ? this.poolAim : null,
-      online: Object.fromEntries(['white', 'black'].map(side => [side, this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
+      bot: !!this.room.bot,
+      online: Object.fromEntries(['white', 'black'].map(side => [side, side === 'black' && this.room.bot || this.ctx.getWebSockets(side).some(ws => ws.readyState === 1)])),
       rematch: this.room.rematch, drawOffer: this.room.drawOffer, lobby: this.room.lobby || null,
       names: this.room.names || {}, cosmetics: this.room.cosmetics || {}, accountBound: { white: !!this.room.accounts?.white, black: !!this.room.accounts?.black }
     };
@@ -215,6 +231,11 @@ export class GameRoom extends DurableObject {
         this.room = { players: { white: token, black: null }, accounts: { white: identity?.id || null, black: null }, names: { white: identity?.name || null, black: null }, game: newGame(variant), rematch: [], drawOffer: null };
         this.room.clock = createClock(variant); this.room.chat = [];
         if (url.searchParams.get('kind') === 'friend') { this.room.lobby = createLobby(variant); this.room.clock = null; }
+        if (url.searchParams.get('kind') === 'bot') {
+          this.room.bot = true;
+          this.room.players.black = crypto.randomUUID();
+          this.room.names.black = 'Бот';
+        }
         this.room.code = url.searchParams.get('code');
         this.room.cosmetics = { white: { skin: identity?.pieceSkin || 'classic', cue: identity?.cueSkin || 'classic', ship: identity?.shipSkin || 'classic', card: identity?.cardSkin || 'classic', effect: identity?.finishEffect || 'none', victory: identity?.victoryEffect || 'none' } };
         if (identity) await this.env.AUTH_DB.prepare('INSERT OR IGNORE INTO account_rooms(user_id, code) VALUES (?, ?)').bind(identity.id, this.room.code).run();
@@ -231,6 +252,7 @@ export class GameRoom extends DurableObject {
         this.room.names ||= { white: null, black: null };
         const accountRole = identity && ['white', 'black'].find(side => this.room.accounts[side] === identity.id);
         if (accountRole) { role = accountRole; token = this.room.players[role]; }
+        if (this.room.bot && role === 'black') return fail('Это место занимает бот.', 403);
         if (role && this.room.accounts[role] && this.room.accounts[role] !== identity?.id) return fail('Войдите в аккаунт, с которым начали эту партию.', 401);
         const newPlayer = !role;
         if (newPlayer) {
@@ -253,11 +275,16 @@ export class GameRoom extends DurableObject {
         const protocols = request.headers.get('Sec-WebSocket-Protocol')?.split(',').map(s => s.trim()) || [];
         const role = this.role(protocols[1]);
         if (protocols[0] !== 'checkers' || !role) return fail('Не удалось подтвердить место игрока.', 403);
+        if (this.room.bot && role === 'black') return fail('Это место занимает бот.', 403);
         if (this.room.accounts?.[role] && this.room.accounts[role] !== identity?.id) return fail('Войдите в свой аккаунт.', 401);
         for (const previous of this.ctx.getWebSockets(role)) previous.close(4001, 'Игра открыта в другой вкладке');
         const [client, server] = Object.values(new WebSocketPair());
         this.ctx.acceptWebSocket(server, [role]);
         server.serializeAttachment({ role, lastMessage: 0, sessionHash: identity?.sessionHash || null });
+        if (this.room.bot) {
+          if (this.room.clock && this.room.clock.startedAt === null && !this.room.game.winner) this.room.clock.startedAt = Date.now();
+          await this.save(false);
+        }
         this.broadcast();
         return new Response(null, { status: 101, webSocket: client, headers: { 'Sec-WebSocket-Protocol': 'checkers' } });
       }
@@ -277,6 +304,7 @@ export class GameRoom extends DurableObject {
           ws.close(4003, 'Войдите в аккаунт снова'); return;
         }
         const data = JSON.parse(message), role = session.role;
+        if (this.room.bot && role !== 'white') throw new Error('Это место занимает бот.');
         if (!data || typeof data !== 'object') throw new Error('Некорректное сообщение.');
         messageType = data.type;
         const actionNow = Date.now();
@@ -357,12 +385,7 @@ export class GameRoom extends DurableObject {
         } else if (data.type === 'rematch' && this.room.game.winner) {
           if (!this.room.rematch.includes(role)) this.room.rematch.push(role);
           if (this.room.rematch.length === 2) {
-            if (this.room.game.reason !== 'round') { this.room.matchId = crypto.randomUUID(); this.room.resultRecorded = false; }
-            const revision = this.room.game.revision + 1;
-            this.room.game = this.room.game.reason === 'round' ? nextChapaevRound(this.room.game) : newGame(variantOf(this.room.game)); this.room.game.revision = revision;
-            this.room.clock = createClock(variantOf(this.room.game), actionNow);
-            this.room.rematch = []; this.room.drawOffer = null;
-            if(this.room.lobby){this.room.lobby.revision++;this.room.lobby.returnOffer=null;}
+            this.restartMatch(actionNow);
           }
         } else throw new Error('Действие сейчас недоступно.');
         if (data.type!=='owner-prank' && !previous.winner && this.room.game.revision !== previous.revision) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, actionNow);
@@ -373,13 +396,39 @@ export class GameRoom extends DurableObject {
       }
     });
   }
-  webSocketClose(ws) { if(this.poolAim?.role===ws.deserializeAttachment()?.role)this.poolAim=null; if (this.room) this.broadcast(); }
-  webSocketError(ws) { ws.close(1011, 'Ошибка соединения'); this.webSocketClose(ws); }
+  restartMatch(now) {
+    if (this.room.game.reason !== 'round') { this.room.matchId = crypto.randomUUID(); this.room.resultRecorded = false; }
+    const revision = this.room.game.revision + 1;
+    this.room.game = this.room.game.reason === 'round' ? nextChapaevRound(this.room.game) : newGame(variantOf(this.room.game));
+    this.room.game.revision = revision;
+    this.room.clock = createClock(variantOf(this.room.game), now);
+    this.room.rematch = []; this.room.drawOffer = null;
+    if (this.room.lobby) { this.room.lobby.revision++; this.room.lobby.returnOffer = null; }
+  }
+  async runBot() {
+    if (!this.room.botAt || this.room.botAt > Date.now() || !botNeeded(this.room) || !this.humanConnected()) return;
+    const previous = this.room.game;
+    this.room.botAt = null;
+    if (previous.winner) this.restartMatch(Date.now());
+    else if (this.room.drawOffer === 'white') {
+      this.room.game = { ...previous, winner: 'draw', reason: 'agreement', revision: previous.revision + 1 };
+      this.room.drawOffer = null;
+    } else this.room.game = applyBotAction(previous, 'black', chooseBotAction(previous));
+    if (!previous.winner) this.room.clock = advanceClock(this.room.clock, previous, this.room.game, Date.now());
+    // Automatic turns must not keep an abandoned room alive indefinitely.
+    await this.save(false); this.broadcast(); return true;
+  }
+  async webSocketClose(ws) {
+    if(this.poolAim?.role===ws.deserializeAttachment()?.role)this.poolAim=null;
+    if (this.room) { if (this.room.bot) await this.save(false); this.broadcast(); }
+  }
+  webSocketError(ws) { ws.close(1011, 'Ошибка соединения'); return this.webSocketClose(ws); }
   async alarm() {
     return this.ctx.blockConcurrencyWhile(async () => {
       if (this.room && !this.expired()) {
         await this.expireClock();
-        await this.save(false); return;
+        if (!await this.runBot()) await this.save(false);
+        return;
       }
       await this.removeRoom();
     });

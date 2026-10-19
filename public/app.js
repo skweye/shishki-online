@@ -128,7 +128,7 @@ function playerHTML(side) {
   const waiting = mode === 'online' && (!room || (!room.ready && side === 'black'));
   const online = mode === 'local' || (side === room?.role ? connected : room?.online?.[side]);
   const count = isCards() ? view.handCounts?.[side] ?? view.hands[side].length : isSea() ? 20-view.shots[opposite(side)].filter(shot=>shot.result!=='miss').length : isDomino() ? view.handCounts?.[side] ?? view.hands[side].length : isPool() ? remainingPool(view,side) : isNarde() ? 15-view.off[side] : isChapaev() ? view.pieces.filter(p => p.side === side).length : view.board.filter((p, i) => sideOf(p) === side && !view.captured.includes(i)).length;
-  return `<div class="player-avatar">${isCards() ? '<span aria-hidden="true">♠</span>' : isSea() ? '<span aria-hidden="true">⚓</span>' : isDomino() ? '<span aria-hidden="true">◈</span>' : isPool() ? '<span class="pool-player-ball '+side+'">'+(view.groups[side]==='solid'?'1':view.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (view.groups[side] === 'solid' ? 'Сплошные' : view.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolRackMarkup(view,side):''}</div>${!view.winner && view.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
+  return `<div class="player-avatar">${isCards() ? '<span aria-hidden="true">♠</span>' : isSea() ? '<span aria-hidden="true">⚓</span>' : isDomino() ? '<span aria-hidden="true">◈</span>' : isPool() ? '<span class="pool-player-ball '+side+'">'+(view.groups[side]==='solid'?'1':view.groups[side]==='stripe'?'9':'8')+'</span>' : pieceHTML(side === 'white' ? 1 : -1)}</div><div class="player-info"><div class="player-name">${waiting ? 'Ждём соперника' : (room?.names?.[side] ? '<span data-no-translate>'+escapeHTML(room.bot && side === 'black' ? t('Бот') : room.names[side])+'</span>' : names[side])}${yours ? '<span class="you-badge">это вы</span>' : ''}</div><div class="player-meta"><span class="presence ${online ? '' : 'offline'}"></span>${isPool() ? (view.groups[side] === 'solid' ? 'Сплошные' : view.groups[side] === 'stripe' ? 'Полосатые' : 'Группа не выбрана') : mode === 'local' ? 'За этой доской' : waiting ? 'Пригласите друга' : names[side] + ' · ' + (online ? 'В игре' : 'Не в сети')}</div>${isPool()?poolRackMarkup(view,side):''}</div>${!view.winner && view.turn === side && (mode === 'local' || room?.ready) ? '<span class="turn-label">Сейчас ходит</span>' : ''}<div class="piece-count"><span>◉</span> ${count}</div>`;
 }
 function renderBoard(keepDrag = false) {
   if (!keepDrag) boardDrag.cancel();
@@ -197,6 +197,7 @@ function status() {
   if (isChess() && game.check) return mode === 'online' && game.turn !== room.role ? ['Шах', 'Король соперника под шахом. Дождитесь его хода.', '♚'] : ['Шах вашему королю', 'Защитите короля: уйдите, закройтесь или возьмите атакующую фигуру.', '♚'];
   if (game.forced !== null) return [canPlay() ? 'Продолжайте взятие' : 'Соперник продолжает', 'Завершите цепочку ударов той же шашкой.', '↗'];
   if(isDomino()&&game.roundResult)return ['Раунд завершён.','Подтвердите готовность к следующему раунду.','◈'];
+  if (room?.bot && game.turn !== room.role && !game.roundResult) return ['Ход бота', 'Бот обдумывает ход…', '…'];
   if (mode === 'online' && game.turn !== room.role) return ['Ход соперника', room.online?.[opposite(room.role)] ? 'Пока можно обдумать следующий ход.' : 'Соперник отключился. Партия сохранена.', '…'];
   if(isCards())return [mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных',game.taking?'Соперник берёт. Можно подкинуть или завершить заход.':game.turn===game.defender?'Выберите карту и нажмите на карту, которую хотите отбить.':'Атакуйте или завершите отбитый заход.','♠'];
   if(isSea())return [mode==='online'?'Ваш ход':game.turn==='white'?'Ход белых':'Ход чёрных','Выберите клетку на поле соперника.','⚓'];
@@ -264,7 +265,7 @@ function render() {
   $('flip-button').disabled = animating;
   const [title, text, icon] = status();
   $('status-title').textContent = title; $('status-text').textContent = text; $('status-icon').textContent = icon;
-  $('mode-badge').textContent = mode === 'local' ? 'ЛОКАЛЬНО' : 'ОНЛАЙН';
+  $('mode-badge').textContent = room?.bot ? 'ПРОТИВ БОТА' : mode === 'local' ? 'ЛОКАЛЬНО' : 'ОНЛАЙН';
   $('new-button').textContent = room ? '↗ Покинуть комнату' : '↻ Новая партия';
   $('new-button').hidden = mode === 'online' && !room;
   $('match-actions').hidden = !!game.winner || (mode === 'online' && !room?.ready);
@@ -298,7 +299,8 @@ function renderResult() {
   $('result-rematch').textContent = $('rematch-button').textContent;
   $('result-rematch').disabled = $('rematch-button').disabled;
   $('result-hint').textContent = mode === 'local' ? 'Новая партия на этой же доске. Белые начинают.' : !connected ? 'Восстанавливаем соединение с комнатой…' : room.rematch?.includes(room.role) ? 'Предложение отправлено. Новая партия начнётся, когда соперник согласится.' : room.rematch?.length ? 'Соперник предлагает сыграть ещё раз. Примите реванш, чтобы начать.' : 'Реванш начнётся, когда оба игрока согласятся.';
-  if (game.reason === 'round') $('result-hint').textContent = (mode === 'online' ? 'Следующий раунд начнётся, когда оба игрока будут готовы. ' : '') + `Очередь сохраняется: следующий удар у ${game.turn === 'white' ? 'белых' : 'чёрных'}.`;
+  if (room?.bot) $('result-hint').textContent = 'Можно сыграть ещё раз с ботом.';
+  if (game.reason === 'round') $('result-hint').textContent = (mode === 'online' && !room?.bot ? 'Следующий раунд начнётся, когда оба игрока будут готовы. ' : '') + `Очередь сохраняется: следующий удар у ${game.turn === 'white' ? 'белых' : 'чёрных'}.`;
   if(isDomino())$('result-hint').textContent='Реванш начнётся с нового счёта и новой раздачи.';
   if (isNarde() && mode === 'local') $('result-hint').textContent='Новая партия на этой же доске. Первый ход определят кости.';
   const key = `${room?.code || 'local'}:${game.revision}:${game.winner}`;
@@ -357,7 +359,7 @@ const poolBoard = createPoolBoard({
 });
 let lastPoolAim='',lastPoolAimAt=0;
 setInterval(()=>{
-  if(mode!=='online'||!isPool()||!canPlay()||document.hidden||$('game-screen').hidden||socket?.readyState!==WebSocket.OPEN){lastPoolAim='';return;}
+  if(mode!=='online'||room?.bot||!isPool()||!canPlay()||document.hidden||$('game-screen').hidden||socket?.readyState!==WebSocket.OPEN){lastPoolAim='';return;}
   if(socket.bufferedAmount>4096)return;
   const packet=JSON.stringify({type:'pool-aim',revision:game.revision,...poolBoard.getAim()});
   const now=performance.now();
@@ -470,7 +472,7 @@ function disconnect() {
 }
 function applySnapshot(data, audible = true) {
   const before=room.lobby, changed=game.revision!==data.game.revision, phaseChanged=before?.phase!==data.lobby?.phase;
-  Object.assign(room, { ready:data.ready, online:data.online, rematch:data.rematch, drawOffer:data.drawOffer, names:data.names, cosmetics:data.cosmetics, accountBound:data.accountBound, clock:data.clock, chat:data.chat, lobby:data.lobby });
+  Object.assign(room, { bot:data.bot, ready:data.ready, online:data.online, rematch:data.rematch, drawOffer:data.drawOffer, names:data.names, cosmetics:data.cosmetics, accountBound:data.accountBound, clock:data.clock, chat:data.chat, lobby:data.lobby });
   if(inFriendLobby()||phaseChanged){
     game=data.game;selected=null;shownResult=null;promotionMove=null;confirmAction=null;
     if(phaseChanged){
@@ -614,8 +616,8 @@ function updateStart() {
   const resume = (!saved.winner || saved.reason === 'round') && (saved.history.length || saved.path.length || ['narde','battleship'].includes(saved.variant) && saved.revision > 0);
   const type=$('start-form').elements['play-mode'].value;
   if(!inFriendLobby()){
-    $('play-selected').textContent=type==='search'?'Найти соперника':resume?'Продолжить партию':'Начать игру ↗';
-    $('picker-hint').textContent=type==='search'?'Найдём игрока для выбранной игры.':resume?'Ваша партия сохранена. Продолжите с последнего хода.':'Два игрока на одном устройстве.';
+    $('play-selected').textContent=type==='bot'?'Играть с ботом':type==='search'?'Найти соперника':resume?'Продолжить партию':'Начать игру ↗';
+    $('picker-hint').textContent=type==='bot'?'Бот играет по тем же правилам. Для партии нужен интернет.':type==='search'?'Найдём игрока для выбранной игры.':resume?'Ваша партия сохранена. Продолжите с последнего хода.':'Два игрока на одном устройстве.';
   }
   $('start-hint').textContent = VARIANTS[variant].name;
   document.querySelectorAll('.lobby-game').forEach(card => card.classList.toggle('is-selected', [...card.querySelectorAll('input')].some(input => input.value === variant)));
@@ -654,7 +656,7 @@ function renderFriend(){
 function showPicker(type){
   $('start-form').elements['play-mode'].value=type;
   $('home-hub').hidden=true;$('home-picker').hidden=false;
-  $('picker-mode').textContent=type==='local'?'Локально':'Онлайн';
+  $('picker-mode').textContent=type==='bot'?'Против бота':type==='local'?'Локально':'Онлайн';
   $('play-selected').className='primary-button';updateStart();$('game-choice-title').focus();
 }
 $('picker-back').onclick=()=>{sounds.play('select');$('home-hub').hidden=false;$('home-picker').hidden=true;$('home-title').focus();};
@@ -679,6 +681,13 @@ $('start-form').onsubmit = async event => {
   if ($('play-selected').disabled) return;
   if(inFriendLobby()){send({type:'room-ready',ready:!room.lobby.ready.includes(room.role)});return;}
   const variant = $('start-form').elements.variant.value;
+  if ($('start-form').elements['play-mode'].value === 'bot') {
+    startBusy(true);
+    try { const data = await api('/api/rooms', { kind:'bot', variant }); enterRoom(data.code,data); sounds.play('bot-start'); }
+    catch (error) { toast(error.message || 'Не удалось создать комнату. Попробуйте ещё раз.'); sounds.play('error'); }
+    finally { startBusy(false); updateStart(); }
+    return;
+  }
   if ($('start-form').elements['play-mode'].value === 'search') {
     startBusy(true);
     try { await searchGame.start(variant); } finally { startBusy(false); updateStart(); }

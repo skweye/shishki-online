@@ -38,7 +38,7 @@ export function createHomeHub() {
       $('hub-level').title=`${p.current} / ${p.required} XP`;
       $('hub-level').classList.toggle('has-reward',Object.values(shop.value.cases||{}).some(count=>count>0));
     }
-    $('hub-stats-note').textContent=t(results.some(result=>result.status==='rejected')?'Часть данных недоступна. Обновим при возвращении на главную.':'Статистика завершённых онлайн-партий.');
+    $('hub-stats-note').textContent=t(results.some(result=>result.status==='rejected')?'Часть данных недоступна. Обновим при возвращении на главную.':'Статистика завершённых партий онлайн и с ботом.');
   }
   document.addEventListener('languagechange',()=>{if(!lastUser)$('hub-name').textContent=t('Гость');});
   return {update};

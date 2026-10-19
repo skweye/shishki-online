@@ -1,6 +1,6 @@
 # Shishki Online
 
-Russian draughts on 8×8 and 12×12 boards, Chapaev, chess, long nardy, 8-ball pool, dominoes, Battleship, and Durak. Play with a friend through an invitation link or share one device. The interface supports English, Russian, and Ukrainian on phones and computers. Play as a guest or sign in to an account.
+Russian draughts on 8×8 and 12×12 boards, Chapaev, chess, long nardy, 8-ball pool, dominoes, Battleship, and Durak. Play against a bot, find an online opponent, invite a friend, or share one device. The interface supports English, Russian, and Ukrainian on phones and computers. Play as a guest or sign in to an account.
 
 **Play:** https://shishki.pp.ua
 
@@ -8,7 +8,9 @@ Russian draughts on 8×8 and 12×12 boards, Chapaev, chess, long nardy, 8-ball p
 
 ## Features
 
-- The home screen starts with Local, Online matchmaking, or With a friend. Local and matchmaking reveal the game selector as the next step. Friend play creates a shared lobby immediately: both players can select any game, then confirm readiness. Changing the selection clears both confirmations. The invitation, seats, identities, cosmetics and chat remain in the same room across games.
+- The home screen starts with Local, Online matchmaking, With a friend, or Against a bot. Local, matchmaking and bot play reveal the game selector as the next step. Friend play creates a shared lobby immediately: both players can select any game, then confirm readiness. Changing the selection clears both confirmations. The invitation, seats, identities, cosmetics and chat remain in the same room across games.
+- Bot play supports all 11 variants and requires an internet connection. The human occupies white; the server controls black and validates each action with the same rules as human play. Chess and draughts use bounded lookahead, pool and Chapaev evaluate physical shots, nardy uses legal dice moves, and card, domino and fleet strategies only receive their seat's public information. Hidden hands, draw piles and unsunk enemy ships never reach the decision engine. There is one default difficulty.
+- Bot rooms restore from their URL and seat token (or signed-in account), accept draw offers and rematches, and record eligible human results through the existing statistics, coin and XP flow. Chapaev rounds wait for the human's confirmation; domino rounds use the existing readiness flow. Durable alarms space actions after animations and recover on reconnection; bot actions stop when the human disconnects and never extend the one-hour room expiry. Existing game clocks continue during a disconnection. Chat and invitation controls are hidden for bot games. Launch and action sounds use shared settings and do not replay on restoration.
 - The match menu offers a return to the room's game selector. During an unfinished match the other player must agree; an agreed change ends that match without a result or reward. After a result, either player can return to selection. New games have separate match IDs for statistics, while stale readiness and game commands cannot cross match boundaries. Existing direct-room clients and matchmaking remain compatible.
 - Home shows signed-in account level and XP, reward availability, coins, games and wins. The online counter counts distinct signed-in accounts or guest browsers active during the last 60 seconds; the waiting counter comes from the real matchmaking queue. Presence pauses in hidden tabs, expires automatically and uses a cookie separate from matchmaking. Unavailable values are shown as unavailable, not fabricated totals. Room entry, invitations, selection and readiness use the shared sound preferences.
 

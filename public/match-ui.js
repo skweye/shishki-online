@@ -8,7 +8,7 @@ export function matchActions({mode,room,game,animating,playable}){
     flip:!['domino','battleship'].includes(game.variant),
     restart:mode==='local'&&!game.winner&&game.revision>0,
     shot:game.variant==='chapaev'&&active&&playable&&!animating,
-    instructions:active,invite:!!room,waiting:!!room&&!room.ready,
+    instructions:active,invite:!!room&&!room.bot,waiting:!!room&&!room.ready,
     rematch:!!game.winner&&!animating
   };
 }
@@ -40,7 +40,7 @@ export function createMatchUI(doc=document){
   });
   function tabs(){
     const wasHidden=$('chat-panel').hidden;
-    const online=!!context?.room;if(!online)tab='history';
+    const online=!!context?.room&&!context.room.bot;if(!online)tab='history';
     $('chat-tab').hidden=!online;
     for(const name of ['history','chat']){
       $(name+'-tab').setAttribute('aria-selected',String(tab===name));$(name+'-tab').tabIndex=tab===name?0:-1;
@@ -51,7 +51,7 @@ export function createMatchUI(doc=document){
   }
   for(const name of ['history','chat']){
     $(name+'-tab').onclick=()=>{tab=name;tabs();};
-    $(name+'-tab').addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)||!context?.room)return;event.preventDefault();tab=event.key==='Home'?'history':event.key==='End'?'chat':tab==='history'?'chat':'history';tabs();$(tab+'-tab').focus();});
+    $(name+'-tab').addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)||!context?.room||context.room.bot)return;event.preventDefault();tab=event.key==='Home'?'history':event.key==='End'?'chat':tab==='history'?'chat':'history';tabs();$(tab+'-tab').focus();});
   }
   function chat(messages=[]){
     const latest=messages.at(-1)?.id;

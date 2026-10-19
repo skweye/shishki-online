@@ -56,6 +56,11 @@ test('complete app starts every local mode with one menu and state-specific cont
       }
       if(path==='/api/rooms/112233445566/join')return {ok:true,json:async()=>structuredClone(roomData)};
       if(path==='/api/rooms'){
+        const request=JSON.parse(options.body);
+        if(request.kind==='bot'){
+          roomData={bot:true,code:'B0B0B0B0B0B0',token:'human-seat',role:'white',game:newGame(request.variant),ready:true,names:{black:'Бот'},online:{white:true,black:true},rematch:[],drawOffer:null,chat:[]};
+          return {ok:true,json:async()=>structuredClone(roomData)};
+        }
         creations++;roomData={lobby:{phase:'lobby',variant:'russian',revision:0,ready:[],returnOffer:null},code:'AABBCCDDEEFF',token:'test',role:'white',game:newGame(JSON.parse(options.body).variant||'russian'),ready:false,online:{white:true,black:false},rematch:[],drawOffer:null,chat:[]};
         return {ok:true,json:async()=>structuredClone(roomData)};
       }
@@ -246,6 +251,28 @@ test('complete app starts every local mode with one menu and state-specific cont
     snapshot();runFrame(0);runFrame(200);assert.equal($('result-dialog').open,false);
     runFrame(60000);assert.equal($('result-dialog').open,true);assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));
     $('result-dialog').close();await menuClick('home-button');
+
+    // Bot entry reuses the one picker, hides human-only room actions and
+    // keeps the existing resignation/rematch flow in every game.
+    globalThis.matchMedia=()=>({matches:true,addEventListener(){},removeEventListener(){}});
+    for(const name of ['russian','russian12','chess','narde','pool8','chapaev','domino','battleship','durak-simple','durak-throw','durak-transfer']){
+      $('bot-start-button').click();variant.value=name;$('start-form').onchange({target:{name:'variant'}});
+      assert.equal($('picker-mode').textContent,'Против бота');assert.equal($('play-selected').textContent,'Играть с ботом');
+      const before=voices.length;
+      await $('start-form').onsubmit({preventDefault(){}});await Promise.resolve();snapshot();
+      assert.equal($('game-screen').hidden,false,name);assert.equal($('mode-badge').textContent,'ПРОТИВ БОТА');
+      assert.equal($('chat-tab').hidden,true);assert.equal($('room-controls').hidden,true);assert.equal($('room-games').hidden,true);
+      assert.match($('top-player').textContent,/Бот/);assert.ok(voices.length>before,'bot launch has shared audio');
+      if(name==='russian'){
+        roomData.game.turn='black';roomData.game.revision++;snapshot();assert.equal($('status-title').textContent,'Ход бота');
+        assert.equal(document.querySelectorAll('#board .legal-move').length,0);
+      }
+      await menuClick('resign-button');$('confirm-yes').click();assert.equal(JSON.parse(channel.lastMessage).type,'resign');
+      roomData.game.winner='black';roomData.game.reason='resign';roomData.game.revision++;snapshot();
+      assert.equal($('result-dialog').open,true,name);$('result-rematch').click();assert.equal(JSON.parse(channel.lastMessage).type,'rematch');
+      roomData.game={...newGame(name),revision:roomData.game.revision+1};snapshot();assert.equal($('result-dialog').open,false,name);
+      await menuClick('home-button');$('confirm-yes').click();
+    }
 
   }finally{intervals.forEach(clearInterval);globalThis.setInterval=realInterval;}
 });

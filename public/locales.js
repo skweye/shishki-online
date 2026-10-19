@@ -1,5 +1,19 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
-const rows = `Главная|Home|Головна
+const rows = `С другом, за одним столом, онлайн или против бота.|With a friend, on one device, online or against a bot.|З другом, за одним столом, онлайн або проти бота.
+Статистика завершённых партий онлайн и с ботом.|Statistics from completed online and bot games.|Статистика завершених партій онлайн і з ботом.
+Учитываются завершённые партии онлайн и с ботом. Локальные игры и отдельные раунды Чапаева не учитываются.|Completed online and bot games count. Local games and individual Chapaev rounds do not count.|Враховуються завершені партії онлайн і з ботом. Локальні ігри й окремі раунди Чапаєва не враховуються.
+Завершите партию онлайн или с ботом, и её результат появится здесь.|Finish an online or bot game to see its result here.|Завершіть партію онлайн або з ботом, і її результат з’явиться тут.
+Против бота|Against a bot|Проти бота
+ПРОТИВ БОТА|VS BOT|ПРОТИ БОТА
+Бот|Bot|Бот
+Играть с ботом|Play against a bot|Грати з ботом
+Один игрок. Все игры, знакомые правила.|One player. Every game, familiar rules.|Один гравець. Усі ігри, знайомі правила.
+Бот играет по тем же правилам. Для партии нужен интернет.|The bot follows the same rules. An internet connection is required.|Бот грає за тими самими правилами. Для партії потрібен інтернет.
+Ход бота|Bot’s turn|Хід бота
+Бот обдумывает ход…|The bot is thinking…|Бот обмірковує хід…
+Можно сыграть ещё раз с ботом.|You can play the bot again.|Можна зіграти з ботом ще раз.
+Это место занимает бот.|This seat belongs to the bot.|Це місце займає бот.
+Главная|Home|Головна
 Партий|Games|Партій
 Побед|Wins|Перемог
 Монет|Coins|Монет

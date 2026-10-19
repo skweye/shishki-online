@@ -88,7 +88,7 @@ export function simulatePool(state,dx,dy,collectFrames=false) {
   }
   const result={balls:frame().map(b=>({...b,x:Math.round(b.x*1e6)/1e6,y:Math.round(b.y*1e6)/1e6})),potted,firstContact,firstContactX,railAfterContact,railBalls:[...railBalls]};
   if(collectFrames)frames.push(result.balls);
-  return {...result,frames,collisions,events};
+  return {...result,frames,collisions,events,duration:time};
 }
 function spotEight(balls) {
   for(let i=0;i<110;i++){
@@ -123,7 +123,7 @@ export function resolvePool(state, result, command) {
     }
     next.turn=result.potted.some(b=>ballGroup(b.id)===next.groups[side]&&ballGroup(b.id))?side:other;
   }
-  next.lastShot={dx:command.dx,dy:command.dy,revision:next.revision,potted:result.potted,foul:next.foul};
+  next.lastShot={dx:command.dx,dy:command.dy,revision:next.revision,potted:result.potted,foul:next.foul,duration:result.duration};
   next.history.push({side,from:0,to:0,capture:result.potted.some(b=>b.id!==0)?1:null,notation:(state.breaking?'△':'↗')+(result.potted.length?' · '+result.potted.map(b=>b.id===0?'○':b.id).join(','):' · —')+(next.foul?' ⚠':'')});
   return next;
 }
