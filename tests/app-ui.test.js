@@ -11,6 +11,8 @@ test('complete app starts every local mode with one menu and state-specific cont
   assert.equal(document.querySelectorAll('.ambient-mode.is-active').length,1,'background is visible before game modules start');
   assert.equal(document.querySelector('.ambient-mode.is-active').dataset.scene,'russian');
   const $=id=>document.getElementById(id),store=new Map();let focused;
+  const localResult={...newGame(),winner:'white',reason:'resign',revision:4};
+  store.set('shashki-local-v1',JSON.stringify(localResult));
   Object.defineProperty(document,'activeElement',{get:()=>focused});
   window.HTMLElement.prototype.focus=function(){focused=this;};
   window.HTMLElement.prototype.getBoundingClientRect=()=>({x:0,y:0,left:0,top:0,right:640,bottom:640,width:640,height:640});
@@ -30,6 +32,8 @@ test('complete app starts every local mode with one menu and state-specific cont
   };
   const intervals=[],realInterval=globalThis.setInterval;
   let channel,roomData,creations=0;const searches=[];
+  let resolveInvite,inviteRequested;
+  const inviteStarted=new Promise(resolve=>{inviteRequested=resolve;});
   class Channel{
     static OPEN=1;
     constructor(){channel=this;this.readyState=1;queueMicrotask(()=>this.onopen?.());}
@@ -40,8 +44,11 @@ test('complete app starts every local mode with one menu and state-specific cont
     localStorage:{getItem:key=>store.get(key)||null,setItem:(key,value)=>store.set(key,value),removeItem:key=>store.delete(key)},
     matchMedia:()=>({matches:true,addEventListener(){},removeEventListener(){}}),requestAnimationFrame:()=>1,cancelAnimationFrame(){},
     getComputedStyle:()=>({getPropertyValue:()=>'',position:'relative'}),ResizeObserver:class{observe(){}disconnect(){}},
-    history:{replaceState(){}},location:{href:'https://game.test/',origin:'https://game.test',pathname:'/',host:'game.test',protocol:'https:',assign(){}},WebSocket:Channel,
+    history:{replaceState(){}},location:{href:'https://game.test/?room=ABCDEF123456',origin:'https://game.test',pathname:'/',host:'game.test',protocol:'https:',assign(){}},WebSocket:Channel,
     fetch:async(path,options)=>{
+      if(path==='/api/rooms/ABCDEF123456/join'){
+        inviteRequested();return new Promise(resolve=>{resolveInvite=resolve;});
+      }
       if(path==='/api/matchmaking'){
         const data=JSON.parse(options.body);searches.push(data);
         roomData={code:'112233445566',token:'found-seat',role:'black',game:newGame(data.variant||'chess'),ready:true,online:{white:true,black:true},rematch:[],drawOffer:null,chat:[]};
@@ -71,8 +78,29 @@ test('complete app starts every local mode with one menu and state-specific cont
   }
   // The shell is mounted by auth dependencies before the app starts.
   try{
-    await import('../public/app.js');
-    assert.equal(audioContexts,0,'the lobby does not autoplay');
+    const loading=import('../public/app.js');await inviteStarted;
+    assert.equal(!!$('result-dialog').open,false,'an invitation must never show the completed local save while loading');
+    assert.equal($('game-screen').hidden,true,'no unconfirmed board is shown before the server response');
+    const restoredRoom={code:'ABCDEF123456',token:'invite-seat',role:'black',game:{...newGame('chess'),winner:'black',reason:'resign',revision:20},lobby:{phase:'lobby',variant:'chess',revision:2,ready:[],returnOffer:null},ready:true,online:{white:true,black:true},chat:[],rematch:[],drawOffer:null};
+    resolveInvite({ok:true,json:async()=>structuredClone(restoredRoom)});await loading;
+    assert.equal($('friend-screen').hidden,false);assert.equal(!!$('result-dialog').open,false,'a room in selection phase must not show its previous result');
+    channel.onmessage({data:JSON.stringify({type:'state',...restoredRoom})});assert.equal(!!$('result-dialog').open,false);
+    assert.deepEqual(JSON.parse(store.get('shashki-local-v1')),localResult,'joining must preserve local progress');
+    $('friend-leave').click();$('confirm-yes').click();
+    location.href='https://game.test/';
+    const submitInvite=()=>{ $('join-code').value='ABCDEF123456';return $('join-form').onsubmit({preventDefault(){},submitter:$('join-form').querySelector('[type="submit"]')}); };
+    const rejected=submitInvite();resolveInvite({ok:false,status:404,json:async()=>({error:'Комната не найдена.'})});await rejected;
+    assert.equal($('home-screen').hidden,false);assert.equal(!!$('result-dialog').open,false);assert.equal($('join-error').textContent,'Комната не найдена.');
+    const abandoned=submitInvite();document.querySelector('.brand').click();
+    resolveInvite({ok:true,json:async()=>structuredClone(restoredRoom)});await abandoned;
+    assert.equal($('home-screen').hidden,false,'a late join response cannot undo navigation home');assert.equal($('friend-screen').hidden,true);
+    const finished=submitInvite();resolveInvite({ok:true,json:async()=>({...structuredClone(restoredRoom),lobby:{...restoredRoom.lobby,phase:'playing'}})});await finished;
+    assert.equal($('game-screen').hidden,false);assert.equal($('result-dialog').open,true,'a server-confirmed finished match still shows its actual result');
+    assert.equal($('result-title').textContent,'Ваша победа!');$('result-home').click();$('confirm-yes').click();
+    const active=submitInvite();resolveInvite({ok:true,json:async()=>({...structuredClone(restoredRoom),game:newGame('chess'),lobby:{...restoredRoom.lobby,phase:'playing'}})});await active;
+    assert.equal($('game-screen').hidden,false);assert.equal(!!$('result-dialog').open,false,'a running room has no previous result overlay');
+    $('home-button').click();$('confirm-yes').click();
+    assert.equal(audioContexts,0,'invitation loading and restored results do not autoplay');
     document.body.dispatchEvent(new window.Event('pointerdown',{bubbles:true}));
     assert.equal(audioContexts,1);
     assert.equal(document.querySelectorAll('#start-form button[type="submit"]').length,1);

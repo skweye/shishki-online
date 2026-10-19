@@ -1,5 +1,7 @@
 /* A mode-first home and a shared game shelf for local, search and friend rooms. */
 .lobby-page { --layout-width:1160px; }
+.room-loading { display:grid; place-items:center; min-height:45vh; padding:40px 16px; text-align:center; }
+.room-loading h1 { font-size:22px; font-weight:500; color:var(--theme-muted); }
 .lobby-page .site-header { height:76px; min-height:76px; gap:38px; -webkit-backdrop-filter:none; backdrop-filter:none; }
 .lobby-page .site-header .brand { font-size:28px; }
 .lobby-page .header-actions { margin-left:auto; flex:none; }

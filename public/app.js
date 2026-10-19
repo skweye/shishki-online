@@ -48,6 +48,7 @@ const escapeHTML = text => String(text).replace(/[&<>"']/g, character => ({ '&':
 let mode = 'local', game = newGame(), selected = null, flipped = false;
 let room = null, socket = null, connected = false, pending = false, reconnectTimer, heartbeat, retry = 0;
 let toastTimer, confirmAction, savedLocal;
+let joinAttempt = 0;
 let shownResult = null;
 let animating = false;
 let clockSync = { now: Date.now(), received: performance.now() };
@@ -236,6 +237,7 @@ function renderHistory() {
 }
 function render() {
   updateBackdrop();
+  if (!$('room-loading').hidden) return;
   $('room-games').hidden=$('result-games').hidden=!room?.lobby;
   $('room-games').disabled=$('result-games').disabled=!connected||pending;
   const offer=room?.lobby?.returnOffer;
@@ -284,7 +286,7 @@ function render() {
 
 function renderResult() {
   const dialog = $('result-dialog');
-  if (!game.winner || animating || $('game-screen').hidden || room?.lobby?.returnOffer) {
+  if (!game.winner || animating || $('game-screen').hidden || (mode === 'online' && !room) || inFriendLobby() || room?.lobby?.returnOffer) {
     dialog.close(); shownResult = null; return;
   }
   const result = matchResult(game, room?.role);
@@ -538,6 +540,7 @@ function send(data) {
   pending = true; socket.send(JSON.stringify({ ...data, revision: game.revision, ...(room?.lobby?{lobbyRevision:room.lobby.revision}:{}) })); render();
 }
 function enterRoom(code, data) {
+  joinAttempt++;
   disconnect();
   if (mode === 'local') savedLocal = game;
   mode = 'online'; room = { code, ...data }; game = data.game;
@@ -550,8 +553,12 @@ function enterRoom(code, data) {
   showScreen(inFriendLobby()?'friend':'game'); render(); connect();
 }
 async function join(code) {
-  const data = await api(`/api/rooms/${code}/join`, { token: storage.get('shashki-room-' + code) });
-  enterRoom(code, data);
+  const attempt = ++joinAttempt;
+  try {
+    const data = await api(`/api/rooms/${code}/join`, { token: storage.get('shashki-room-' + code) });
+    if (attempt !== joinAttempt) return false;
+    enterRoom(code, data); return true;
+  } catch (error) { if (attempt !== joinAttempt) return false; throw error; }
 }
 function extractCode(value) {
   let code = value.trim();
@@ -561,6 +568,7 @@ function extractCode(value) {
   return code;
 }
 function leave() {
+  joinAttempt++;
   disconnect(); room = null; selected = null; game = savedLocal; flipped = false;
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
@@ -571,16 +579,18 @@ function showScreen(screen) {
   chapaevBoard.cancel(); poolBoard.cancel(); animating = false;
   boardDrag.cancel();
   seaBoard.hide();
+  $('room-loading').hidden = screen !== 'loading';
   $('friend-screen').hidden=screen!=='friend';
   (screen==='friend'?$('friend-picker-host'):$('home-picker-host')).append($('start-form'));
   (screen==='friend'?$('friend-chat-host'):chatHome).append($('chat-panel'));
   if(screen==='home'){$('home-hub').hidden=false;$('home-picker').hidden=true;homeHub.update(currentUser);}
   $('home-screen').hidden = screen !== 'home';
   $('game-screen').hidden = screen !== 'game';
+  if (screen !== 'game') { $('result-dialog').close(); shownResult = null; }
   updateBackdrop();
   window.scrollTo({ top: 0, behavior: 'instant' });
   if (screen === 'home') { updateStart(); $('home-title').focus({ preventScroll: true }); }
-  else $(screen==='friend'?'friend-title':'variant-title').focus({preventScroll:true});
+  else $(screen==='loading'?'room-loading-title':screen==='friend'?'friend-title':'variant-title').focus({preventScroll:true});
 }
 function goHome() {
   const action = () => {
@@ -714,7 +724,7 @@ document.querySelectorAll('dialog').forEach(dialog => dialog.addEventListener('c
 $('confirm-yes').onclick = () => { const action = confirmAction; confirmAction = null; $('confirm-dialog').close(); action?.(); };
 $('join-form').onsubmit = async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true;
-  try { await join(extractCode($('join-code').value)); $('join-dialog').close(); sounds.play('room-join'); }
+  try { if (await join(extractCode($('join-code').value))) { $('join-dialog').close(); sounds.play('room-join'); } }
   catch (error) { $('join-error').textContent = error.message; }
   finally { button.disabled = false; }
 };
@@ -786,6 +796,8 @@ document.addEventListener('accountchange', async () => {
   try { await join(code); }
   catch (error) { leave(); mode = 'local'; showScreen('home'); render(); toast(error.message); }
 });
+const invite = new URL(location.href).searchParams.get('room'), initialJoinAttempt = joinAttempt;
+if (invite) showScreen('loading');
 updateStart(); render();
 setInterval(() => {
   if ($('game-screen').hidden) return;
@@ -794,10 +806,8 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('game-screen').hidden) { expireLocal(); updateClock(); } });
 await authReady;
 homeHub.update(currentUser);render();
-const invite = new URL(location.href).searchParams.get('room');
 if(!invite)await searchGame.resume();
-if (invite) {
-  mode = 'online'; showScreen('game'); render(); $('status-title').textContent = 'Открываем комнату…';
+if (invite && joinAttempt === initialJoinAttempt) {
   try { await join(extractCode(invite)); }
   catch (error) { leave();mode='local';showScreen('home');render();toast(error.message); }
 }
