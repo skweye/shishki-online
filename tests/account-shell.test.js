@@ -17,12 +17,18 @@ test('every page mounts one complete account menu and working theme picker witho
     assert.ok(document.querySelector('script[src="'+(file==='index.html'?'/app.js':'/account-page.js')+'"]'));
     for(const css of ['auth','account-menu','themes'])assert.ok(document.querySelector(`link[href="/${css}.css"]`),file+': '+css);
     const store=new Map();
-    runInNewContext(readFileSync(new URL('../public/theme.js',import.meta.url),'utf8'),{document,Event:window.Event,localStorage:{getItem:key=>store.get(key),setItem:(key,value)=>store.set(key,value)}});
+    runInNewContext(readFileSync(new URL('../public/theme.js',import.meta.url),'utf8'),{document,Event:window.Event,CustomEvent:window.CustomEvent,localStorage:{getItem:key=>store.get(key),setItem:(key,value)=>store.set(key,value)}});
     document.dispatchEvent(new window.Event('DOMContentLoaded'));
-    assert.equal(document.querySelectorAll('#theme-options [data-theme-choice]').length,6,file);
-    document.querySelector('[data-theme-choice="pulse"]').click();
-    assert.equal(document.documentElement.dataset.theme,'pulse');
-    assert.equal(store.get('shashki-appearance-v1'),'pulse');
+    assert.equal(document.querySelectorAll('#theme-options [data-theme-choice]').length,11,file);
+    let sounds=0;document.addEventListener('actionsound',event=>{assert.equal(event.detail,'select');sounds++;});
+    for(const id of ['pulse','obsidian','midnight','abyss','evergreen','blackberry']){
+      const choice=document.querySelector(`[data-theme-choice="${id}"]`);choice.click();
+      assert.equal(document.documentElement.dataset.theme,id);
+      assert.equal(store.get('shashki-appearance-v1'),id);
+      assert.equal(choice.getAttribute('aria-checked'),'true');
+      assert.equal(document.querySelectorAll('[data-theme-choice][aria-checked="true"]').length,1);
+    }
+    assert.equal(sounds,6);document.querySelector('[data-theme-choice="blackberry"]').click();assert.equal(sounds,6);
   }
 });
 

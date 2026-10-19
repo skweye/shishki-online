@@ -17,6 +17,7 @@
 .account-menu [aria-checked="true"] > .menu-check { visibility:visible; }
 .account-menu .submenu-back { display:none; }
 .theme-dot { width:13px; height:13px; border-radius:50%; background:var(--theme-accent); border:1px solid var(--theme-border); flex:none; }
+#appearance-menu #theme-options { max-height:50vh; max-height:min(440px,50dvh); overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
 .account-avatar { overflow:hidden; flex:none; }
 .account-avatar img,.profile-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
 .avatar-editor { display:flex; align-items:center; gap:22px; margin:20px 0 10px; }

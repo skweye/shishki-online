@@ -1,4 +1,34 @@
-/* Palettes adapted from the supplied references; PULSE uses its original fallbacks. */
+/* Shared palette tokens also colour backgrounds, game surfaces and dialogs. */
+:root[data-theme="obsidian"], [data-palette="obsidian"] {
+  --theme-bg:#101114; --theme-panel:#17191d; --theme-raised:#23262d;
+  --theme-border:#353942; --theme-strong-border:#69717f; --theme-text:#edeff4;
+  --theme-secondary:#c8cdd8; --theme-muted:#a3aab9; --theme-accent:#c3cde0;
+  --theme-on-accent:#141820; --theme-overlay:#101114;
+}
+:root[data-theme="midnight"], [data-palette="midnight"] {
+  --theme-bg:#101624; --theme-panel:#151e30; --theme-raised:#202e47;
+  --theme-border:#324362; --theme-strong-border:#5f7faa; --theme-text:#e5edff;
+  --theme-secondary:#c2d1ee; --theme-muted:#9eafcf; --theme-accent:#98bcff;
+  --theme-on-accent:#101c32; --theme-overlay:#101624;
+}
+:root[data-theme="abyss"], [data-palette="abyss"] {
+  --theme-bg:#0c1b20; --theme-panel:#11252c; --theme-raised:#1b343d;
+  --theme-border:#2c4b56; --theme-strong-border:#50818c; --theme-text:#e2f3f5;
+  --theme-secondary:#b8dce0; --theme-muted:#94b7bf; --theme-accent:#79d3dc;
+  --theme-on-accent:#10272e; --theme-overlay:#0c1b20;
+}
+:root[data-theme="evergreen"], [data-palette="evergreen"] {
+  --theme-bg:#111c18; --theme-panel:#192920; --theme-raised:#253a2f;
+  --theme-border:#365143; --theme-strong-border:#638971; --theme-text:#e7f2e9;
+  --theme-secondary:#c0d9c7; --theme-muted:#9db8a6; --theme-accent:#9ed2ae;
+  --theme-on-accent:#14291d; --theme-overlay:#111c18;
+}
+:root[data-theme="blackberry"], [data-palette="blackberry"] {
+  --theme-bg:#201522; --theme-panel:#2a1c2e; --theme-raised:#3b2941;
+  --theme-border:#52395c; --theme-strong-border:#8d6598; --theme-text:#f4e7f8;
+  --theme-secondary:#dfc4e7; --theme-muted:#bea1c8; --theme-accent:#d4a6e6;
+  --theme-on-accent:#2a1732; --theme-overlay:#201522;
+}
 :root[data-theme="mocha"], [data-palette="mocha"] {
   --theme-bg: #29211e;
   --theme-panel: #211a17;

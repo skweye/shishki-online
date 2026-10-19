@@ -42,7 +42,7 @@ test('one creation entry, controls stay by the board, and menu preserves actions
   key($('draw-button'),'ArrowDown');assert.equal(document.activeElement.id,'resign-button');
   key($('resign-button'),'Escape');assert.equal($('match-menu').hidden,true);assert.equal(document.activeElement.id,'match-menu-button');
   $('match-menu-button').click();$('flip-button').click();assert.equal($('match-menu').hidden,true);
-  $('game-screen').hidden=true;ui.update(state);assert.ok($('home-rules-slot').contains($('rules-button')));
+  $('game-screen').hidden=true;ui.update(state);assert.ok($('game-screen').contains($('rules-button')));assert.equal(document.querySelector('.site-header #rules-button'),null);
 });
 test('invitation collapses after joining, tabs retain context and unread chat includes the first message',()=>{
   const {$,ui}=setup();const state={...base(),mode:'online',room:{code:'ABC',ready:false,role:'white',chat:[]}};

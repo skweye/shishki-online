@@ -73,8 +73,6 @@ export function createMatchUI(doc=document){
     update(value){
       context=value;const visible=matchActions(value),home=$('game-screen').hidden;
       doc.body.classList.toggle('in-match',!home);
-      const rules=$('rules-button'),parent=home?$('home-rules-slot'):$('match-view-actions');
-      if(rules.parentElement!==parent){parent.append(rules);rules.className=home?'ghost-button':'menu-action';if(home)rules.removeAttribute('role');else rules.setAttribute('role','menuitem');}
       if(home)close();
       for(const [id,key] of [['draw-button','draw'],['resign-button','resign'],['flip-button','flip'],['new-button','restart'],['shot-controls','shot'],['room-controls','invite']])$(id).hidden=!visible[key];
       const pair=$('clock-white').parentElement.parentElement;
