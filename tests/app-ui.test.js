@@ -156,6 +156,16 @@ test('complete app starts every local mode with one menu and state-specific cont
         assert.equal(document.querySelector('.narde-deselect').hidden,true);
         assert.equal(document.querySelector('.narde-roll').hidden,false);
       }
+      if(name.startsWith('durak-')){
+        assert.equal($('durak-board').querySelector('[data-action]'),null,'private local hand exposes no gameplay actions');
+        $('durak-board').querySelector('[data-control="reveal"]').click();
+        assert.equal($('durak-board').querySelector('[data-action]'),null,'initial attack needs a selected card');
+        $('durak-board').querySelector('.durak-hand [data-card]:not([disabled])').click();
+        const attack=$('durak-board').querySelector('[data-action="durak-attack"]');
+        assert.ok(attack.closest('.durak-arena'));assert.equal(attack.disabled,false);
+        attack.click();assert.ok($('durak-board').querySelector('[data-table-card]'),'on-field action plays from widescreen');
+        assert.equal($('durak-board').querySelector('[data-card]'),null,'local next hand stays private');
+      }
       if(!['domino','battleship'].includes(name)){const first=$('clock-white').parentElement.parentElement.firstElementChild;await menuClick('flip-button');assert.notEqual($('clock-white').parentElement.parentElement.firstElementChild,first,name);await menuClick('flip-button');}
       if(name==='pool8')assert.equal($('pool-shoot').hidden,false);
       if(name==='russian'){

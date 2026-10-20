@@ -1,5 +1,12 @@
 // Source strings are Russian. Keep English and Ukrainian together for review.
-const rows = `Широкоэкранный режим|Widescreen mode|Широкоекранний режим
+const rows = `Действия на столе|Table actions|Дії на столі
+Подкинуть|Add a card|Підкинути
+Ждём подтверждения хода…|Waiting for move confirmation…|Чекаємо підтвердження ходу…
+Нажмите на подсвеченную карту на столе, чтобы отбить.|Select a highlighted card on the table to cover it.|Натисніть на підсвічену карту на столі, щоб відбити.
+Выберите карту для защиты или возьмите карты со стола.|Choose a card to defend or take the cards from the table.|Виберіть карту для захисту або візьміть карти зі столу.
+Можно подкинуть подходящую карту или завершить заход.|You can add a matching card or finish the bout.|Можна підкинути відповідну карту або завершити захід.
+Выберите карту в руке или перетащите её на стол.|Choose a card in your hand or drag it onto the table.|Виберіть карту в руці або перетягніть її на стіл.
+Широкоэкранный режим|Widescreen mode|Широкоекранний режим
 Обычный вид|Standard view|Звичайний вигляд
 Панели партии|Match panels|Панелі партії
 Показать панели|Show panels|Показати панелі

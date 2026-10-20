@@ -129,6 +129,8 @@ test('layout fits common screen orientations without stretching squares or canva
     assert.ok(wideBoardWidth('narde', w, h) <= w);
   }
   assert.equal(wideBoardWidth('chess', NaN, 100), 0);
+  for(const variant of ['durak-simple','durak-throw','durak-transfer','battleship','domino'])
+    for(const width of [390,1366,1920,2560,3440])assert.equal(wideBoardWidth(variant,width,800),width,'free-form tables use all available width');
   const env = setup(), { $, window, document, sounds, wide } = env;
   $('wide-toggle').click(); assert.equal($('game-screen').style.getPropertyValue('--wide-viewport-height'), '900px');
   window.visualViewport.height = 450; window.visualViewport.offsetTop = 15;

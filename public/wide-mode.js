@@ -18,7 +18,7 @@ export function wideBoardWidth(variant, width, height, portrait = false) {
   if (variant === 'pool8') return Math.min(width, Math.max(0, height - 10) * (portrait ? 660 / 1200 : 1200 / 660) + 10);
   if (variant === 'narde') return Math.min(width, Math.max(0, height - 90) * 1.17 + 40);
   if (['russian', 'russian12', 'chess', 'chapaev'].includes(variant)) return Math.min(width, height);
-  return Math.min(width, 1440);
+  return width;
 }
 
 export function createWideMode({ matchUI, sound = () => {}, doc = document, view = window }) {
