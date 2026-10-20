@@ -1,5 +1,15 @@
 import { TABLE } from './pool.js';
 export const BALL_COLORS=['#f6f1e6','#eebd32','#326ccc','#cb493d','#8155ae','#ed8739','#32836c','#923d4c','#20272d'];
+// Rendering pixels are independent from the 1200 × 660 drawing/input space.
+// Exact 20:11 multiples keep the canvas CSS aspect ratio stable on resize.
+export function poolCanvasResolution(cssWidth, portrait = false, pixelRatio = 1, economical = false) {
+  const width = portrait ? 660 : 1200, height = portrait ? 1200 : 660;
+  const displayWidth = Number.isFinite(cssWidth) && cssWidth > 0 ? cssWidth : width;
+  const density = economical ? 1 : Math.max(1, Math.min(3, Number.isFinite(pixelRatio) ? pixelRatio : 1));
+  const maxUnits = economical ? 96 : 195; // At most 8.4 MP, or 2 MP in economy mode.
+  const units = Math.min(maxUnits, Math.max(1, Math.ceil(displayWidth * density / (width / 60))));
+  return { width, height, pixelWidth: width / 60 * units, pixelHeight: height / 60 * units, scale: units / 60 };
+}
 export function shotVector(angle,power){
   const a=(Number.isFinite(angle)?angle:0)*Math.PI/180,p=Math.max(.05,Math.min(1,Number.isFinite(power)?power:.85));
   return {dx:Math.cos(a)*p,dy:Math.sin(a)*p};
@@ -44,25 +54,40 @@ export function interpolatePoolFrame(frames,seconds){
 }
 
 export function createBallPainter(){
-  const size=48,sprite=document.createElement('canvas');sprite.width=sprite.height=size;
-  const pen=sprite.getContext('2d'),pixels=pen.createImageData(size,size),surface=[];
-  for(let py=0;py<size;py++)for(let px=0;px<size;px++){
-    const x=(px+.5-size/2)/(size/2),y=(py+.5-size/2)/(size/2),d=x*x+y*y;
-    if(d<=1){const z=Math.sqrt(1-d);surface.push({index:(py*size+px)*4,x,y,z,light:.53+.46*Math.max(0,-x*.35-y*.45+z*.82),shine:Math.pow(Math.max(0,-x*.32-y*.42+z*.847),36)*75});}
+  const surfaces=new Map(),textures=new Map();
+  function surfaceFor(size){
+    if(surfaces.has(size))return surfaces.get(size);
+    const surface=[];
+    for(let py=0;py<size;py++)for(let px=0;px<size;px++){
+      const x=(px+.5-size/2)/(size/2),y=(py+.5-size/2)/(size/2),d=x*x+y*y;
+      if(d<=1){const z=Math.sqrt(1-d);surface.push({index:(py*size+px)*4,x,y,z,light:.53+.46*Math.max(0,-x*.35-y*.45+z*.82),shine:Math.pow(Math.max(0,-x*.32-y*.42+z*.847),36)*75});}
+    }
+    surfaces.set(size,surface);return surface;
   }
   const rgb=BALL_COLORS.map(hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16))),cueInk=[150,70,50];
-  return (ctx,ball,p,r,q=[0,0,0,1],flipped=false)=>{
-    const inverse=[-q[0],-q[1],-q[2],q[3]],flip=flipped?-1:1,base=rgb[ball.id>8?ball.id-8:ball.id];
-    const u=rotateVector(inverse,[flip,0,0]),v=rotateVector(inverse,[0,flip,0]),w=rotateVector(inverse,[0,0,1]);
-    for(const {index,x,y,z,light,shine} of surface){
-      const localY=x*u[1]+y*v[1]+z*w[1],localZ=x*u[2]+y*v[2]+z*w[2];
-      const patch=ball.id&&Math.abs(localZ)>.88,white=patch||ball.id>8&&Math.abs(localY)>.52;
-      const cueMark=ball.id===0&&Math.max(Math.abs(localY),Math.abs(localZ),Math.abs(x*u[0]+y*v[0]+z*w[0]))>.986;
-      const color=cueMark?cueInk:white?rgb[0]:base;
-      for(let k=0;k<3;k++)pixels.data[index+k]=Math.min(255,color[k]*light+shine);
-      pixels.data[index+3]=Math.min(255,z*1700);
+  return (ctx,ball,p,r,q=[0,0,0,1],flipped=false,pixelScale=1)=>{
+    const size=Math.ceil(Math.max(48,Math.min(192,r*2*pixelScale))/16)*16;
+    let texture=textures.get(ball.id);
+    if(!texture||texture.size!==size){
+      const sprite=document.createElement('canvas');sprite.width=sprite.height=size;
+      const pen=sprite.getContext('2d');
+      texture={size,sprite,pen,pixels:pen.createImageData(size,size),orientation:null};textures.set(ball.id,texture);
     }
-    pen.putImageData(pixels,0,0);ctx.drawImage(sprite,p.x-r,p.y-r,r*2,r*2);
+    const {sprite,pen,pixels}=texture;
+    const inverse=[-q[0],-q[1],-q[2],q[3]],flip=flipped?-1:1,base=rgb[ball.id>8?ball.id-8:ball.id];
+    if(texture.flipped!==flipped||!texture.orientation||q.some((value,index)=>value!==texture.orientation[index])){
+      const u=rotateVector(inverse,[flip,0,0]),v=rotateVector(inverse,[0,flip,0]),w=rotateVector(inverse,[0,0,1]);
+      for(const {index,x,y,z,light,shine} of surfaceFor(size)){
+        const localY=x*u[1]+y*v[1]+z*w[1],localZ=x*u[2]+y*v[2]+z*w[2];
+        const patch=ball.id&&Math.abs(localZ)>.88,white=patch||ball.id>8&&Math.abs(localY)>.52;
+        const cueMark=ball.id===0&&Math.max(Math.abs(localY),Math.abs(localZ),Math.abs(x*u[0]+y*v[0]+z*w[0]))>.986;
+        const color=cueMark?cueInk:white?rgb[0]:base;
+        for(let k=0;k<3;k++)pixels.data[index+k]=Math.min(255,color[k]*light+shine);
+        pixels.data[index+3]=Math.min(255,z*1700);
+      }
+      pen.putImageData(pixels,0,0);texture.orientation=[...q];texture.flipped=flipped;
+    }
+    ctx.drawImage(sprite,p.x-r,p.y-r,r*2,r*2);
     if(ball.id){
       for(const sign of [1,-1]){
         const normal=rotateVector(q,[0,0,sign]);if(normal[2]<.25)continue;

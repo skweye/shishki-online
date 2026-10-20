@@ -10,7 +10,6 @@ export const botActionText = preview => ({
 export function createBotPresentation({ pool, chapaev, sound, doc = document }) {
   let painted = null, heard = null, stopSound;
   function clear() {
-    doc.querySelectorAll('.bot-source,.bot-target').forEach(el => el.classList.remove('bot-source', 'bot-target'));
     if (painted) { pool.receiveAim(null); pool.receivePlacement(null); chapaev.receiveAim(null); }
     painted = null; stopSound?.(); stopSound = null;
   }
@@ -29,26 +28,6 @@ export function createBotPresentation({ pool, chapaev, sound, doc = document }) 
       heard = key;
       if (audible) stopSound = sound(['pool-shot', 'shot', 'sea-fire'].includes(p.kind) ? 'bot-aim' : 'bot-select');
     }
-    const mark = (selector, target = false) => doc.querySelector(selector)?.classList.add(target ? 'bot-target' : 'bot-source');
-    if (p.kind === 'move') {
-      const root = game.variant === 'narde' ? '#narde-board' : '#board';
-      if (Number.isInteger(p.from)) mark(`${root} [data-index="${p.from}"]`);
-      if (Number.isInteger(p.to)) mark(`${root} [data-index="${p.to}"]`, true);
-    }
-    if (p.kind === 'roll') mark('#narde-board .narde-center');
-    if (p.kind === 'fleet-ready') mark('#top-player .player-avatar');
-    if (p.kind === 'sea-fire' && Number.isInteger(p.cell)) mark(`[data-sea-own="true"][data-sea-cell="${p.cell}"]`, true);
-    if (p.kind?.startsWith('durak-')) {
-      // Lift a card back; the identity of the planned card is never exposed.
-      mark('#durak-board .durak-opponent .durak-card');
-      if (p.kind === 'durak-defend' && Number.isInteger(p.target)) mark(`#durak-board [data-target="${p.target}"]`, true);
-      else mark('#durak-board .durak-table', true);
-    }
-    if (p.kind === 'domino-play') {
-      const edges = doc.querySelectorAll('#domino-board .domino-laid.edge');
-      const edge = p.end === 'left' ? edges[0] : edges[edges.length - 1];
-      if (edge) edge.classList.add('bot-target'); else mark('#domino-board .domino-table', true);
-    } else if (p.kind?.startsWith('domino-')) mark('#top-player .player-avatar');
   }
   doc.addEventListener('visibilitychange', () => { if (doc.hidden) clear(); });
   return { update, clear };

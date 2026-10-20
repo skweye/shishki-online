@@ -49,11 +49,3 @@
 @keyframes draw-balance { 0% { opacity:0; transform:rotate(-18deg); } 50% { transform:rotate(10deg); } 100% { opacity:1; transform:none; } }
 @media(max-width:720px) { .draw-notice { align-items:stretch; flex-direction:column; gap:14px; } .draw-decisions button { flex:1; font-size:11px; padding:12px; } .result-dialog { padding:30px 22px 22px; } .result-dialog h2 { font-size:25px; } .result-art { margin-bottom:18px; } }
 @media(prefers-reduced-motion:reduce) { .result-dialog, .result-dialog * { animation:none!important; } .drag-ghost { transform:none!important; } }
-
-/* Short, non-interactive previews of the server's next bot action. */
-.bot-source { outline:2px solid var(--theme-accent); outline-offset:-3px; filter:brightness(1.16); }
-.bot-target { outline:2px dashed var(--theme-accent); outline-offset:-4px; }
-.durak-opponent .bot-source { transform:translateY(6px); transition:transform .15s ease-out; }
-.domino-laid.bot-target { outline:none; filter:drop-shadow(0 0 5px var(--theme-accent)); }
-.ambient-paused .bot-source,.ambient-paused .bot-target { transition:none; }
-@media(prefers-reduced-motion:reduce) { .durak-opponent .bot-source { transform:none; transition:none; } }

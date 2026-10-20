@@ -293,8 +293,7 @@ test('complete app starts every local mode with one menu and state-specific cont
         assert.equal(document.querySelectorAll('#board .legal-move').length,0);
         const reply=legalMoves(roomData.game)[0],beforePreview=voices.length;
         roomData.botPreview={kind:'move',role:'black',revision:roomData.game.revision,...reply,executeAt:Date.now()+180};snapshot();
-        assert.ok($('board').querySelector(`[data-index="${reply.from}"].bot-source`));
-        assert.ok($('board').querySelector(`[data-index="${reply.to}"].bot-target`));
+        assert.equal(document.querySelectorAll('.bot-source,.bot-target').length,0,'bot previews do not highlight source or target');
         assert.ok(voices.length>beforePreview,'live bot selection has sound');
         const afterPreview=voices.length;snapshot();assert.equal(voices.length,afterPreview,'repeated preview is silent');
         // Drop the move broadcast. The app must ask for the state itself.

@@ -21,7 +21,7 @@ test('watchdog requests missed state, retries an unresponsive socket and pauses 
   time+=5000;sync.check();assert.equal(requests.length,3);time+=7000;sync.check();assert.equal(requests.length,4);
 });
 
-test('previews show exact pool aim and board targets once, stay silent on restore, and clean up on hidden/finished/stale state',()=>{
+test('previews retain cue motion and sounds without highlighting cards or board targets',()=>{
   const {document,window}=parseHTML('<html><body><div id="board"><button data-index="17"></button><button data-index="26"></button></div><div id="durak-board"><div class="durak-opponent"><span class="durak-card"></span></div><div class="durak-table"><button data-target="0"></button></div></div><button data-sea-own="true" data-sea-cell="44"></button></body></html>');
   const aims=[],placements=[],shots=[],sounds=[];let stops=0;
   const p=createBotPresentation({doc:document,pool:{receiveAim:a=>aims.push(a),receivePlacement:a=>placements.push(a)},chapaev:{receiveAim:a=>shots.push(a)},sound:s=>{sounds.push(s);return()=>stops++;}});
@@ -30,11 +30,14 @@ test('previews show exact pool aim and board targets once, stay silent on restor
   p.update({...c,audible:true});p.update({...c,audible:true});assert.deepEqual(sounds,['bot-aim']);assert.equal(aims.filter(Boolean).length,1);
   c.game.revision++;p.update(c);assert.equal(aims.at(-1),null);assert.equal(stops,1);
   c.game.variant='russian';c.room.botPreview={revision:4,kind:'move',from:17,to:26,executeAt:1300};p.update({...c,audible:false});
-  assert.ok(document.querySelector('[data-index="17"]').classList.contains('bot-source'));assert.ok(document.querySelector('[data-index="26"]').classList.contains('bot-target'));
+  assert.equal(document.querySelectorAll('.bot-source,.bot-target').length,0);
   p.update({...c,audible:true});assert.equal(sounds.length,1,'restored preview stays silent');
   c.room.botPreview={revision:4,kind:'durak-defend',target:0,executeAt:1400};p.update({...c,audible:true});
-  assert.ok(document.querySelector('.durak-card').classList.contains('bot-source'));assert.equal(document.querySelector('.durak-card').textContent,'');
-  c.room.botPreview={revision:4,kind:'sea-fire',cell:44,executeAt:1500};p.update(c);assert.ok(document.querySelector('[data-sea-cell]').classList.contains('bot-target'));
+  assert.equal(document.querySelector('.durak-card').className,'durak-card');assert.equal(document.querySelector('.durak-card').textContent,'');
+  for(const kind of ['move','roll','sea-fire','fleet-ready','domino-play','domino-draw','domino-pass','domino-ready','durak-attack','durak-defend','durak-transfer','durak-take','durak-finish']){
+    c.room.botPreview={revision:4,kind,from:17,to:26,cell:44,target:0,end:'right',executeAt:1500};p.update(c);
+    assert.equal(document.querySelectorAll('.bot-source,.bot-target').length,0,kind);
+  }
   document.hidden=true;document.dispatchEvent(new window.Event('visibilitychange'));assert.equal(document.querySelectorAll('.bot-source,.bot-target').length,0);
   const count=sounds.length;p.update({...c,audible:true});assert.equal(sounds.length,count);
   document.hidden=false;c.game.winner='white';p.update(c);assert.equal(document.querySelectorAll('.bot-target').length,0);

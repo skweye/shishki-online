@@ -1,7 +1,7 @@
 import { simulatePoolSweep } from './pool-sweep.js';
 import { lowPerformance } from './performance.js';
 import { TABLE, POCKETS, pocketGeometry, simulatePool, validCuePosition } from './pool.js';
-import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter } from './pool-visuals.js';
+import { poolAim, shotVector, rollOrientation, interpolatePoolFrame, createBallPainter, poolCanvasResolution } from './pool-visuals.js';
 import { t } from './i18n.js';
 import { drawCue, validCueSkin, animatedCue } from './pool-cue.js';
 import { createCosmeticAnimation, canvasVisible, cosmeticTime } from './cosmetic-animation.js';
@@ -16,6 +16,7 @@ export function createPoolBoard({shoot,place,sound}) {
   const controlsRoot=root.querySelector('.pool-console'),fields=controlsRoot.querySelector('.pool-fields'),actions=controlsRoot.querySelector('.pool-actions');
   let state,flipped=false,playable=false,placing=false,shown=null,shotBefore=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
   let cueSkin='classic',finishInteraction=null,remote=null,remoteFrame=0,remoteTimer,remotePlacement=null;
+  let rasterScale=1;
   const orientations=new Map();
   const cueAnimation=createCosmeticAnimation(()=>draw(),()=>canvasVisible(canvas)&&animatedCue(cueSkin)&&!shown&&!finishInteraction&&
     (playable&&!placing||!playable&&remote&&!remote.placing&&validPoolAim(remote,state,remote.role)));
@@ -34,14 +35,14 @@ export function createPoolBoard({shoot,place,sound}) {
     if(finishInteraction){
       const {effect,elapsed,options}=finishInteraction;
       const side=b.id===0||b.id===8?options.winner:state.groups.white===(b.id<8?'solid':'stripe')?'white':state.groups.black===(b.id<8?'solid':'stripe')?'black':b.id<8?'white':'black';
-      const vertical=portrait(),screen=vertical?{x:660-p.y,y:p.x}:p;
-      const reaction=pieceReaction(effect,{x:screen.x/canvas.width,y:screen.y/canvas.height,side},elapsed,options);
-      const offset=vertical?{x:reaction.y*canvas.height,y:-reaction.x*canvas.width}:{x:reaction.x*canvas.width,y:reaction.y*canvas.height};
+      const vertical=portrait(),width=vertical?660:1200,height=vertical?1200:660,screen=vertical?{x:660-p.y,y:p.x}:p;
+      const reaction=pieceReaction(effect,{x:screen.x/width,y:screen.y/height,side},elapsed,options);
+      const offset=vertical?{x:reaction.y*height,y:-reaction.x*width}:{x:reaction.x*width,y:reaction.y*height};
       ctx.translate(p.x+offset.x,p.y+offset.y);ctx.rotate(reaction.rotation*Math.PI/180);ctx.scale(reaction.scale,reaction.scale);ctx.translate(-p.x,-p.y);
       ctx.globalAlpha*=reaction.opacity;ctx.filter=`brightness(${reaction.brightness}) hue-rotate(${reaction.hue}deg)`;ctx.shadowColor=reaction.color;ctx.shadowBlur=reaction.glow;
     }
     const shade=ctx.createRadialGradient(p.x+2,p.y+5,0,p.x+2,p.y+5,r*1.4);shade.addColorStop(0,'#0008');shade.addColorStop(1,'#0000');ctx.fillStyle=shade;ctx.fillRect(p.x-r*1.5,p.y-r*1.2,r*3,r*3);
-    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();paintBall(ctx,b,p,r,orientations.get(b.id)||[0,0,0,1],flipped);ctx.restore();
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.clip();paintBall(ctx,b,p,r,orientations.get(b.id)||[0,0,0,1],flipped,rasterScale);ctx.restore();
   }
   function pocket(p) {
     const center=pocketGeometry(p),q=point(center.x,center.y),r=center.radius*54;
@@ -71,10 +72,12 @@ export function createPoolBoard({shoot,place,sound}) {
     drawCue(ctx,cueSkin,gap,cosmeticTime());ctx.restore();
   }
   function draw() {
-    if(!state)return;const theme=getComputedStyle(document.documentElement),accent=theme.getPropertyValue('--theme-accent').trim()||'#cfae90';
-    const vertical=portrait(),width=vertical?660:1200,height=vertical?1200:660;
-    if(canvas.width!==width){canvas.width=width;canvas.height=height;}
-    ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,width,height);if(vertical){ctx.translate(660,0);ctx.rotate(Math.PI/2);}
+    if(!state||document.hidden)return;const theme=getComputedStyle(document.documentElement),accent=theme.getPropertyValue('--theme-accent').trim()||'#cfae90';
+    const vertical=portrait(),{pixelWidth,pixelHeight,scale}=poolCanvasResolution(canvas.getBoundingClientRect().width,vertical,window.devicePixelRatio||1,lowPerformance());
+    if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){canvas.width=pixelWidth;canvas.height=pixelHeight;}
+    rasterScale=scale;ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,pixelWidth,pixelHeight);
+    ctx.setTransform(scale,0,0,scale,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    if(vertical){ctx.translate(660,0);ctx.rotate(Math.PI/2);}
     const wood=ctx.createLinearGradient(0,0,0,660);wood.addColorStop(0,'#665144');wood.addColorStop(.5,'#362b26');wood.addColorStop(1,'#6f5440');ctx.fillStyle=wood;ctx.beginPath();ctx.roundRect(7,7,1186,646,40);ctx.fill();
     ctx.strokeStyle=accent;ctx.globalAlpha=.5;ctx.lineWidth=2;ctx.stroke();ctx.globalAlpha=1;
     const felt=ctx.createRadialGradient(520,230,60,600,330,650);felt.addColorStop(0,'#28665b');felt.addColorStop(1,'#103b36');ctx.fillStyle=felt;ctx.fillRect(44,44,1112,572);
@@ -118,7 +121,7 @@ export function createPoolBoard({shoot,place,sound}) {
   $('position').onclick=()=>position(Number($('x').value),Number($('y').value));
   function fire(){if(!playable||shown||placing)return;shoot(shotVector(angle,power));}
   $('shoot').onclick=fire;
-  const localPoint=e=>{const rect=canvas.getBoundingClientRect(),screenX=(e.clientX-rect.left)/rect.width*canvas.width,screenY=(e.clientY-rect.top)/rect.height*canvas.height,x=portrait()?screenY:screenX,y=portrait()?660-screenX:screenY;return{x:flipped?20-(x-60)/54:(x-60)/54,y:flipped?10-(y-60)/54:(y-60)/54};};
+  const localPoint=e=>{const rect=canvas.getBoundingClientRect(),vertical=portrait(),screenX=(e.clientX-rect.left)/rect.width*(vertical?660:1200),screenY=(e.clientY-rect.top)/rect.height*(vertical?1200:660),x=vertical?screenY:screenX,y=vertical?660-screenX:screenY;return{x:flipped?20-(x-60)/54:(x-60)/54,y:flipped?10-(y-60)/54:(y-60)/54};};
   const input=attachPoolInput(canvas,{
     point:localPoint,
     current:()=>({active:playable&&!shown,placing,cue:state?.balls.find(b=>b.id===0),revision:state?.revision,view:flipped}),
@@ -170,6 +173,8 @@ export function createPoolBoard({shoot,place,sound}) {
   window.addEventListener('blur',()=>input.cancel());
   matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',e=>{if(e.matches){clearRemoteAim();finish?.();}});
   window.addEventListener('resize',draw);
+  // Widescreen toggles resize the canvas without a browser window resize.
+  if(typeof ResizeObserver!=='undefined')new ResizeObserver(draw).observe(canvas);
   new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
   document.addEventListener('languagechange',()=>{canvas.setAttribute('aria-label',t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.'));controls();});
   return {presentationState(){return shotBefore;},receiveAim,receivePlacement(value){remotePlacement=value;draw();},getAim(){return{angle,power,placing};},setFinishInteraction(value){finishInteraction=value;draw();},render(next,flip,canPlay,skin){cueSkin=validCueSkin(skin);const previous=state;state=next;flipped=flip;playable=canPlay;if(previous?.revision!==next.revision){remotePlacement=null;clearRemoteAim();placing=!!next.ballInHand&&!next.balls.some(b=>b.id===0&&validCuePosition(next,b.x,b.y));if(!next.history.length)orientations.clear();}controls();draw();},animate,cancel};

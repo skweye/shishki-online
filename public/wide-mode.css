@@ -32,12 +32,19 @@
 #wide-surface>.board-frame.pool-frame{padding:4px}
 #wide-surface>.board-frame.durak-frame{width:100%;height:100%;max-width:none;padding:0;border:0;border-radius:0;overflow:hidden}
 body.wide-match[data-backdrop^="durak-"] #game-screen.is-wide{padding-bottom:max(8px,env(safe-area-inset-bottom))}
-#wide-surface #durak-board{display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"info" "opponent" "arena" "hand";width:100%;height:100%;min-height:0}
+#wide-surface #durak-board{--wide-card-size:clamp(88px,min(7vw,12vh),124px);display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;grid-template-areas:"info" "opponent" "arena" "hand";width:100%;height:100%;min-height:0}
 #wide-surface .durak-info{grid-area:info;padding:8px 16px;font-size:12px}
 #wide-surface .durak-discard-mark{width:16px;height:23px}
 #wide-surface .durak-opponent{grid-area:opponent;height:auto;min-height:0;padding:8px}
-#wide-surface .durak-opponent>.durak-card{width:30px}
-#wide-surface .durak-arena{grid-area:arena;min-height:0;grid-template-rows:minmax(min-content,1fr) auto;overflow:auto;overscroll-behavior:contain}
+#wide-surface .durak-opponent>.durak-card{width:clamp(38px,5vh,54px)}
+#wide-surface .durak-arena{grid-area:arena;min-height:0;grid-template-columns:calc(var(--wide-card-size)*2.2) minmax(0,1fr);grid-template-rows:minmax(min-content,1fr) auto;overflow:auto;overscroll-behavior:contain}
+#wide-surface .durak-hand .durak-card,#wide-surface .durak-table .durak-card{width:var(--wide-card-size)}
+#wide-surface .durak-pair{width:calc(var(--wide-card-size) + 18px);min-height:calc(var(--wide-card-size)*1.4 + 18px)}
+#wide-surface .durak-pair>.durak-card+.durak-card{left:18px;top:18px}
+#wide-surface .durak-drop-play{width:calc(var(--wide-card-size) + 20px);min-height:calc(var(--wide-card-size)*1.4)}
+#wide-surface .durak-stock{width:auto;min-height:calc(var(--wide-card-size)*1.4 + 34px)}
+#wide-surface .durak-stock>[data-trump-card]{width:var(--wide-card-size);left:calc(var(--wide-card-size)*.8);top:12px}
+#wide-surface .durak-stock>[data-deck-card]{width:calc(var(--wide-card-size)*.95)}
 #wide-surface .durak-table{min-height:0}
 #wide-surface .durak-hand-panel{grid-area:hand;min-height:0;max-height:32vh;padding:14px 150px 10px;overflow:auto;overscroll-behavior:contain}
 #wide-surface .durak-hide-hand{right:150px;top:4px}
@@ -103,7 +110,12 @@ body.wide-match[data-backdrop^="durak-"] #game-screen.is-wide{padding-bottom:max
   #wide-surface .durak-hand-panel{padding:12px 46px 52px 12px;max-height:34vh}
   #wide-surface .durak-hide-hand{right:6px}
   #wide-surface .durak-info{gap:12px;padding:6px;font-size:11px}
-  #wide-surface .durak-opponent>.durak-card{width:26px}
+  #wide-surface #durak-board{--wide-card-size:clamp(60px,14vw,76px)}
+  #wide-surface .durak-arena{grid-template-columns:96px minmax(0,1fr);gap:14px 8px}
+  #wide-surface .durak-stock{min-height:108px}
+  #wide-surface .durak-stock>[data-trump-card]{width:54px;left:38px;top:8px}
+  #wide-surface .durak-stock>[data-deck-card]{width:52px}
+  #wide-surface .durak-opponent>.durak-card{width:34px}
 }
 @media(max-height:520px) and (min-width:600px){
   .is-wide .play-area{grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"toolbar status" "players clocks" "surface surface";gap:2px 18px}
@@ -111,13 +123,12 @@ body.wide-match[data-backdrop^="durak-"] #game-screen.is-wide{padding-bottom:max
   .is-wide .match-players .player-bar{min-height:28px;padding:0}
   .is-wide .match-status p{font-size:9px}
   .is-wide .match-sidebar,.is-wide .wide-overlay{max-height:calc(100% - 120px);bottom:114px}
-  #wide-surface #durak-board{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"opponent info" "arena arena" "hand hand"}
+  #wide-surface #durak-board{--wide-card-size:clamp(52px,14vh,68px);grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"opponent info" "arena arena" "hand hand"}
   #wide-surface .durak-info{border:0;padding:4px 12px}
   #wide-surface .durak-opponent{padding:4px}
-  #wide-surface .durak-opponent>.durak-card{width:22px}
+  #wide-surface .durak-opponent>.durak-card{width:30px}
   #wide-surface .durak-hand-panel{padding:4px 140px 2px 48px;max-height:28vh}
   #wide-surface .durak-hide-hand{right:auto;left:4px;top:4px}
-  #wide-surface .durak-hand .durak-card{width:44px}
   #wide-surface .durak-arena{grid-template-columns:90px minmax(0,1fr) 150px;grid-template-rows:minmax(min-content,1fr);gap:10px;padding:8px}
   #wide-surface .durak-table-controls{grid-column:3;align-self:center}
   #wide-surface .durak-stock{width:90px;min-height:85px}
@@ -125,8 +136,6 @@ body.wide-match[data-backdrop^="durak-"] #game-screen.is-wide{padding-bottom:max
   #wide-surface .durak-stock>[data-deck-card]{width:40px}
   #wide-surface .durak-trump-label{font-size:9px;gap:4px}
   #wide-surface .durak-trump-label b{font-size:13px}
-  #wide-surface .durak-table .durak-card{width:44px}
-  #wide-surface .durak-pair{width:58px;min-height:76px}
   #wide-surface .durak-drop-play{width:80px;min-height:75px;font-size:10px;padding:8px}
   #wide-surface .durak-instruction{font-size:10px}
   #wide-surface .durak-actions .durak-table-action{font-size:11px;padding:8px 12px}

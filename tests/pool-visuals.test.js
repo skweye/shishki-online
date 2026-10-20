@@ -1,12 +1,101 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {poolAim,poolRack,poolRackMarkup,rollOrientation,rotateVector,shotVector,interpolatePoolFrame} from '../public/pool-visuals.js';
+import {poolAim,poolRack,poolRackMarkup,rollOrientation,rotateVector,shotVector,interpolatePoolFrame,poolCanvasResolution,createBallPainter} from '../public/pool-visuals.js';
 import {readFileSync} from 'node:fs';
 import {newPool,simulatePool,TABLE,applyPoolShot} from '../public/pool.js';
 import {transitionSounds} from '../public/sounds.js';
 import {angleDelta} from '../public/pool-aim.js';
 import {parseHTML} from 'linkedom';
 import {createPoolBoard} from '../public/pool-board.js';
+
+test('pool resolution scales with viewport and display density while preserving geometry and a bounded buffer',()=>{
+  for(const portrait of [false,true])for(const width of [320,640,1200,1800,2600])for(const dpr of [1,1.25,1.5,2,3]){
+    const m=poolCanvasResolution(width,portrait,dpr);
+    assert.equal(m.pixelWidth/m.pixelHeight,m.width/m.height);
+    assert.equal(m.width,portrait?660:1200);
+    assert.equal(m.height,portrait?1200:660);
+    assert.ok(m.pixelWidth*m.pixelHeight<=8_400_000);
+    const max=portrait?2145:3900;
+    assert.ok(m.pixelWidth>=Math.min(width*dpr,max));
+  }
+  assert.equal(poolCanvasResolution(1800,false,2).pixelWidth,3600,'wide Retina table is not a stretched 1200 px image');
+  assert.equal(poolCanvasResolution(1800,false,2,true).pixelWidth,1800);
+  assert.ok(poolCanvasResolution(5000,false,4,true).pixelWidth<=1920);
+  for(const width of [undefined,NaN,0,-100])assert.ok(Number.isFinite(poolCanvasResolution(width,false,NaN).scale));
+});
+
+test('higher resolution and canvas-only resizing do not change aim, placement, remote cues or finish positions',()=>{
+  const {document,window}=parseHTML('<html><body><div id="pool-board"></div></body></html>');
+  let displayWidth=1200,vertical=false,resize;
+  const transforms=[],translations=[],shots=[],places=[],arcs=[];
+  const ctx=new Proxy({
+    setTransform:(...args)=>transforms.push(args),translate:(...args)=>translations.push(args),arc:(...args)=>arcs.push(args),
+    createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),
+    createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})
+  },{get:(target,key)=>key in target?target[key]:()=>{}});
+  window.HTMLCanvasElement.prototype.getContext=()=>ctx;
+  window.HTMLCanvasElement.prototype.getBoundingClientRect=()=>({left:10,top:20,width:displayWidth,height:displayWidth*(vertical?1200/660:660/1200)});
+  window.HTMLCanvasElement.prototype.setPointerCapture=()=>{};
+  window.HTMLCanvasElement.prototype.hasPointerCapture=()=>false;
+  Object.assign(globalThis,{document,window,MutationObserver:window.MutationObserver,getComputedStyle:()=>({getPropertyValue:()=>''}),
+    ResizeObserver:class{constructor(fn){resize=fn;}observe(){}},
+    matchMedia:query=>({get matches(){return query.includes('max-width')?vertical:true;},addEventListener(){}}),
+    cancelAnimationFrame(){},requestAnimationFrame:()=>1});
+  const board=createPoolBoard({shoot:shot=>shots.push(shot),place:(x,y)=>{places.push({x,y});return true;},sound(){}}),canvas=document.getElementById('pool-canvas');
+  let game={...newPool(),breaking:false,ballInHand:null,balls:[{id:0,x:4,y:5},{id:1,x:10,y:7}]};
+  function event(type,x,y,flip=false){
+    const px=60+(flip?20-x:x)*54,py=60+(flip?10-y:y)*54;
+    const screen=vertical?{x:660-py,y:px}:{x:px,y:py};
+    const rect=canvas.getBoundingClientRect(),e=new window.Event(type,{bubbles:true,cancelable:true});
+    Object.assign(e,{pointerId:1,pointerType:'mouse',isPrimary:true,button:0,buttons:0,clientX:rect.left+screen.x/(vertical?660:1200)*rect.width,clientY:rect.top+screen.y/(vertical?1200:660)*rect.height});
+    canvas.dispatchEvent(e);
+  }
+  try{
+    for(const flipped of [false,true])for(vertical of [false,true])for(const dpr of [1,2,3]){
+      window.devicePixelRatio=dpr;displayWidth=vertical?360:1800;transforms.length=0;
+      board.render(game,flipped,true,'classic');
+      assert.equal(canvas.width,poolCanvasResolution(displayWidth,vertical,dpr).pixelWidth);
+      assert.ok(transforms.some(m=>m[0]===canvas.width/(vertical?660:1200)&&m[3]===m[0]));
+      event('pointermove',8,7,flipped);assert.ok(Math.abs(board.getAim().angle-Math.atan2(2,4)*180/Math.PI)<1e-9);
+      event('pointerdown',8,7,flipped);event('pointerup',8,7,flipped);
+      assert.ok(Math.abs(shots.at(-1).dy/shots.at(-1).dx-.5)<1e-9,'physical shot follows same line at every resolution');
+      game={...game,revision:game.revision+1,ballInHand:'any',balls:[{id:0,x:.1,y:.1},{id:1,x:10,y:7}]};
+      board.render(game,flipped,true,'classic');event('pointerdown',4,5,flipped);
+      assert.ok(Math.abs(places.at(-1).x-4)<1e-9);assert.ok(Math.abs(places.at(-1).y-5)<1e-9);
+      game={...game,revision:game.revision+1,ballInHand:null,balls:[{id:0,x:4,y:5},{id:1,x:10,y:7}]};
+      board.render(game,flipped,true,'classic');
+    }
+    vertical=false;window.devicePixelRatio=2;displayWidth=900;board.render(game,false,true,'classic');
+    const angle=board.getAim().angle;assert.equal(canvas.width,1800);
+    displayWidth=1800;resize();assert.equal(canvas.width,3600,'widescreen resize redraws without a window resize');
+    assert.equal(board.getAim().angle,angle);
+    for(vertical of [false,true]){
+      const samples=[];
+      for(const dpr of [1,2]){
+        window.devicePixelRatio=dpr;board.render(game,false,false,'classic');translations.length=0;
+        board.setFinishInteraction({effect:'comet',elapsed:1000,options:{winner:'white',loser:'black',seed:1}});
+        samples.push([...translations]);
+        board.setFinishInteraction(null);
+      }
+      assert.deepEqual(samples[0],samples[1],'finish effects use logical coordinates, not pixel-buffer dimensions');
+    }
+    const previous=canvas.width;document.hidden=true;displayWidth=2500;resize();assert.equal(canvas.width,previous,'hidden tabs do not resize/repaint');
+    document.hidden=false;
+  }finally{board.cancel();}
+});
+
+test('ball textures match screen resolution, retain rotation, and reuse stationary pixels',()=>{
+  const {document,window}=parseHTML('<html><body></body></html>');globalThis.document=document;
+  let writes=0;const draws=[];
+  window.HTMLCanvasElement.prototype.getContext=()=>({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4)}),putImageData(){writes++;}});
+  const ctx=new Proxy({drawImage:canvas=>draws.push({width:canvas.width,height:canvas.height})},{get:(target,key)=>key in target?target[key]:()=>{}});
+  const paint=createBallPainter(),q=[0,0,0,1],ball={id:9},point={x:100,y:100};
+  paint(ctx,ball,point,15,q,false,1);assert.equal(draws.at(-1).width,48);
+  paint(ctx,ball,point,15,q,false,3);assert.ok(draws.at(-1).width>=90);
+  const last=writes;paint(ctx,ball,{x:140,y:120},15,q,false,3);assert.equal(writes,last,'static textures are reused when only position changes');
+  paint(ctx,ball,point,15,rollOrientation(q,.2,.1),false,3);assert.equal(writes,last+1);
+  paint(ctx,ball,point,15,q,false,100);assert.equal(draws.at(-1).width,192);
+});
 
 test('remote cue follows table orientation and disappears on placement, stale state and disconnect',()=>{
   const {document,window}=parseHTML('<html><body><div id="pool-board"></div></body></html>');
