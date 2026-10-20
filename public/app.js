@@ -10,6 +10,7 @@ import { createMatchmaking } from './matchmaking.js';
 import { actBattleship, validateFleet } from './battleship.js';
 import { createBattleshipBoard } from './battleship-board.js';
 import { createMatchUI } from './match-ui.js';
+import { createWideMode } from './wide-mode.js';
 import { closeAccountMenu } from './account-menu.js';
 import { newGame, legalMoves, applyMove, sideOf, opposite, squareName, VARIANTS, boardSize, variantOf } from './game.js';
 import { attachBoardDrag } from './board-drag.js';
@@ -285,6 +286,7 @@ function render() {
   }
   renderResult();
   matchUI.update({mode,room,game,animating,flipped,playable:canPlay()});
+  wideMode.update({game,room});
 }
 
 function renderResult() {
@@ -379,6 +381,7 @@ const chapaevBoard = createChapaevBoard({
     }
   }
 });
+const wideMode = createWideMode({matchUI,sound:kind=>sounds.play(kind)});
 const botPresentation = createBotPresentation({ pool: poolBoard, chapaev: chapaevBoard, sound: kind => sounds.play(kind) });
 function updateBotPresentation(audible = null) {
   botPresentation.update({ game, room, active: connected && !animating && !$('game-screen').hidden, audible, now: serverTime() });
@@ -590,6 +593,7 @@ function leave() {
   const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null, '', url);
 }
 function showScreen(screen) {
+  if(screen!=='game')wideMode.exit({silent:true,restoreFocus:false});
   botPresentation.clear();
   dominoBoard.hide(); cardBoard.hide();
   nardeBoard.cancel();

@@ -14,7 +14,7 @@ export function matchActions({mode,room,game,animating,playable}){
 }
 export function createMatchUI(doc=document){
   const $=id=>doc.getElementById(id),trigger=$('match-menu-button'),menu=$('match-menu');
-  let context,tab='history',roomCode=null,lastMessage=undefined,unread=0,waiting=null;
+  let context,tab='history',roomCode=null,lastMessage=undefined,unread=0,waiting=null,sidebarVisible=true,reportedUnread=0;
   const items=()=>[...menu.querySelectorAll('button')].filter(b=>!b.hidden&&!b.disabled&&!b.closest('[hidden]'));
   function close(restore=false){menu.hidden=true;trigger.setAttribute('aria-expanded','false');if(restore)trigger.focus();}
   function open(){menu.hidden=false;trigger.setAttribute('aria-expanded','true');items()[0]?.focus();}
@@ -46,8 +46,9 @@ export function createMatchUI(doc=document){
       $(name+'-tab').setAttribute('aria-selected',String(tab===name));$(name+'-tab').tabIndex=tab===name?0:-1;
       $(name+'-panel').hidden=name!==tab;
     }
-    if(tab==='chat'){unread=0;if(wasHidden)$('chat-messages').scrollTop=$('chat-messages').scrollHeight;}
+    if(tab==='chat'&&sidebarVisible&&!doc.hidden){unread=0;if(wasHidden)$('chat-messages').scrollTop=$('chat-messages').scrollHeight;}
     $('chat-unread').hidden=!unread;$('chat-unread').textContent=String(unread);
+    if(reportedUnread!==unread){reportedUnread=unread;doc.dispatchEvent(new doc.defaultView.CustomEvent('matchchatunread',{detail:unread}));}
   }
   for(const name of ['history','chat']){
     $(name+'-tab').onclick=()=>{tab=name;tabs();};
@@ -55,7 +56,7 @@ export function createMatchUI(doc=document){
   }
   function chat(messages=[]){
     const latest=messages.at(-1)?.id;
-    if(lastMessage!==undefined&&latest!==lastMessage&&tab!=='chat'){
+    if(lastMessage!==undefined&&latest!==lastMessage&&(tab!=='chat'||!sidebarVisible||doc.hidden)){
       const index=messages.findIndex(message=>message.id===lastMessage);
       unread+=messages.slice(index+1).filter(message=>message.side!==context?.room?.role).length;
     }
@@ -68,8 +69,16 @@ export function createMatchUI(doc=document){
     $('round-action-hint').textContent=finished?t(context.game.reason==='round'?'Раунд завершён.':'Партия завершена.'):'';
   }
   $('result-dialog').addEventListener('close',result);
+  doc.addEventListener('visibilitychange',()=>{if(!$('game-screen').hidden)tabs();});
   return {
     close,chat,
+    get unread(){return unread;},
+    get selectedTab(){return tab;},
+    setSidebarVisible(visible){
+      const opening=visible&&!sidebarVisible;sidebarVisible=visible;tabs();
+      if(opening&&tab==='chat'&&!doc.hidden)$('chat-messages').scrollTop=$('chat-messages').scrollHeight;
+    },
+    selectTab(name){if(['history','chat'].includes(name)){tab=name;tabs();}},
     update(value){
       context=value;const visible=matchActions(value),home=$('game-screen').hidden;
       doc.body.classList.toggle('in-match',!home);

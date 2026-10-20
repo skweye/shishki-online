@@ -135,6 +135,12 @@ test('complete app starts every local mode with one menu and state-specific cont
       assert.equal(document.querySelectorAll('#match-menu').length,1);
       assert.equal($('shot-controls').hidden,name!=='chapaev');
       assert.equal($('flip-button').hidden,['domino','battleship'].includes(name));
+      const boardFrame=document.querySelector('.board-frame'),boardParent=boardFrame.parentElement;
+      $('wide-toggle').click();assert.equal(boardFrame.parentElement.id,'wide-surface',name);
+      assert.equal($('wide-tools').hidden,true);assert.equal($('match-sidebar').hidden,true);
+      $('wide-panels').click();$('wide-controls').click();assert.equal($('wide-tools').hidden,false);
+      assert.equal(document.querySelector('.pool-console').hidden,name!=='pool8');
+      // Leave the view expanded while exercising real game/menu handlers below.
       $('match-menu-button').click();assert.equal($('match-menu').hidden,false);
       await menuClick('rules-button');assert.equal($('rules-dialog').open,true);$('rules-dialog').close();
       if(name==='chess'){
@@ -170,6 +176,8 @@ test('complete app starts every local mode with one menu and state-specific cont
         $('result-rematch').click();assert.equal($('resign-button').disabled,false,name);assert.equal($('result-dialog').open,false,name);
       }
       await menuClick('home-button');assert.equal($('home-screen').hidden,false);
+      assert.equal(document.body.classList.contains('wide-match'),false);
+      assert.equal(boardFrame.parentElement,boardParent,name);
     }
     playMode.value='local';variant.value='chapaev';
     $('start-button').click();
@@ -188,7 +196,8 @@ test('complete app starts every local mode with one menu and state-specific cont
     roomData.lobby.phase='playing';roomData.lobby.ready=[];roomData.lobby.revision++;roomData.game=newGame('chapaev');roomData.game.revision=1;snapshot();
     assert.equal($('game-screen').hidden,false);assert.equal($('friend-screen').hidden,true);
     assert.equal($('chat-panel').closest('.match-sidebar')!==null,true);assert.equal($('shot-controls').hidden,false);
-    $('chat-tab').click();snapshot();assert.equal($('chat-panel').hidden,false,'incoming states must not switch tabs');
+    $('wide-toggle').click();$('wide-panels').click();$('wide-chat').click();
+    snapshot();assert.equal($('chat-panel').hidden,false,'incoming states must not switch tabs');
     $('history-tab').click();channel.onmessage({data:JSON.stringify({type:'chat',message:{id:'first',side:'black',name:'Friend',text:'Hello',sentAt:Date.now()}})});
     assert.equal($('chat-unread').textContent,'1');
     roomData.game.turn='black';roomData.game.revision++;snapshot();assert.equal($('shot-controls').hidden,true);
@@ -229,6 +238,10 @@ test('complete app starts every local mode with one menu and state-specific cont
     roomData.game=applyPoolShot(roomData.game,{dx:0,dy:-.2});snapshot();
     assert.equal($('status-title').textContent,'Шары в движении');assert.equal(document.querySelectorAll('.pool-rack').length,0);
     assert.equal($('move-count').textContent,'0 ударов');assert.equal($('pool-notice').textContent,'');
+    const poolCanvas=$('pool-canvas'),queuedFrames=frames.size;
+    $('wide-toggle').click();$('wide-panels').click();$('wide-controls').click();
+    assert.equal($('pool-canvas'),poolCanvas);assert.equal(frames.size,queuedFrames,'expanding a live shot must not cancel its animation');
+    assert.equal($('pool-shoot').disabled,true,'floating controls follow the running shot');
     snapshot();assert.equal(document.querySelectorAll('.pool-rack').length,0,'duplicate snapshots cannot reveal the assigned group');
     const runFrame=time=>{const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn(time));};
     runFrame(0);runFrame(60000);
@@ -250,7 +263,7 @@ test('complete app starts every local mode with one menu and state-specific cont
     assert.equal(document.querySelector('#prank-dialog,#prank-session-note,.prank-effect'),null);
     snapshot();runFrame(0);runFrame(200);assert.equal($('result-dialog').open,false);
     runFrame(60000);assert.equal($('result-dialog').open,true);assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));
-    $('result-dialog').close();await menuClick('home-button');
+    $('result-dialog').close();await menuClick('home-button');$('confirm-yes').click();
 
     // Bot entry reuses the one picker, hides human-only room actions and
     // keeps the existing resignation/rematch flow in every game.
@@ -261,6 +274,7 @@ test('complete app starts every local mode with one menu and state-specific cont
       const before=voices.length;
       await $('start-form').onsubmit({preventDefault(){}});await Promise.resolve();snapshot();
       assert.equal($('game-screen').hidden,false,name);assert.equal($('mode-badge').textContent,'ПРОТИВ БОТА');
+      $('wide-toggle').click();assert.equal($('match-sidebar').hidden,true);assert.equal($('wide-chat').hidden,true);
       assert.equal($('chat-tab').hidden,true);assert.equal($('room-controls').hidden,true);assert.equal($('room-games').hidden,true);
       assert.match($('top-player').textContent,/Бот/);assert.ok(voices.length>before,'bot launch has shared audio');
       if(name==='russian'){

@@ -13,6 +13,7 @@ export function createPoolBoard({shoot,place,sound}) {
   const root=document.getElementById('pool-board');
   root.innerHTML=`<canvas id="pool-canvas" width="1200" height="660" tabindex="0" aria-label="${t('Бильярдный стол. Мышь — прицел, колесо — сила, ЛКМ — удар. Управление с клавиатуры ниже.')}" data-no-translate></canvas><div class="pool-console"><p id="pool-notice" role="status" data-no-translate></p><div class="pool-fields"><label>${t('Направление')}<output id="pool-angle-value">0°</output><input id="pool-angle" aria-label="${t('Направление')}" type="range" min="-180" max="180" step="1" value="0"></label><label>${t('Сила')}<output id="pool-power-value">85%</output><input id="pool-power" aria-label="${t('Сила')}" type="range" min="5" max="100" step="1" value="85"></label></div><div class="pool-actions"><button id="pool-place" class="secondary-button">${t('Переставить биток')}</button><button id="pool-shoot" class="primary-button">${t('Ударить ↗')}</button></div><div id="pool-placement" hidden><p>${t('Нажмите на свободное место стола или задайте координаты.')}</p><div class="pool-placement-fields"><label>X<input id="pool-x" type="number" min="0.27" max="19.73" step="0.1" value="4.5"></label><label>Y<input id="pool-y" type="number" min="0.27" max="9.73" step="0.1" value="5"></label><button id="pool-position" class="secondary-button">${t('Поставить биток')}</button></div></div></div>`;
   const $=id=>document.getElementById('pool-'+id),canvas=$('canvas'),ctx=canvas.getContext('2d'),paintBall=createBallPainter();
+  const controlsRoot=root.querySelector('.pool-console'),fields=controlsRoot.querySelector('.pool-fields'),actions=controlsRoot.querySelector('.pool-actions');
   let state,flipped=false,playable=false,placing=false,shown=null,shotBefore=null,raf=0,finish=null,angle=0,power=.85,sinking=[];
   let cueSkin='classic',finishInteraction=null,remote=null,remoteFrame=0,remoteTimer,remotePlacement=null;
   const orientations=new Map();
@@ -100,9 +101,9 @@ export function createPoolBoard({shoot,place,sound}) {
     for(const [id,value] of [['angle',angle],['power',Math.round(power*100)]]){const input=$(id);if(document.activeElement!==input)input.value=value;input.style.setProperty('--range-fill',((Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))*100)+'%');}
   }
   function controls(){
-    if(!state)return;root.querySelectorAll('input,button').forEach(el=>el.disabled=!playable||!!shown);
-    root.querySelector('.pool-fields').hidden=!playable||!!shown||placing;
-    root.querySelector('.pool-actions').hidden=!playable||!!shown;
+    if(!state)return;controlsRoot.querySelectorAll('input,button').forEach(el=>el.disabled=!playable||!!shown);
+    fields.hidden=!playable||!!shown||placing;
+    actions.hidden=!playable||!!shown;
     $('shoot').hidden=!playable||!!shown||placing;
     $('place').textContent=t(placing?'Отменить размещение':'Переставить биток');
     $('place').hidden=!playable||!state.ballInHand;$('placement').hidden=!playable||!placing;$('shoot').disabled=!playable||!!shown||placing||!state.balls.some(b=>b.id===0);

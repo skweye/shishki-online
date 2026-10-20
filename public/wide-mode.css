@@ -1,0 +1,104 @@
+/* Immersive layout: floating panels never change the playing surface size. */
+.wide-button{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:10px 14px;border:1px solid var(--theme-border);border-radius:12px;background:var(--theme-panel);color:var(--theme-text);font:inherit;font-size:12px;cursor:pointer}
+.wide-button>span[aria-hidden]{display:flex;line-height:1}.wide-button:hover,.wide-button[aria-expanded=true]{border-color:var(--theme-accent);color:var(--theme-accent)}
+.wide-button:focus-visible{outline:2px solid var(--theme-accent);outline-offset:3px}
+.wide-expand{margin-left:auto;flex:none}.wide-icon{width:44px;padding:0;flex:none}.wide-icon .wide-label{display:none}
+.wide-match{overflow:hidden}
+.wide-match>.site-header,.wide-match>footer,.wide-match>main>footer{display:none}
+.wide-match>main{z-index:15}
+#game-screen.is-wide{position:fixed;inset:0;top:var(--wide-viewport-top,0px);bottom:auto;z-index:20;height:100vh;height:var(--wide-viewport-height,100dvh);padding:max(10px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(64px,calc(env(safe-area-inset-bottom) + 58px)) max(18px,env(safe-area-inset-left));background:var(--theme-bg);overflow:hidden}
+.is-wide .game-layout{display:block;width:100%;height:100%;max-width:none;margin:0}
+.is-wide .play-area{display:grid;width:100%;height:100%;min-height:0;grid-template-columns:minmax(0,1fr) minmax(220px,auto);grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"toolbar status" "players clocks" "surface surface";gap:8px 24px;align-content:stretch}
+.is-wide .match-toolbar{grid-area:toolbar;margin:0;gap:12px;min-width:0}
+.is-wide .match-toolbar h1{font-size:19px}.is-wide .match-toolbar small{display:none}
+.is-wide .match-toolbar .mini-board{width:30px;height:30px;font-size:20px}
+.is-wide .match-toolbar .wide-expand .wide-label{display:none}
+.is-wide .match-toolbar .wide-expand{width:44px;padding:0}
+.is-wide .match-status{grid-area:status;margin:0;min-width:0;gap:8px;align-self:center}
+.is-wide .match-status h3{font-size:13px;margin:0 0 3px}.is-wide .match-status p{font-size:10px;line-height:1.4;max-width:52ch}
+.is-wide .match-status .badge{display:none}
+.is-wide .match-players{grid-area:players;margin:0;gap:24px;min-width:0}
+.is-wide .match-players .player-bar{min-height:40px;padding:4px 0;border:0;gap:8px}
+.is-wide .match-players .player-meta{display:none}
+.is-wide .match-players .player-name{font-size:12px;flex-wrap:nowrap;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.is-wide .match-players .player-avatar{width:26px;height:26px}
+.is-wide .match-players .pool-rack{margin-top:4px;gap:4px}
+.is-wide .pool-rack-ball{width:18px;height:18px;flex-basis:18px}.is-wide .pool-rack-ball b{width:11px;height:11px;font-size:8px}
+.is-wide .match-clock{grid-area:clocks;margin:0;align-self:center}
+.is-wide .clock-pair{gap:8px}.is-wide .match-clock .clock-face{padding:5px 10px;gap:10px;border-radius:8px}
+.is-wide .match-clock .clock-face [role=timer]{font-size:21px}
+#wide-surface{grid-area:surface;display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain}
+#wide-surface>.board-frame{flex:none;box-sizing:border-box;width:var(--wide-board-width,100%);max-width:100%;max-height:100%;margin:auto;padding:20px;border:1px solid var(--theme-border);border-radius:12px;background:var(--theme-panel);box-shadow:0 12px 40px #0002;backdrop-filter:none;overflow:auto}
+#wide-surface>.board-frame.pool-frame{padding:4px}
+#wide-surface>.board-frame.durak-frame{padding:0}
+#wide-surface .narde-frame{padding:18px!important}
+#wide-surface .chapaev-canvas,#wide-surface #pool-canvas{max-width:100%}
+/* Cards, fleet deployment and domino keep their in-board actions and may scroll. */
+#wide-surface .durak-arena{min-height:clamp(180px,35vh,350px)}
+#wide-surface .domino-surface{height:clamp(160px,36vh,400px)}
+#wide-surface .sea-map{max-width:min(550px,55vh)}
+.is-wide #draw-offer-status{position:absolute;bottom:18px;left:20px;max-width:calc(100% - 180px);margin:0}
+.is-wide #round-actions{position:absolute;bottom:10px;left:20px;max-width:calc(100% - 190px);padding:0;z-index:22;gap:12px}
+.is-wide #round-actions p{font-size:11px}
+.is-wide #round-actions button{min-width:0;padding:10px 16px}
+.is-wide .match-menu{z-index:42;max-height:calc(100dvh - 90px)}
+#wide-panels{position:absolute;z-index:26;right:max(18px,env(safe-area-inset-right));bottom:max(10px,env(safe-area-inset-bottom));box-shadow:0 5px 25px #0003}
+#wide-dock{position:absolute;z-index:26;right:max(18px,env(safe-area-inset-right));bottom:max(64px,calc(env(safe-area-inset-bottom) + 54px));display:flex;gap:5px;padding:6px;border:1px solid var(--theme-border);border-radius:16px;background:var(--theme-panel);box-shadow:0 10px 40px #0005;max-width:calc(100% - 24px)}
+#wide-dock .wide-button{border-color:transparent;background:none}
+#wide-dock .wide-button[aria-expanded=true]{background:var(--theme-bg);border-color:var(--theme-border)}
+.wide-unread{display:grid;place-items:center;min-width:20px;height:20px;padding:0 4px;font-size:10px;font-weight:700;border-radius:10px;color:var(--theme-bg);background:var(--theme-accent)}
+.wide-button.has-unread{border-color:var(--theme-accent)}
+.is-wide .wide-overlay,.is-wide .match-sidebar{position:absolute;z-index:25;right:max(18px,env(safe-area-inset-right));bottom:max(128px,calc(env(safe-area-inset-bottom) + 118px));width:360px;max-width:calc(100% - 24px);max-height:calc(100% - 148px);margin:0;padding:16px;border:1px solid var(--theme-border);border-radius:18px;background:var(--theme-panel);box-shadow:0 20px 65px #0006;overflow:auto;overscroll-behavior:contain}
+.wide-panel-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:10px}
+.wide-panel-heading h2{font-size:15px}
+.is-wide .match-sidebar{display:flex;flex-direction:column;gap:12px;padding:14px}
+#wide-sidebar-close{position:absolute;right:8px;top:8px}
+.is-wide .match-tabs{margin-right:48px}
+.is-wide .match-sidebar .panel{padding:0;overflow:visible}
+.is-wide .match-sidebar .panel-heading{display:none}
+.is-wide .match-sidebar .history-list{height:clamp(100px,32vh,320px);padding:0}
+.is-wide .match-sidebar .chat-messages{height:clamp(80px,30vh,280px);min-height:60px;max-height:none}
+.is-wide .match-sidebar .chat-note{display:none}
+.is-wide .match-sidebar #chat-form{margin-top:10px}
+#wide-tools .shot-controls,#wide-tools .pool-console{margin:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;backdrop-filter:none}
+#wide-tools .room-details{margin:14px 0 0;padding-top:12px;border-top:1px solid var(--theme-border)}
+#wide-tools .room-invite-body{display:flex;flex-direction:column;align-items:stretch}
+#wide-tools .move-instructions{margin:10px 0 0}
+#wide-tools .shot-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#wide-tools .shot-fields label:first-child{grid-column:1/-1}
+#wide-tools .pool-actions{gap:8px;flex-wrap:wrap}
+#wide-tools .pool-actions button{flex:1;min-width:100px}
+#wide-tools .pool-placement-fields{grid-template-columns:1fr 1fr}
+#wide-tools .pool-placement-fields button{grid-column:1/-1}
+.wide-match .toast{z-index:50}
+@media(max-width:720px){
+  .wide-expand .wide-label{display:none}.wide-expand{width:44px;padding:0}
+  #game-screen.is-wide{padding-left:max(8px,env(safe-area-inset-left));padding-right:max(8px,env(safe-area-inset-right))}
+  .is-wide .play-area{grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto minmax(0,1fr);grid-template-areas:"toolbar toolbar" "status status" "players clocks" "surface surface";gap:4px 8px}
+  .is-wide .match-toolbar h1{font-size:17px}
+  .is-wide .match-status .status-icon{display:none}.is-wide .match-status p{max-width:none}
+  .is-wide .match-status>div{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .is-wide .match-players{gap:8px}
+  .is-wide .match-players .player-bar{gap:4px}.is-wide .match-players .player-avatar{display:none}
+  .is-wide .match-players .player-name{font-size:11px}
+  .is-wide .match-clock .clock-face>span:first-child{display:none}
+  .is-wide .match-clock .clock-face{padding:4px}.is-wide .clock-pair{gap:4px}.is-wide .match-clock .clock-face [role=timer]{font-size:17px}
+  .is-wide .match-players .piece-count{display:none}
+  .is-wide .pool-rack-ball{width:15px;height:15px;flex-basis:15px}.is-wide .match-players .pool-rack{gap:2px}
+  .is-wide #round-actions{left:8px;max-width:calc(100% - 140px)}.is-wide #round-actions p{display:none}
+  #wide-dock .wide-button{padding:9px 10px;gap:6px}
+}
+@media(max-height:520px) and (min-width:600px){
+  .is-wide .play-area{grid-template-rows:auto auto minmax(0,1fr);grid-template-areas:"toolbar status" "players clocks" "surface surface";gap:2px 18px}
+  .is-wide .match-toolbar .mini-board,.is-wide .match-status .status-icon{display:none}
+  .is-wide .match-players .player-bar{min-height:28px;padding:0}
+  .is-wide .match-status p{font-size:9px}
+  .is-wide .match-sidebar,.is-wide .wide-overlay{max-height:calc(100% - 120px);bottom:114px}
+}
+@media(prefers-reduced-motion:no-preference){
+  .is-wide .wide-overlay:not([hidden]),.is-wide .match-sidebar:not([hidden]),#wide-dock:not([hidden]){animation:wide-reveal .16s ease-out both}
+}
+@keyframes wide-reveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ambient-paused .wide-overlay,.ambient-paused .match-sidebar,.ambient-paused #wide-dock{animation-play-state:paused!important}
+/* The author display rules above must never expose a collapsed panel. */
+[hidden]#wide-surface,[hidden]#wide-tools,[hidden]#wide-dock,[hidden]#wide-panels,[hidden]#match-sidebar,.wide-button[hidden]{display:none!important}
