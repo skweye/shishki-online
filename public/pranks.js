@@ -1,7 +1,8 @@
 import { simulatePoolSweep } from './pool-sweep.js';
 import { newChess } from './chess-game.js';
 import { rollNarde } from './narde.js';
-import { chapaevLineup } from './chapaev.js';
+import { applyShot } from './chapaev.js';
+import { findChapaevPrankShot } from './chapaev-prank.js';
 import { DOMINOES } from './domino.js';
 import { actBattleship } from './battleship.js';
 export const OWNER_EMAIL='kkoallqq@gmail.com';
@@ -11,7 +12,7 @@ export const PRANKS=Object.freeze({
   russian12:{name:'Большая корона',description:'Одна ваша простая шашка становится дамкой.',symbol:'♛'},
   chess:{name:'Королевская минута',description:'Добавляет минуту к вашим часам.',symbol:'♚'},
   narde:{name:'Счастливые шестёрки',description:'Вместо следующего броска выпадает дубль 6–6.',symbol:'⚅'},
-  chapaev:{name:'Подкрепление',description:'Возвращает одну вашу выбитую шашку на свободное место в начальном ряду.',symbol:'◉'},
+  chapaev:{name:'Идеальный удар',description:'Подбирает шашку, направление и силу удара, чтобы выбить как можно больше шашек соперника.',symbol:'◉'},
   pool8:{name:'Биток на автопилоте',description:'Биток забивает только ваши шары, затем восьмёрку.',symbol:'⑧'},
   domino:{name:'Карманный базар',description:'Меняет вашу самую тяжёлую кость на самую лёгкую из базара.',symbol:'⚁'},
   battleship:{name:'Точная торпеда',description:'Автоматически поражает одну ещё не подбитую клетку корабля соперника.',symbol:'⚓'}
@@ -30,11 +31,8 @@ export function applyOwnerPrank(state,side){
     if(state.opening||state.dice.length)throw Error('Дождитесь своего следующего броска.');
     next=rollNarde(state,[6,6]);
   }else if(state.variant==='chapaev'){
-    const lineup=chapaevLineup(state.rows||{white:7,black:0});
-    const absent=lineup.find(p=>p.side===side&&!state.pieces.some(b=>b.id===p.id));
-    const slot=lineup.find(p=>p.side===side&&!state.pieces.some(b=>Math.hypot(b.x-p.x,b.y-p.y)<.7));
-    if(!absent||!slot)throw Error('Нет выбитой шашки или свободного места для подкрепления.');
-    next.pieces.push({...slot,id:absent.id});next.lastShot=null;
+    const {id,dx,dy}=findChapaevPrankShot(state);
+    next=applyShot(state,id,dx,dy);
   }else if(state.variant==='pool8'){
     const result=simulatePoolSweep(state);
     next.balls=result.balls;next.breaking=false;next.foul=null;next.ballInHand=null;next.winner=side;next.reason='eight-ball';
@@ -55,6 +53,6 @@ export function applyOwnerPrank(state,side){
   next.lastPrank={variant:state.variant,side,revision:next.revision};
   // Keep one explicit history entry; never expose the exchanged domino or hidden fleet.
   const entry={side,from:0,to:0,capture:null,round:next.round,notation:state.variant==='pool8'?'↗ · '+next.lastShot.potted.map(b=>b.id).join(','):PRANKS[state.variant].symbol};
-  next.history=[...state.history,entry];
+  if(state.variant!=='chapaev')next.history=[...state.history,entry];
   return next;
 }

@@ -273,7 +273,20 @@ test('complete app starts every local mode with one menu and state-specific cont
     assert.equal(document.querySelector('#prank-dialog,#prank-session-note,.prank-effect'),null);
     snapshot();runFrame(0);runFrame(200);assert.equal($('result-dialog').open,false);
     runFrame(60000);assert.equal($('result-dialog').open,true);assert.ok(document.querySelector('.pool-rack-ball[aria-label="1: Забит"]'));
-    $('result-dialog').close();await menuClick('home-button');$('confirm-yes').click();
+    $('result-dialog').close();
+    // Chapaev owner selection uses the same animated shot and sound lifecycle.
+    roomData.game={...newGame('chapaev'),revision:30,pieces:[{id:0,side:'white',x:4,y:4},{id:8,side:'black',x:4,y:.5}]};snapshot();
+    await menuClick('prank-button');assert.equal(JSON.parse(channel.lastMessage).type,'owner-prank');
+    const beforePrankSound=voices.length;
+    roomData.game=applyOwnerPrank(roomData.game,'white');snapshot();
+    assert.equal($('status-title').textContent,'Шашки в движении');assert.equal($('round-actions').hidden,true);assert.equal($('result-dialog').open,false);
+    assert.ok(voices.length>beforePrankSound,'the selected shot retains shared sound feedback');
+    const afterPrankSound=voices.length,shotFrames=frames.size;
+    snapshot();assert.equal(voices.length,afterPrankSound);assert.equal(frames.size,shotFrames,'duplicate state does not restart the shot');
+    runFrame(performance.now()+500);assert.ok(voices.length>afterPrankSound,'collisions have timed sound');
+    runFrame(60000);assert.equal($('result-dialog').open,true);assert.equal($('result-rematch').textContent,'Следующий раунд →');
+    $('result-dialog').close();assert.equal($('round-actions').hidden,false);
+    await menuClick('home-button');$('confirm-yes').click();
 
     // Bot entry reuses the one picker, hides human-only room actions and
     // keeps the existing resignation/rematch flow in every game.

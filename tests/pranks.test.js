@@ -9,11 +9,51 @@ import {actDomino,dominoMoves,DOMINOES} from '../public/domino.js';
 import {actBattleship,randomFleet,battleshipView} from '../public/battleship.js';
 import {createPrankEffect} from '../public/prank-effect.js';
 import {translations} from '../public/locales.js';
+import {applyShot,simulateShot} from '../public/chapaev.js';
+import {findChapaevPrankShot} from '../public/chapaev-prank.js';
+import {transitionSounds} from '../public/sounds.js';
+import {botDelay} from '../src/bot-room.js';
+
+test('Chapaev prank searches all pieces and glancing angles, knocking out more than a straight full-power shot',()=>{
+  for(const side of ['white','black']){
+    const game=newGame('chapaev');game.turn=side;
+    const original=structuredClone(game),shot=findChapaevPrankShot(game);
+    const result=applyShot(game,shot.id,shot.dx,shot.dy);
+    let direct=0;
+    for(const p of game.pieces.filter(p=>p.side===side))for(const target of game.pieces.filter(p=>p.side!==side)){
+      const x=target.x-p.x,y=target.y-p.y,d=Math.hypot(x,y);
+      direct=Math.max(direct,applyShot(game,p.id,x/d,y/d).lastShot.otherLost);
+    }
+    assert.ok(result.lastShot.otherLost>direct,'search must beat simply aiming at a piece centre');
+    assert.ok(result.lastShot.otherLost>=3);assert.equal(result.lastShot.ownLost,0);
+    assert.notEqual(shot.id,game.pieces.find(p=>p.side===side).id,'selects the shooting piece, not just a direction');
+    assert.deepEqual(game,original);
+    assert.deepEqual(findChapaevPrankShot({...game,history:[{notation:'old move'}]}),shot,'history does not affect deterministic selection');
+  }
+});
+
+test('Chapaev prank adjusts power, preserves physics, round scoring, history and the replayable impulse',()=>{
+  for(const side of ['white','black']){
+    const enemy=side==='white'?'black':'white';
+    const game={...newGame('chapaev'),turn:side,revision:7,history:[{side:enemy,notation:'previous shot'}],
+      pieces:[{id:0,side,x:4,y:4},{id:8,side:enemy,x:4,y:.5}]};
+    const next=applyOwnerPrank(game,side),{id,dx,dy}=next.lastShot;
+    const replay=simulateShot(game,id,dx,dy,true);
+    assert.ok(Math.hypot(dx,dy)<1);assert.equal(next.lastShot.ownLost,0);
+    assert.deepEqual(next.pieces,replay.game.pieces);assert.deepEqual(next.history,replay.game.history);
+    assert.deepEqual(next.score,replay.game.score);assert.equal(next.score[side],1);
+    assert.equal(next.winner,side);assert.equal(next.reason,'round');assert.equal(next.turn,enemy);
+    assert.equal(next.history.length,game.history.length+1);assert.equal(next.lastPrank.revision,8);assert.equal(next.unranked,true);
+    assert.ok(replay.frames.length>1);assert.ok(replay.collisions.length>0);
+    assert.ok(transitionSounds(game,next,side).includes('capture'));
+    assert.deepEqual(transitionSounds(next,next,side),[],'repeat snapshot is silent');
+    assert.ok(botDelay(next)>=next.lastShot.duration*1000/.8,'bot waits for shot playback');
+  }
+});
 test('each mode has a bounded, immutable prank, repeatable use and translated instructions',()=>{
   for(const variant of Object.keys(PRANKS)){
     let game=newGame(variant);
     if(variant==='narde')game.opening=false;
-    if(variant==='chapaev')game.pieces.shift();
     if(variant==='pool8')game.groups={white:'solid',black:'stripe'};
     if(variant==='domino')game=actDomino(game,{type:'domino-play',...dominoMoves(game)[0]});
     if(variant==='battleship'){game=actBattleship(game,'white',{type:'fleet-ready',fleet:randomFleet()});game=actBattleship(game,'black',{type:'fleet-ready',fleet:randomFleet()});}
@@ -23,7 +63,7 @@ assert.throws(()=>applyOwnerPrank(game,side==='white'?'black':'white'));
     if(variant.startsWith('russian'))assert.equal(next.board.filter(p=>p===2).length,1);
     if(variant==='chess')assert.equal(next.fen,game.fen);
     if(variant==='narde')assert.deepEqual(next.dice,[6,6,6,6]);
-    if(variant==='chapaev')assert.equal(next.pieces.length,16);
+    if(variant==='chapaev'){assert.ok(next.lastShot.otherLost>0);assert.equal(next.lastShot.revision,next.revision);assert.equal(next.turn,'black');}
     if(variant==='pool8'){assert.deepEqual(next.balls.map(b=>b.id).sort((a,b)=>a-b),[0,9,10,11,12,13,14,15]);assert.equal(next.winner,side);assert.equal(next.lastShot.kind,'sweep');}
     if(variant==='domino'){assert.equal(new Set([...next.hands.white,...next.hands.black,...next.stock,...next.chain.map(t=>t.id)]).size,28);const weight=g=>g.hands[side].reduce((n,id)=>n+DOMINOES[id][0]+DOMINOES[id][1],0);assert.ok(weight(next)<=weight(game));}
     if(variant==='battleship'){assert.equal(next.shots[side].length,1);assert.equal(battleshipView(next,side).fleets.black.flat().length<=1,true);}
@@ -32,7 +72,8 @@ assert.throws(()=>applyOwnerPrank(game,side==='white'?'black':'white'));
 });
 test('pranks reject mid-capture, unfinished opening/setup, spent dice and absent targets',()=>{
   assert.throws(()=>applyOwnerPrank({...newGame(),forced:42},'white'));
-  for(const variant of ['chapaev','narde','battleship','domino']){const g=newGame(variant);assert.throws(()=>applyOwnerPrank(g,g.turn));}
+  for(const variant of ['narde','battleship','domino']){const g=newGame(variant);assert.throws(()=>applyOwnerPrank(g,g.turn));}
+  for(const side of ['white','black'])assert.throws(()=>applyOwnerPrank({...newGame('chapaev'),pieces:newGame('chapaev').pieces.filter(p=>p.side===side)},'white'));
   assert.throws(()=>applyOwnerPrank({...newGame('narde'),opening:false,dice:[1]},'white'));
 });
 test('migration grants only existing verified owner and prevents admin or recreated-account grants',()=>{

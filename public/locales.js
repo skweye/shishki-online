@@ -196,8 +196,8 @@ const rows = `Действия на столе|Table actions|Дії на сто�
 Добавляет минуту к вашим часам.|Adds one minute to your clock.|Додає хвилину до вашого годинника.
 Счастливые шестёрки|Lucky sixes|Щасливі шістки
 Вместо следующего броска выпадает дубль 6–6.|Your next roll becomes double sixes.|Замість наступного кидка випадає дубль 6–6.
-Подкрепление|Reinforcements|Підкріплення
-Возвращает одну вашу выбитую шашку на свободное место в начальном ряду.|Returns one of your knocked-out pieces to a free spot in your starting row.|Повертає одну вашу вибиту шашку на вільне місце в початковому ряду.
+Идеальный удар|Perfect shot|Ідеальний удар
+Подбирает шашку, направление и силу удара, чтобы выбить как можно больше шашек соперника.|Chooses a piece, direction and power to knock out as many opposing pieces as possible.|Підбирає шашку, напрямок і силу удару, щоб вибити якомога більше шашок суперника.
 Биток на автопилоте|Cue ball on autopilot|Биток на автопілоті
 Биток забивает только ваши шары, затем восьмёрку.|The cue ball pockets only your group, then the eight ball.|Биток забиває лише ваші кулі, потім вісімку.
 Не удалось проложить путь битка. Сделайте обычный удар.|No route for the cue ball. Take a normal shot.|Не вдалося прокласти шлях битка. Зробіть звичайний удар.
@@ -210,7 +210,6 @@ const rows = `Действия на столе|Table actions|Дії на сто�
 Сначала завершите взятие.|Finish your capture first.|Спочатку завершіть взяття.
 Нет простой шашки для короны.|No regular piece to crown.|Немає простої шашки для корони.
 Дождитесь своего следующего броска.|Wait for your next roll.|Дочекайтеся свого наступного кидка.
-Нет выбитой шашки или свободного места для подкрепления.|No knocked-out piece or free reinforcement spot.|Немає вибитої шашки або вільного місця для підкріплення.
 Нужны начатая цепочка и непустой базар.|The chain must be started and the boneyard must not be empty.|Потрібні розпочатий ланцюжок і непорожній базар.
 Сначала оба игрока должны расставить корабли.|Both players must deploy their fleets first.|Спочатку обидва гравці мають розставити кораблі.
 Поиск истёк. Начните снова.|Search expired. Start again.|Пошук завершився. Почніть знову.

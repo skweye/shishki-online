@@ -5,6 +5,7 @@ import { newGame } from '../public/game.js';
 import { actBattleship, randomFleet } from '../public/battleship.js';
 import {actDurak,durakActions,DURAK_VARIANTS} from '../public/durak.js';
 import { createClock } from '../public/time-control.js';
+import {applyShot} from '../public/chapaev.js';
 import {createLobby,friendAction} from '../src/friend-room.js';
 
 import { isFinishTransition } from '../public/rocket.js';
@@ -348,5 +349,15 @@ test('owner pranks validate server identity, reject forged admins, preserve cloc
   room.room.game.winner='white';room.room.game.reason='resign';await room.save();assert.equal(resultWrites,0);assert.equal(room.room.resultRecorded,undefined);
   room.room.game=newGame('chess');room.room.clock=createClock('chess',Date.now());
   t.mock.timers.tick(100);await send();assert.equal(room.room.clock.white,360000);assert.equal(room.room.game.board.filter(p=>p!==0).length,32);
+  room.room.game={...newGame('chapaev'),pieces:[{id:0,side:'white',x:4,y:4},{id:8,side:'black',x:4,y:.5}]};room.room.clock=null;
+  const beforeShot=structuredClone(room.room.game);
+  t.mock.timers.tick(100);await send();
+  const afterShot=room.room.game,{id,dx,dy}=afterShot.lastShot;
+  assert.deepEqual(afterShot.pieces,applyShot(beforeShot,id,dx,dy).pieces,'server applies the selected physical impulse');
+  assert.equal(afterShot.winner,'white');assert.equal(afterShot.score.white,1);assert.equal(afterShot.history.length,1);
+  assert.deepEqual(values.get('room').game,afterShot);assert.equal(resultWrites,0,'prank rounds grant no rewards');
+  const restored=await roomWith(values.get('room'),env);assert.deepEqual(restored.room.snapshot('black').game.lastShot,afterShot.lastShot);
+  t.mock.timers.tick(100);await room.webSocketMessage(ws,JSON.stringify({type:'owner-prank',revision:0}));
+  assert.deepEqual(room.room.game,afterShot,'stale commands cannot replay the shot');
   revoked=true;t.mock.timers.tick(100);await send();assert.equal(ws.closeCode,4003);
 });
